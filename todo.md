@@ -116,3 +116,14 @@
 - [x] Corregir errores de sintaxis en INSTALAR.bat
 
 - [x] Corregir error de PostCSS en postcss.config.mjs
+
+- [x] Crear postcss.config.mjs vacío para evitar errores
+
+
+## Nueva Funcionalidad: Frecuencia Diaria de Actividades
+
+- [x] Agregar campo "Veces al día" en formulario de actividades
+- [x] Calcular tiempo total = duración × frecuencia diaria
+- [x] Mostrar tiempo total calculado en la interfaz
+- [x] Actualizar cálculos de porcentajes con tiempo total
+- [x] Actualizar gráficos para reflejar tiempos totales

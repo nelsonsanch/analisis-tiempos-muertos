@@ -64,6 +64,7 @@ interface Activity {
   id: string;
   name: string;
   timeMinutes: number;
+  frequency: number; // Veces al día que se realiza la actividad
   type: "productive" | "support" | "dead_time";
   cause?: string;
 }
@@ -137,6 +138,7 @@ export default function Home() {
   const [newActivity, setNewActivity] = useState({
     name: "",
     timeMinutes: 0,
+    frequency: 1,
     type: "productive" as Activity["type"],
     cause: "",
   });
@@ -202,22 +204,23 @@ export default function Home() {
 
   // Cálculos automáticos
   const calculateTotals = (data: InterviewData) => {
+    // Calcular tiempo total = duración × frecuencia
     const totalActivities = data.activities.reduce(
-      (acc, activity) => acc + activity.timeMinutes,
+      (acc, activity) => acc + (activity.timeMinutes * activity.frequency),
       0
     );
 
     const productiveTime = data.activities
       .filter((a) => a.type === "productive")
-      .reduce((acc, a) => acc + a.timeMinutes, 0);
+      .reduce((acc, a) => acc + (a.timeMinutes * a.frequency), 0);
 
     const supportTime = data.activities
       .filter((a) => a.type === "support")
-      .reduce((acc, a) => acc + a.timeMinutes, 0);
+      .reduce((acc, a) => acc + (a.timeMinutes * a.frequency), 0);
 
     const deadTime = data.activities
       .filter((a) => a.type === "dead_time")
-      .reduce((acc, a) => acc + a.timeMinutes, 0);
+      .reduce((acc, a) => acc + (a.timeMinutes * a.frequency), 0);
 
     const availableTime = data.workdayMinutes - data.fixedBreaksMinutes;
     const unassignedTime = availableTime - totalActivities;
@@ -245,6 +248,7 @@ export default function Home() {
       id: Date.now().toString(),
       name: newActivity.name,
       timeMinutes: newActivity.timeMinutes,
+      frequency: newActivity.frequency,
       type: newActivity.type,
       cause: newActivity.type === "dead_time" ? newActivity.cause : undefined,
     };
@@ -254,7 +258,7 @@ export default function Home() {
       activities: [...interviewData.activities, activity],
     });
 
-    setNewActivity({ name: "", timeMinutes: 0, type: "productive", cause: "" });
+    setNewActivity({ name: "", timeMinutes: 0, frequency: 1, type: "productive", cause: "" });
   };
 
   const removeActivity = (id: string) => {
@@ -445,7 +449,7 @@ export default function Home() {
 
   const barChartData = interviewData.activities.map((activity) => ({
     name: activity.name.length > 20 ? activity.name.substring(0, 20) + "..." : activity.name,
-    minutos: activity.timeMinutes,
+    minutos: activity.timeMinutes * activity.frequency,
     tipo: ACTIVITY_TYPES[activity.type].label,
     fill: COLORS[activity.type],
   }));
@@ -850,7 +854,7 @@ export default function Home() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
                     <div className="space-y-2 md:col-span-2">
                       <Label htmlFor="activityName">Nombre</Label>
                       <Input
@@ -873,6 +877,22 @@ export default function Home() {
                           })
                         }
                         placeholder="30"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="activityFrequency">Veces al día</Label>
+                      <Input
+                        id="activityFrequency"
+                        type="number"
+                        min="1"
+                        value={newActivity.frequency || ""}
+                        onChange={(e) =>
+                          setNewActivity({
+                            ...newActivity,
+                            frequency: parseInt(e.target.value) || 1,
+                          })
+                        }
+                        placeholder="1"
                       />
                     </div>
                     <div className="space-y-2">
@@ -952,7 +972,12 @@ export default function Home() {
                               )}
                             </div>
                             <div className="text-right">
-                              <p className="font-semibold">{activity.timeMinutes} min</p>
+                              <p className="text-sm text-slate-600">
+                                {activity.timeMinutes} min × {activity.frequency} {activity.frequency === 1 ? 'vez' : 'veces'}
+                              </p>
+                              <p className="font-semibold text-blue-600">
+                                = {activity.timeMinutes * activity.frequency} min/día
+                              </p>
                             </div>
                           </div>
                           <Button
