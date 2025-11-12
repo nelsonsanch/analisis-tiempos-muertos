@@ -27,3 +27,15 @@
 - [ ] Crear checkpoint
 - [ ] Desplegar permanentemente
 - [ ] Verificar funcionamiento
+
+
+## Nuevas Funcionalidades Solicitadas
+
+- [x] Sistema de gestión de múltiples áreas
+- [x] Guardar mapa de procesos por cada área
+- [x] Vista de lista de todas las áreas creadas
+- [x] Gráficos comparativos entre áreas
+- [x] Visualización de mapa de procesos por área
+- [x] Editar áreas existentes
+- [x] Eliminar áreas
+- [x] Exportar comparativa de todas las áreas
