@@ -166,6 +166,7 @@ export default function Home() {
       competencies: new Set(),
     };
 
+    // Incluir items de todas las áreas guardadas
     savedAreas.forEach((area) => {
       if (area.turtleProcess) {
         Object.keys(items).forEach((key) => {
@@ -177,6 +178,16 @@ export default function Home() {
       }
     });
 
+    // Incluir items del área actual (para que aparezcan al editar)
+    if (interviewData.turtleProcess) {
+      Object.keys(items).forEach((key) => {
+        const field = key as keyof TurtleProcess;
+        interviewData.turtleProcess![field].forEach((item) => {
+          items[field].add(item);
+        });
+      });
+    }
+
     // Convertir Sets a Arrays ordenados
     return {
       inputs: Array.from(items.inputs).sort(),
@@ -186,7 +197,7 @@ export default function Home() {
       indicators: Array.from(items.indicators).sort(),
       competencies: Array.from(items.competencies).sort(),
     };
-  }, [savedAreas]);
+  }, [savedAreas, interviewData.turtleProcess]);
 
   // Cálculos automáticos
   const calculateTotals = (data: InterviewData) => {
@@ -930,11 +941,10 @@ export default function Home() {
                           </CardHeader>
                           <CardContent className="space-y-3">
                             {/* Selector de items existentes */}
-                            {availableItems.length > 0 && (
-                              <div className="space-y-2">
-                                <Label className="text-xs text-slate-600">
-                                  Seleccionar de la lista global:
-                                </Label>
+                            <div className="space-y-2">
+                              <Label className="text-xs text-slate-600">
+                                Seleccionar de la lista global {availableItems.length > 0 && `(${availableItems.length} disponibles)`}:
+                              </Label>
                                 <Popover open={openCombobox && currentTurtleField === fieldKey} onOpenChange={(open) => {
                                   setOpenCombobox(open);
                                   if (open) setCurrentTurtleField(fieldKey);
@@ -982,8 +992,12 @@ export default function Home() {
                                     </Command>
                                   </PopoverContent>
                                 </Popover>
+                                {availableItems.length === 0 && (
+                                  <p className="text-xs text-slate-400 italic">
+                                    No hay items creados aún. Crea el primero abajo.
+                                  </p>
+                                )}
                               </div>
-                            )}
 
                             {/* Input para crear nuevo */}
                             <div className="space-y-2">

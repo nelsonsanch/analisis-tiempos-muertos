@@ -63,3 +63,10 @@
 - [x] Opción de crear nuevo item o seleccionar existente
 - [x] Evitar duplicados y errores de escritura
 - [x] Detección exacta de interacciones
+
+
+## Bugs a Corregir
+
+- [x] Selector de lista global no muestra opciones precargadas
+- [x] Verificar que globalTurtleItems se actualice correctamente
+- [x] Asegurar que el Popover muestre los items disponibles
