@@ -89,3 +89,10 @@
 - [x] Detectar automáticamente clientes (Customers) por área
 - [x] Mostrar tabla profesional con todas las columnas SIPOC
 - [x] Agregar exportación de matriz SIPOC a JSON/CSV
+
+
+## Recuperar Informe de Indicadores
+
+- [x] Restaurar sección de explicación de indicadores en pestaña Resumen
+- [x] Agregar descripciones detalladas de cada tipo de tiempo
+- [x] Incluir interpretación de porcentajes y recomendaciones

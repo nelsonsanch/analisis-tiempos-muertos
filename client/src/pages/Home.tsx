@@ -1250,10 +1250,177 @@ export default function Home() {
                 </Card>
               </div>
 
+              {/* Sección de Explicación de Indicadores */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Informe: Entendiendo los Indicadores</CardTitle>
+                  <CardDescription>
+                    Guía para interpretar los resultados del análisis de tiempos
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-6">
+                    {/* Tiempo Productivo */}
+                    <div className="border-l-4 border-green-500 pl-4 py-3 bg-green-50 rounded-r-lg">
+                      <h4 className="font-bold text-green-900 text-lg mb-2">
+                        🟢 Tiempo Productivo ({totals.productivePercentage.toFixed(1)}%)
+                      </h4>
+                      <p className="text-slate-700 mb-3">
+                        <strong>Definición:</strong> Es el tiempo dedicado directamente a actividades que generan valor 
+                        para el producto o servicio final. Son las tareas principales del área que contribuyen 
+                        directamente a los objetivos de la organización.
+                      </p>
+                      <p className="text-slate-700 mb-3">
+                        <strong>Ejemplos:</strong> Producción de unidades, atención a clientes, desarrollo de productos, 
+                        procesamiento de pedidos, análisis de datos críticos.
+                      </p>
+                      <div className="bg-white p-3 rounded border border-green-200 mt-3">
+                        <p className="text-sm font-semibold text-green-900 mb-2">Interpretación:</p>
+                        {totals.productivePercentage >= 70 && (
+                          <p className="text-sm text-slate-700">
+                            ✅ <strong>Excelente:</strong> El área mantiene un alto nivel de productividad. 
+                            Continuar monitoreando para mantener este estándar.
+                          </p>
+                        )}
+                        {totals.productivePercentage >= 50 && totals.productivePercentage < 70 && (
+                          <p className="text-sm text-slate-700">
+                            ⚠️ <strong>Aceptable:</strong> Hay espacio para mejorar. Identifique oportunidades 
+                            para reducir tiempos de soporte o muertos.
+                          </p>
+                        )}
+                        {totals.productivePercentage < 50 && (
+                          <p className="text-sm text-slate-700">
+                            🔴 <strong>Crítico:</strong> Menos de la mitad del tiempo es productivo. 
+                            Se requiere acción inmediata para identificar y eliminar desperdicios.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Tiempo de Soporte */}
+                    <div className="border-l-4 border-blue-500 pl-4 py-3 bg-blue-50 rounded-r-lg">
+                      <h4 className="font-bold text-blue-900 text-lg mb-2">
+                        🔵 Tiempo de Soporte ({totals.supportPercentage.toFixed(1)}%)
+                      </h4>
+                      <p className="text-slate-700 mb-3">
+                        <strong>Definición:</strong> Actividades necesarias para que el trabajo productivo pueda realizarse, 
+                        pero que no generan valor directo al producto/servicio. Son tareas de apoyo indispensables 
+                        para el funcionamiento del área.
+                      </p>
+                      <p className="text-slate-700 mb-3">
+                        <strong>Ejemplos:</strong> Reuniones de coordinación, preparación de herramientas, limpieza y orden, 
+                        capacitaciones, mantenimiento preventivo, revisión de correos operativos.
+                      </p>
+                      <div className="bg-white p-3 rounded border border-blue-200 mt-3">
+                        <p className="text-sm font-semibold text-blue-900 mb-2">Interpretación:</p>
+                        {totals.supportPercentage <= 20 && (
+                          <p className="text-sm text-slate-700">
+                            ✅ <strong>Óptimo:</strong> El tiempo de soporte está bien controlado y no afecta 
+                            significativamente la productividad.
+                          </p>
+                        )}
+                        {totals.supportPercentage > 20 && totals.supportPercentage <= 35 && (
+                          <p className="text-sm text-slate-700">
+                            ⚠️ <strong>Moderado:</strong> Revisar si algunas actividades de soporte pueden optimizarse 
+                            o automatizarse para reducir su impacto.
+                          </p>
+                        )}
+                        {totals.supportPercentage > 35 && (
+                          <p className="text-sm text-slate-700">
+                            🔴 <strong>Alto:</strong> El tiempo de soporte está consumiendo demasiados recursos. 
+                            Evaluar qué actividades pueden eliminarse, simplificarse o delegarse.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Tiempo Muerto */}
+                    <div className="border-l-4 border-red-500 pl-4 py-3 bg-red-50 rounded-r-lg">
+                      <h4 className="font-bold text-red-900 text-lg mb-2">
+                        🔴 Tiempo Muerto ({totals.deadTimePercentage.toFixed(1)}%)
+                      </h4>
+                      <p className="text-slate-700 mb-3">
+                        <strong>Definición:</strong> Tiempo en el que no se realiza ninguna actividad productiva ni de soporte. 
+                        Representa desperdicio puro que debe ser eliminado o minimizado al máximo. Es el principal 
+                        objetivo de mejora en cualquier análisis de tiempos.
+                      </p>
+                      <p className="text-slate-700 mb-3">
+                        <strong>Ejemplos:</strong> Esperas por materiales, fallas de equipos, falta de instrucciones, 
+                        ausencias de personal clave, sistemas caídos, reprocesos por errores, interrupciones innecesarias.
+                      </p>
+                      <div className="bg-white p-3 rounded border border-red-200 mt-3">
+                        <p className="text-sm font-semibold text-red-900 mb-2">Interpretación:</p>
+                        {totals.deadTimePercentage === 0 && (
+                          <p className="text-sm text-slate-700">
+                            🎉 <strong>Perfecto:</strong> No se detectaron tiempos muertos. Mantener las buenas prácticas 
+                            y procesos actuales.
+                          </p>
+                        )}
+                        {totals.deadTimePercentage > 0 && totals.deadTimePercentage <= 10 && (
+                          <p className="text-sm text-slate-700">
+                            ✅ <strong>Bajo:</strong> Nivel aceptable de tiempos muertos. Continuar trabajando en su reducción 
+                            mediante mejora continua.
+                          </p>
+                        )}
+                        {totals.deadTimePercentage > 10 && totals.deadTimePercentage <= 25 && (
+                          <p className="text-sm text-slate-700">
+                            ⚠️ <strong>Moderado:</strong> Hay oportunidades significativas de mejora. Priorizar las causas 
+                            raíz más frecuentes o de mayor impacto.
+                          </p>
+                        )}
+                        {totals.deadTimePercentage > 25 && (
+                          <p className="text-sm text-slate-700">
+                            🔴 <strong>Crítico:</strong> Más de un cuarto del tiempo se pierde. Se requiere un plan 
+                            de acción urgente para atacar las causas raíz identificadas.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Recomendaciones Generales */}
+                    <div className="border-l-4 border-slate-500 pl-4 py-3 bg-slate-50 rounded-r-lg">
+                      <h4 className="font-bold text-slate-900 text-lg mb-2">
+                        💡 Recomendaciones Generales
+                      </h4>
+                      <ul className="space-y-2 text-slate-700">
+                        <li className="flex items-start gap-2">
+                          <span className="text-blue-500 mt-1">•</span>
+                          <span>
+                            <strong>Priorizar:</strong> Enfocarse primero en eliminar tiempos muertos, luego optimizar 
+                            tiempos de soporte, y finalmente maximizar tiempos productivos.
+                          </span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-blue-500 mt-1">•</span>
+                          <span>
+                            <strong>Medir regularmente:</strong> Realizar este análisis de forma periódica (mensual o trimestral) 
+                            para identificar tendencias y medir el impacto de las mejoras implementadas.
+                          </span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-blue-500 mt-1">•</span>
+                          <span>
+                            <strong>Involucrar al equipo:</strong> Compartir estos resultados con el personal del área y 
+                            trabajar en conjunto para identificar soluciones prácticas.
+                          </span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-blue-500 mt-1">•</span>
+                          <span>
+                            <strong>Documentar acciones:</strong> Crear un plan de acción con responsables y fechas para 
+                            cada oportunidad de mejora identificada.
+                          </span>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
               {interviewData.activities.filter((a) => a.type === "dead_time").length > 0 && (
                 <Card>
                   <CardHeader>
-                    <CardTitle>Causas Raíz</CardTitle>
+                    <CardTitle>Causas Raíz de Tiempos Muertos</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
