@@ -96,3 +96,19 @@
 - [x] Restaurar sección de explicación de indicadores en pestaña Resumen
 - [x] Agregar descripciones detalladas de cada tipo de tiempo
 - [x] Incluir interpretación de porcentajes y recomendaciones
+
+
+## Documentación
+
+- [x] Crear guía de instalación local completa
+- [x] Incluir instrucciones de persistencia de datos
+- [x] Crear manual de usuario con metodología empresarial
+- [x] Explicar cómo identificar cada elemento Tortuga en la práctica
+- [x] Explicar cómo clasificar actividades (productiva, soporte, tiempo muerto)
+
+- [x] Corregir instrucciones de terminal en macOS en guía de instalación
+
+- [x] Crear script de instalación para Windows
+- [x] Crear script de instalación para macOS
+- [x] Crear script de instalación para Linux
+- [x] Crear script de lanzamiento con icono en escritorio

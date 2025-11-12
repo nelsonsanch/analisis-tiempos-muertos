@@ -1,0 +1,94 @@
+═══════════════════════════════════════════════════════════════════
+  ANÁLISIS DE TIEMPOS MUERTOS - INSTRUCCIONES DE INSTALACIÓN
+═══════════════════════════════════════════════════════════════════
+
+¡Bienvenido! Esta aplicación te ayudará a analizar y optimizar los
+tiempos muertos en tu empresa.
+
+═══════════════════════════════════════════════════════════════════
+  INSTALACIÓN RÁPIDA (UN SOLO CLIC)
+═══════════════════════════════════════════════════════════════════
+
+1. WINDOWS:
+   - Haz doble clic en: INSTALAR.bat
+   - Espera a que termine la instalación
+   - Se creará un icono en tu escritorio
+
+2. macOS:
+   - Haz doble clic en: INSTALAR.command
+   - Si aparece un mensaje de seguridad, haz clic derecho → Abrir
+   - Espera a que termine la instalación
+   - Se creará un icono en tu escritorio
+
+3. LINUX:
+   - Haz doble clic en: INSTALAR.sh
+   - O desde terminal: ./INSTALAR.sh
+   - Espera a que termine la instalación
+   - Se creará un icono en tu escritorio
+
+═══════════════════════════════════════════════════════════════════
+  USAR LA APLICACIÓN
+═══════════════════════════════════════════════════════════════════
+
+Después de instalar:
+
+1. Haz doble clic en el icono "Analisis de Tiempos" en tu escritorio
+
+2. La aplicación se abrirá automáticamente en tu navegador en:
+   http://localhost:3000
+
+3. Para cerrar la aplicación, simplemente cierra la ventana de terminal
+
+═══════════════════════════════════════════════════════════════════
+  REQUISITOS PREVIOS
+═══════════════════════════════════════════════════════════════════
+
+IMPORTANTE: Debes tener instalado:
+  ✓ Node.js (versión 20 o superior)
+  ✓ pnpm (gestor de paquetes)
+
+Si no los tienes instalados, consulta la GUIA_INSTALACION_LOCAL.md
+
+═══════════════════════════════════════════════════════════════════
+  ARCHIVOS IMPORTANTES
+═══════════════════════════════════════════════════════════════════
+
+INSTALAR.bat / .command / .sh
+  → Instalador automático (ejecutar una sola vez)
+
+INICIAR_APP.bat / .command / .sh
+  → Lanzador de la aplicación (usar después de instalar)
+
+GUIA_INSTALACION_LOCAL.md
+  → Guía completa de instalación manual
+
+MANUAL_USUARIO_METODOLOGIA.md
+  → Manual de uso y metodología empresarial (70+ páginas)
+
+═══════════════════════════════════════════════════════════════════
+  SOLUCIÓN DE PROBLEMAS
+═══════════════════════════════════════════════════════════════════
+
+❌ Error: "pnpm no se reconoce"
+   → Instala pnpm: npm install -g pnpm
+
+❌ Error: "node no se reconoce"
+   → Instala Node.js desde: https://nodejs.org
+
+❌ El navegador no se abre automáticamente
+   → Abre manualmente: http://localhost:3000
+
+❌ Puerto 3000 ocupado
+   → La aplicación usará automáticamente otro puerto (3001, 3002, etc.)
+
+═══════════════════════════════════════════════════════════════════
+  SOPORTE
+═══════════════════════════════════════════════════════════════════
+
+Para más información, consulta:
+  - GUIA_INSTALACION_LOCAL.md (instalación detallada)
+  - MANUAL_USUARIO_METODOLOGIA.md (cómo usar la aplicación)
+
+═══════════════════════════════════════════════════════════════════
+
+¡Disfruta optimizando los procesos de tu empresa!
