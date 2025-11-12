@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +23,9 @@ import {
   ArrowLeft,
   Network,
   ArrowRight,
-  CheckCircle2
+  CheckCircle2,
+  Check,
+  ChevronsUpDown
 } from "lucide-react";
 import {
   BarChart,
@@ -42,8 +44,20 @@ import {
   PolarAngleAxis,
   PolarRadiusAxis,
   Radar,
-  Sankey,
 } from "recharts";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 // Tipos de datos
 interface Activity {
@@ -55,12 +69,12 @@ interface Activity {
 }
 
 interface TurtleProcess {
-  inputs: string[];      // ¿Qué necesito?
-  outputs: string[];     // ¿Qué produzco?
-  resources: string[];   // ¿Con qué?
-  methods: string[];     // ¿Cómo lo hago?
-  indicators: string[];  // ¿Cómo mido?
-  competencies: string[]; // ¿Quién lo hace?
+  inputs: string[];
+  outputs: string[];
+  resources: string[];
+  methods: string[];
+  indicators: string[];
+  competencies: string[];
 }
 
 interface InterviewData {
@@ -130,6 +144,8 @@ export default function Home() {
   // Estados para Tortuga
   const [newTurtleItem, setNewTurtleItem] = useState("");
   const [currentTurtleField, setCurrentTurtleField] = useState<keyof TurtleProcess | null>(null);
+  const [openCombobox, setOpenCombobox] = useState(false);
+  const [selectedFromList, setSelectedFromList] = useState("");
 
   // Cargar áreas guardadas
   useEffect(() => {
@@ -138,6 +154,39 @@ export default function Home() {
       setSavedAreas(JSON.parse(stored));
     }
   }, []);
+
+  // Generar lista global de items únicos por campo
+  const globalTurtleItems = useMemo(() => {
+    const items: Record<keyof TurtleProcess, Set<string>> = {
+      inputs: new Set(),
+      outputs: new Set(),
+      resources: new Set(),
+      methods: new Set(),
+      indicators: new Set(),
+      competencies: new Set(),
+    };
+
+    savedAreas.forEach((area) => {
+      if (area.turtleProcess) {
+        Object.keys(items).forEach((key) => {
+          const field = key as keyof TurtleProcess;
+          area.turtleProcess![field].forEach((item) => {
+            items[field].add(item);
+          });
+        });
+      }
+    });
+
+    // Convertir Sets a Arrays ordenados
+    return {
+      inputs: Array.from(items.inputs).sort(),
+      outputs: Array.from(items.outputs).sort(),
+      resources: Array.from(items.resources).sort(),
+      methods: Array.from(items.methods).sort(),
+      indicators: Array.from(items.indicators).sort(),
+      competencies: Array.from(items.competencies).sort(),
+    };
+  }, [savedAreas]);
 
   // Cálculos automáticos
   const calculateTotals = (data: InterviewData) => {
@@ -204,22 +253,31 @@ export default function Home() {
   };
 
   // Funciones de Tortuga
-  const addTurtleItem = (field: keyof TurtleProcess) => {
-    if (!newTurtleItem.trim()) return;
+  const addTurtleItem = (field: keyof TurtleProcess, value?: string) => {
+    const itemToAdd = value || newTurtleItem.trim();
+    if (!itemToAdd) return;
     
     const turtle = interviewData.turtleProcess || {
       inputs: [], outputs: [], resources: [], methods: [], indicators: [], competencies: []
     };
 
+    // Evitar duplicados en la misma área
+    if (turtle[field].includes(itemToAdd)) {
+      alert("Este item ya existe en esta área");
+      return;
+    }
+
     setInterviewData({
       ...interviewData,
       turtleProcess: {
         ...turtle,
-        [field]: [...turtle[field], newTurtleItem.trim()],
+        [field]: [...turtle[field], itemToAdd],
       },
     });
     
     setNewTurtleItem("");
+    setSelectedFromList("");
+    setOpenCombobox(false);
   };
 
   const removeTurtleItem = (field: keyof TurtleProcess, index: number) => {
@@ -336,7 +394,7 @@ export default function Home() {
     link.click();
   };
 
-  // Detectar interacciones entre áreas
+  // Detectar interacciones entre áreas (coincidencia exacta)
   const detectInteractions = () => {
     const interactions: Array<{source: string, target: string, items: string[]}> = [];
     
@@ -346,11 +404,9 @@ export default function Home() {
       savedAreas.forEach((targetArea) => {
         if (sourceArea.id === targetArea.id || !targetArea.turtleProcess) return;
         
+        // Buscar coincidencias exactas entre salidas de origen y entradas de destino
         const matchingItems = sourceArea.turtleProcess!.outputs.filter((output) =>
-          targetArea.turtleProcess!.inputs.some((input) =>
-            input.toLowerCase().includes(output.toLowerCase()) ||
-            output.toLowerCase().includes(input.toLowerCase())
-          )
+          targetArea.turtleProcess!.inputs.includes(output)
         );
         
         if (matchingItems.length > 0) {
@@ -852,77 +908,142 @@ export default function Home() {
                 <CardHeader>
                   <CardTitle>🐢 Metodología de la Tortuga</CardTitle>
                   <CardDescription>
-                    Define el proceso completo del área según la metodología Tortuga
+                    Define el proceso completo del área. Usa la lista global para garantizar conexiones exactas entre áreas.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {TURTLE_FIELDS.map((field) => (
-                      <Card key={field.key} className="border-2">
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-base flex items-center gap-2">
-                            <span className="text-2xl">{field.icon}</span>
-                            {field.label}
-                          </CardTitle>
-                          <CardDescription className="text-sm font-medium text-blue-600">
-                            {field.question}
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          <div className="flex gap-2">
-                            <Input
-                              value={currentTurtleField === field.key ? newTurtleItem : ""}
-                              onChange={(e) => {
-                                setCurrentTurtleField(field.key as keyof TurtleProcess);
-                                setNewTurtleItem(e.target.value);
-                              }}
-                              placeholder={`Agregar ${field.label.toLowerCase()}...`}
-                              onKeyPress={(e) => {
-                                if (e.key === "Enter") {
-                                  addTurtleItem(field.key as keyof TurtleProcess);
-                                }
-                              }}
-                            />
-                            <Button
-                              onClick={() => addTurtleItem(field.key as keyof TurtleProcess)}
-                              size="icon"
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          </div>
-                          
-                          <div className="space-y-2">
-                            {interviewData.turtleProcess?.[field.key as keyof TurtleProcess]?.map(
-                              (item, index) => (
-                                <div
-                                  key={index}
-                                  className="flex items-center justify-between p-2 bg-slate-50 rounded border"
-                                >
-                                  <span className="text-sm flex-1">{item}</span>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6"
-                                    onClick={() =>
-                                      removeTurtleItem(field.key as keyof TurtleProcess, index)
+                    {TURTLE_FIELDS.map((field) => {
+                      const fieldKey = field.key as keyof TurtleProcess;
+                      const availableItems = globalTurtleItems[fieldKey];
+                      
+                      return (
+                        <Card key={field.key} className="border-2">
+                          <CardHeader className="pb-3">
+                            <CardTitle className="text-base flex items-center gap-2">
+                              <span className="text-2xl">{field.icon}</span>
+                              {field.label}
+                            </CardTitle>
+                            <CardDescription className="text-sm font-medium text-blue-600">
+                              {field.question}
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            {/* Selector de items existentes */}
+                            {availableItems.length > 0 && (
+                              <div className="space-y-2">
+                                <Label className="text-xs text-slate-600">
+                                  Seleccionar de la lista global:
+                                </Label>
+                                <Popover open={openCombobox && currentTurtleField === fieldKey} onOpenChange={(open) => {
+                                  setOpenCombobox(open);
+                                  if (open) setCurrentTurtleField(fieldKey);
+                                }}>
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      role="combobox"
+                                      className="w-full justify-between"
+                                      onClick={() => setCurrentTurtleField(fieldKey)}
+                                    >
+                                      {selectedFromList && currentTurtleField === fieldKey
+                                        ? selectedFromList
+                                        : "Seleccionar item existente..."}
+                                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-full p-0">
+                                    <Command>
+                                      <CommandInput placeholder="Buscar..." />
+                                      <CommandList>
+                                        <CommandEmpty>No se encontraron resultados</CommandEmpty>
+                                        <CommandGroup>
+                                          {availableItems.map((item) => (
+                                            <CommandItem
+                                              key={item}
+                                              value={item}
+                                              onSelect={(value) => {
+                                                setSelectedFromList(value);
+                                                addTurtleItem(fieldKey, value);
+                                              }}
+                                            >
+                                              <Check
+                                                className={`mr-2 h-4 w-4 ${
+                                                  interviewData.turtleProcess?.[fieldKey]?.includes(item)
+                                                    ? "opacity-100"
+                                                    : "opacity-0"
+                                                }`}
+                                              />
+                                              {item}
+                                            </CommandItem>
+                                          ))}
+                                        </CommandGroup>
+                                      </CommandList>
+                                    </Command>
+                                  </PopoverContent>
+                                </Popover>
+                              </div>
+                            )}
+
+                            {/* Input para crear nuevo */}
+                            <div className="space-y-2">
+                              <Label className="text-xs text-slate-600">
+                                O crear nuevo:
+                              </Label>
+                              <div className="flex gap-2">
+                                <Input
+                                  value={currentTurtleField === fieldKey ? newTurtleItem : ""}
+                                  onChange={(e) => {
+                                    setCurrentTurtleField(fieldKey);
+                                    setNewTurtleItem(e.target.value);
+                                  }}
+                                  placeholder={`Nuevo ${field.label.toLowerCase()}...`}
+                                  onKeyPress={(e) => {
+                                    if (e.key === "Enter") {
+                                      addTurtleItem(fieldKey);
                                     }
+                                  }}
+                                />
+                                <Button
+                                  onClick={() => addTurtleItem(fieldKey)}
+                                  size="icon"
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                            
+                            {/* Lista de items agregados */}
+                            <div className="space-y-2">
+                              {interviewData.turtleProcess?.[fieldKey]?.map(
+                                (item, index) => (
+                                  <div
+                                    key={index}
+                                    className="flex items-center justify-between p-2 bg-slate-50 rounded border"
                                   >
-                                    <Trash2 className="h-3 w-3 text-red-500" />
-                                  </Button>
-                                </div>
-                              )
-                            )}
-                            {(!interviewData.turtleProcess?.[field.key as keyof TurtleProcess] ||
-                              interviewData.turtleProcess[field.key as keyof TurtleProcess]
-                                .length === 0) && (
-                              <p className="text-sm text-slate-400 text-center py-4">
-                                No hay items agregados
-                              </p>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                                    <span className="text-sm flex-1">{item}</span>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6"
+                                      onClick={() => removeTurtleItem(fieldKey, index)}
+                                    >
+                                      <Trash2 className="h-3 w-3 text-red-500" />
+                                    </Button>
+                                  </div>
+                                )
+                              )}
+                              {(!interviewData.turtleProcess?.[fieldKey] ||
+                                interviewData.turtleProcess[fieldKey].length === 0) && (
+                                <p className="text-sm text-slate-400 text-center py-4">
+                                  No hay items agregados
+                                </p>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
@@ -1194,7 +1315,7 @@ export default function Home() {
               <CardHeader>
                 <CardTitle>Mapa de Interacciones entre Áreas</CardTitle>
                 <CardDescription>
-                  Visualización de flujos basados en la metodología Tortuga
+                  Visualización de flujos basados en coincidencias exactas (Entradas ↔ Salidas)
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -1259,8 +1380,10 @@ export default function Home() {
                       No se detectaron interacciones
                     </h3>
                     <p className="text-slate-600 mb-4">
-                      Asegúrate de completar la metodología Tortuga (Entradas y Salidas) en cada
-                      área para visualizar las interacciones
+                      Para que aparezcan conexiones, las <strong>SALIDAS</strong> de un área deben coincidir <strong>exactamente</strong> con las <strong>ENTRADAS</strong> de otra.
+                    </p>
+                    <p className="text-sm text-slate-500">
+                      💡 Usa el selector de la lista global en la pestaña Tortuga para garantizar nombres idénticos.
                     </p>
                   </div>
                 )}

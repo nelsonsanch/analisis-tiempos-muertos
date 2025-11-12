@@ -54,3 +54,12 @@
 - [x] Visualización gráfica de flujos entre procesos
 - [x] Identificación automática de dependencias
 - [x] Exportar diagrama de Tortuga completo
+
+
+## Mejoras Sistema Tortuga
+
+- [x] Lista global de entradas/salidas reutilizables
+- [x] Selector desplegable con items existentes
+- [x] Opción de crear nuevo item o seleccionar existente
+- [x] Evitar duplicados y errores de escritura
+- [x] Detección exacta de interacciones
