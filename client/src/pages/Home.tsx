@@ -20,7 +20,10 @@ import {
   List,
   Edit,
   TrendingUp,
-  ArrowLeft
+  ArrowLeft,
+  Network,
+  ArrowRight,
+  CheckCircle2
 } from "lucide-react";
 import {
   BarChart,
@@ -39,6 +42,7 @@ import {
   PolarAngleAxis,
   PolarRadiusAxis,
   Radar,
+  Sankey,
 } from "recharts";
 
 // Tipos de datos
@@ -48,6 +52,15 @@ interface Activity {
   timeMinutes: number;
   type: "productive" | "support" | "dead_time";
   cause?: string;
+}
+
+interface TurtleProcess {
+  inputs: string[];      // ¿Qué necesito?
+  outputs: string[];     // ¿Qué produzco?
+  resources: string[];   // ¿Con qué?
+  methods: string[];     // ¿Cómo lo hago?
+  indicators: string[];  // ¿Cómo mido?
+  competencies: string[]; // ¿Quién lo hace?
 }
 
 interface InterviewData {
@@ -60,6 +73,7 @@ interface InterviewData {
   activities: Activity[];
   observations: string;
   savedAt?: string;
+  turtleProcess?: TurtleProcess;
 }
 
 const COLORS = {
@@ -74,8 +88,17 @@ const ACTIVITY_TYPES = {
   dead_time: { label: "Tiempo Muerto", color: "bg-red-500" },
 };
 
+const TURTLE_FIELDS = [
+  { key: "inputs", label: "Entradas", question: "¿Qué necesito?", icon: "📥" },
+  { key: "outputs", label: "Salidas", question: "¿Qué produzco?", icon: "📤" },
+  { key: "resources", label: "Recursos", question: "¿Con qué?", icon: "🔧" },
+  { key: "methods", label: "Métodos", question: "¿Cómo lo hago?", icon: "📋" },
+  { key: "indicators", label: "Indicadores", question: "¿Cómo mido?", icon: "📊" },
+  { key: "competencies", label: "Competencias", question: "¿Quién lo hace?", icon: "👥" },
+];
+
 export default function Home() {
-  const [view, setView] = useState<"list" | "form" | "compare">("list");
+  const [view, setView] = useState<"list" | "form" | "compare" | "process-map">("list");
   const [savedAreas, setSavedAreas] = useState<InterviewData[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   
@@ -87,6 +110,14 @@ export default function Home() {
     fixedBreaksMinutes: 60,
     activities: [],
     observations: "",
+    turtleProcess: {
+      inputs: [],
+      outputs: [],
+      resources: [],
+      methods: [],
+      indicators: [],
+      competencies: [],
+    },
   });
 
   const [newActivity, setNewActivity] = useState({
@@ -96,7 +127,11 @@ export default function Home() {
     cause: "",
   });
 
-  // Cargar áreas guardadas al iniciar
+  // Estados para Tortuga
+  const [newTurtleItem, setNewTurtleItem] = useState("");
+  const [currentTurtleField, setCurrentTurtleField] = useState<keyof TurtleProcess | null>(null);
+
+  // Cargar áreas guardadas
   useEffect(() => {
     const stored = localStorage.getItem("timeAnalysisInterviews");
     if (stored) {
@@ -141,11 +176,9 @@ export default function Home() {
 
   const totals = calculateTotals(interviewData);
 
-  // Agregar actividad
+  // Funciones de Actividades
   const addActivity = () => {
-    if (!newActivity.name || newActivity.timeMinutes <= 0) {
-      return;
-    }
+    if (!newActivity.name || newActivity.timeMinutes <= 0) return;
 
     const activity: Activity = {
       id: Date.now().toString(),
@@ -160,15 +193,9 @@ export default function Home() {
       activities: [...interviewData.activities, activity],
     });
 
-    setNewActivity({
-      name: "",
-      timeMinutes: 0,
-      type: "productive",
-      cause: "",
-    });
+    setNewActivity({ name: "", timeMinutes: 0, type: "productive", cause: "" });
   };
 
-  // Eliminar actividad
   const removeActivity = (id: string) => {
     setInterviewData({
       ...interviewData,
@@ -176,7 +203,37 @@ export default function Home() {
     });
   };
 
-  // Guardar área
+  // Funciones de Tortuga
+  const addTurtleItem = (field: keyof TurtleProcess) => {
+    if (!newTurtleItem.trim()) return;
+    
+    const turtle = interviewData.turtleProcess || {
+      inputs: [], outputs: [], resources: [], methods: [], indicators: [], competencies: []
+    };
+
+    setInterviewData({
+      ...interviewData,
+      turtleProcess: {
+        ...turtle,
+        [field]: [...turtle[field], newTurtleItem.trim()],
+      },
+    });
+    
+    setNewTurtleItem("");
+  };
+
+  const removeTurtleItem = (field: keyof TurtleProcess, index: number) => {
+    const turtle = interviewData.turtleProcess!;
+    setInterviewData({
+      ...interviewData,
+      turtleProcess: {
+        ...turtle,
+        [field]: turtle[field].filter((_, i) => i !== index),
+      },
+    });
+  };
+
+  // Funciones de Área
   const saveArea = () => {
     if (!interviewData.areaName) {
       alert("Por favor ingresa el nombre del área");
@@ -202,7 +259,6 @@ export default function Home() {
     setSavedAreas(updatedAreas);
     alert("Área guardada exitosamente");
     
-    // Resetear formulario
     setInterviewData({
       areaName: "",
       managerName: "",
@@ -211,19 +267,25 @@ export default function Home() {
       fixedBreaksMinutes: 60,
       activities: [],
       observations: "",
+      turtleProcess: {
+        inputs: [], outputs: [], resources: [], methods: [], indicators: [], competencies: []
+      },
     });
     setEditingId(null);
     setView("list");
   };
 
-  // Editar área
   const editArea = (area: InterviewData) => {
-    setInterviewData(area);
+    setInterviewData({
+      ...area,
+      turtleProcess: area.turtleProcess || {
+        inputs: [], outputs: [], resources: [], methods: [], indicators: [], competencies: []
+      }
+    });
     setEditingId(area.id || null);
     setView("form");
   };
 
-  // Eliminar área
   const deleteArea = (id: string) => {
     if (confirm("¿Estás seguro de eliminar esta área?")) {
       const updatedAreas = savedAreas.filter((area) => area.id !== id);
@@ -232,7 +294,6 @@ export default function Home() {
     }
   };
 
-  // Nueva área
   const newArea = () => {
     setInterviewData({
       areaName: "",
@@ -242,12 +303,14 @@ export default function Home() {
       fixedBreaksMinutes: 60,
       activities: [],
       observations: "",
+      turtleProcess: {
+        inputs: [], outputs: [], resources: [], methods: [], indicators: [], competencies: []
+      },
     });
     setEditingId(null);
     setView("form");
   };
 
-  // Exportar área individual
   const exportArea = (area: InterviewData) => {
     const totals = calculateTotals(area);
     const dataStr = JSON.stringify({ ...area, totals }, null, 2);
@@ -259,7 +322,6 @@ export default function Home() {
     link.click();
   };
 
-  // Exportar comparativa
   const exportComparative = () => {
     const comparative = savedAreas.map((area) => ({
       ...area,
@@ -273,6 +335,38 @@ export default function Home() {
     link.download = `comparativa-areas-${new Date().toISOString().split("T")[0]}.json`;
     link.click();
   };
+
+  // Detectar interacciones entre áreas
+  const detectInteractions = () => {
+    const interactions: Array<{source: string, target: string, items: string[]}> = [];
+    
+    savedAreas.forEach((sourceArea) => {
+      if (!sourceArea.turtleProcess) return;
+      
+      savedAreas.forEach((targetArea) => {
+        if (sourceArea.id === targetArea.id || !targetArea.turtleProcess) return;
+        
+        const matchingItems = sourceArea.turtleProcess!.outputs.filter((output) =>
+          targetArea.turtleProcess!.inputs.some((input) =>
+            input.toLowerCase().includes(output.toLowerCase()) ||
+            output.toLowerCase().includes(input.toLowerCase())
+          )
+        );
+        
+        if (matchingItems.length > 0) {
+          interactions.push({
+            source: sourceArea.areaName,
+            target: targetArea.areaName,
+            items: matchingItems,
+          });
+        }
+      });
+    });
+    
+    return interactions;
+  };
+
+  const interactions = detectInteractions();
 
   // Datos para gráficos
   const pieChartData = [
@@ -288,7 +382,6 @@ export default function Home() {
     fill: COLORS[activity.type],
   }));
 
-  // Datos para comparativa entre áreas
   const comparativeData = savedAreas.map((area) => {
     const totals = calculateTotals(area);
     return {
@@ -324,7 +417,7 @@ export default function Home() {
                   Análisis de Tiempos Muertos
                 </h1>
                 <p className="text-slate-600 mt-1">
-                  Gestión de áreas y mapas de procesos
+                  Gestión de áreas y mapas de procesos - Metodología Tortuga
                 </p>
               </div>
             </div>
@@ -341,9 +434,13 @@ export default function Home() {
                         <TrendingUp className="mr-2 h-4 w-4" />
                         Comparar
                       </Button>
+                      <Button onClick={() => setView("process-map")} variant="outline" size="lg">
+                        <Network className="mr-2 h-4 w-4" />
+                        Mapa de Procesos
+                      </Button>
                       <Button onClick={exportComparative} variant="outline" size="lg">
                         <Download className="mr-2 h-4 w-4" />
-                        Exportar Todo
+                        Exportar
                       </Button>
                     </>
                   )}
@@ -361,7 +458,7 @@ export default function Home() {
                   </Button>
                 </>
               )}
-              {view === "compare" && (
+              {(view === "compare" || view === "process-map") && (
                 <Button onClick={() => setView("list")} variant="outline" size="lg">
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Volver
@@ -402,12 +499,22 @@ export default function Home() {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {savedAreas.map((area) => {
                       const areaTotals = calculateTotals(area);
+                      const hasTurtle = area.turtleProcess && 
+                        Object.values(area.turtleProcess).some(arr => arr.length > 0);
+                      
                       return (
                         <Card key={area.id} className="hover:shadow-lg transition-shadow">
                           <CardHeader className="pb-3">
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
-                                <CardTitle className="text-lg">{area.areaName}</CardTitle>
+                                <div className="flex items-center gap-2">
+                                  <CardTitle className="text-lg">{area.areaName}</CardTitle>
+                                  {hasTurtle && (
+                                    <Badge variant="outline" className="text-xs">
+                                      🐢 Tortuga
+                                    </Badge>
+                                  )}
+                                </div>
                                 <CardDescription className="mt-1">
                                   {area.managerName} • {area.date}
                                 </CardDescription>
@@ -480,10 +587,13 @@ export default function Home() {
         {/* Vista: Formulario de Área */}
         {view === "form" && (
           <Tabs defaultValue="interview" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3 max-w-md mx-auto">
+            <TabsList className="grid w-full grid-cols-4 max-w-2xl mx-auto">
               <TabsTrigger value="interview">
                 <FileText className="mr-2 h-4 w-4" />
                 Entrevista
+              </TabsTrigger>
+              <TabsTrigger value="turtle">
+                🐢 Tortuga
               </TabsTrigger>
               <TabsTrigger value="charts">
                 <PieChart className="mr-2 h-4 w-4" />
@@ -572,7 +682,7 @@ export default function Home() {
                         }
                       />
                       <p className="text-sm text-slate-600">
-                        {(interviewData.fixedBreaksMinutes / 60).toFixed(1)} horas (almuerzo, pausas)
+                        {(interviewData.fixedBreaksMinutes / 60).toFixed(1)} horas
                       </p>
                     </div>
                   </div>
@@ -592,15 +702,15 @@ export default function Home() {
               {/* Agregar Actividades */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Mapa de Procesos - Registrar Actividades</CardTitle>
+                  <CardTitle>Registrar Actividades</CardTitle>
                   <CardDescription>
-                    Construye el mapa de procesos del área registrando cada actividad
+                    Registra las actividades del área
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="activityName">Nombre de la Actividad</Label>
+                      <Label htmlFor="activityName">Nombre</Label>
                       <Input
                         id="activityName"
                         value={newActivity.name}
@@ -652,12 +762,12 @@ export default function Home() {
 
                   {newActivity.type === "dead_time" && (
                     <div className="space-y-2">
-                      <Label htmlFor="activityCause">Causa Raíz del Tiempo Muerto</Label>
+                      <Label htmlFor="activityCause">Causa Raíz</Label>
                       <Textarea
                         id="activityCause"
                         value={newActivity.cause}
                         onChange={(e) => setNewActivity({ ...newActivity, cause: e.target.value })}
-                        placeholder="Describe la causa principal..."
+                        placeholder="Describe la causa..."
                         rows={2}
                       />
                     </div>
@@ -667,16 +777,7 @@ export default function Home() {
                     <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
                       <AlertCircle className="h-5 w-5 text-red-600" />
                       <span className="text-sm text-red-600 font-medium">
-                        Advertencia: Exceso de {Math.abs(totals.unassignedTime)} minutos
-                      </span>
-                    </div>
-                  )}
-
-                  {totals.unassignedTime > 0 && interviewData.activities.length > 0 && (
-                    <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <AlertCircle className="h-5 w-5 text-blue-600" />
-                      <span className="text-sm text-blue-600 font-medium">
-                        Tiempo sin asignar: {totals.unassignedTime} min
+                        Exceso de {Math.abs(totals.unassignedTime)} minutos
                       </span>
                     </div>
                   )}
@@ -687,7 +788,7 @@ export default function Home() {
               {interviewData.activities.length > 0 && (
                 <Card>
                   <CardHeader>
-                    <CardTitle>Actividades Registradas ({interviewData.activities.length})</CardTitle>
+                    <CardTitle>Actividades ({interviewData.activities.length})</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
@@ -730,7 +831,7 @@ export default function Home() {
               {/* Observaciones */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Observaciones Generales</CardTitle>
+                  <CardTitle>Observaciones</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <Textarea
@@ -738,9 +839,91 @@ export default function Home() {
                     onChange={(e) =>
                       setInterviewData({ ...interviewData, observations: e.target.value })
                     }
-                    placeholder="Notas adicionales, hallazgos importantes..."
+                    placeholder="Notas adicionales..."
                     rows={4}
                   />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Tab: Metodología Tortuga */}
+            <TabsContent value="turtle" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>🐢 Metodología de la Tortuga</CardTitle>
+                  <CardDescription>
+                    Define el proceso completo del área según la metodología Tortuga
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {TURTLE_FIELDS.map((field) => (
+                      <Card key={field.key} className="border-2">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <span className="text-2xl">{field.icon}</span>
+                            {field.label}
+                          </CardTitle>
+                          <CardDescription className="text-sm font-medium text-blue-600">
+                            {field.question}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="flex gap-2">
+                            <Input
+                              value={currentTurtleField === field.key ? newTurtleItem : ""}
+                              onChange={(e) => {
+                                setCurrentTurtleField(field.key as keyof TurtleProcess);
+                                setNewTurtleItem(e.target.value);
+                              }}
+                              placeholder={`Agregar ${field.label.toLowerCase()}...`}
+                              onKeyPress={(e) => {
+                                if (e.key === "Enter") {
+                                  addTurtleItem(field.key as keyof TurtleProcess);
+                                }
+                              }}
+                            />
+                            <Button
+                              onClick={() => addTurtleItem(field.key as keyof TurtleProcess)}
+                              size="icon"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            {interviewData.turtleProcess?.[field.key as keyof TurtleProcess]?.map(
+                              (item, index) => (
+                                <div
+                                  key={index}
+                                  className="flex items-center justify-between p-2 bg-slate-50 rounded border"
+                                >
+                                  <span className="text-sm flex-1">{item}</span>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    onClick={() =>
+                                      removeTurtleItem(field.key as keyof TurtleProcess, index)
+                                    }
+                                  >
+                                    <Trash2 className="h-3 w-3 text-red-500" />
+                                  </Button>
+                                </div>
+                              )
+                            )}
+                            {(!interviewData.turtleProcess?.[field.key as keyof TurtleProcess] ||
+                              interviewData.turtleProcess[field.key as keyof TurtleProcess]
+                                .length === 0) && (
+                              <p className="text-sm text-slate-400 text-center py-4">
+                                No hay items agregados
+                              </p>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -860,7 +1043,7 @@ export default function Home() {
               {interviewData.activities.filter((a) => a.type === "dead_time").length > 0 && (
                 <Card>
                   <CardHeader>
-                    <CardTitle>Causas Raíz de Tiempos Muertos</CardTitle>
+                    <CardTitle>Causas Raíz</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
@@ -887,21 +1070,20 @@ export default function Home() {
           </Tabs>
         )}
 
-        {/* Vista: Comparativa entre Áreas */}
+        {/* Vista: Comparativa */}
         {view === "compare" && savedAreas.length > 0 && (
           <div className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Comparativa entre Áreas</CardTitle>
                 <CardDescription>
-                  Análisis comparativo de {savedAreas.length} áreas registradas
+                  Análisis de {savedAreas.length} áreas
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Gráfico de Barras Comparativo */}
                   <div>
-                    <h3 className="font-semibold mb-4">Distribución por Área (%)</h3>
+                    <h3 className="font-semibold mb-4">Distribución (%)</h3>
                     <ResponsiveContainer width="100%" height={400}>
                       <BarChart data={comparativeData}>
                         <CartesianGrid strokeDasharray="3 3" />
@@ -916,7 +1098,6 @@ export default function Home() {
                     </ResponsiveContainer>
                   </div>
 
-                  {/* Gráfico Radar */}
                   <div>
                     <h3 className="font-semibold mb-4">Vista Radar</h3>
                     <ResponsiveContainer width="100%" height={400}>
@@ -946,10 +1127,9 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            {/* Tabla Comparativa */}
             <Card>
               <CardHeader>
-                <CardTitle>Tabla Comparativa Detallada</CardTitle>
+                <CardTitle>Tabla Comparativa</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
@@ -960,13 +1140,16 @@ export default function Home() {
                         <th className="text-left p-3">Jefe</th>
                         <th className="text-right p-3">Productivo</th>
                         <th className="text-right p-3">Soporte</th>
-                        <th className="text-right p-3">Tiempo Muerto</th>
-                        <th className="text-right p-3">Actividades</th>
+                        <th className="text-right p-3">Muerto</th>
+                        <th className="text-center p-3">Tortuga</th>
                       </tr>
                     </thead>
                     <tbody>
                       {savedAreas.map((area) => {
                         const totals = calculateTotals(area);
+                        const hasTurtle = area.turtleProcess && 
+                          Object.values(area.turtleProcess).some(arr => arr.length > 0);
+                        
                         return (
                           <tr key={area.id} className="border-b hover:bg-slate-50">
                             <td className="p-3 font-medium">{area.areaName}</td>
@@ -986,8 +1169,12 @@ export default function Home() {
                                 {totals.deadTimePercentage.toFixed(1)}%
                               </span>
                             </td>
-                            <td className="p-3 text-right text-slate-600">
-                              {area.activities.length}
+                            <td className="p-3 text-center">
+                              {hasTurtle ? (
+                                <CheckCircle2 className="h-5 w-5 text-green-600 mx-auto" />
+                              ) : (
+                                <span className="text-slate-300">-</span>
+                              )}
                             </td>
                           </tr>
                         );
@@ -997,6 +1184,127 @@ export default function Home() {
                 </div>
               </CardContent>
             </Card>
+          </div>
+        )}
+
+        {/* Vista: Mapa de Procesos */}
+        {view === "process-map" && savedAreas.length > 0 && (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Mapa de Interacciones entre Áreas</CardTitle>
+                <CardDescription>
+                  Visualización de flujos basados en la metodología Tortuga
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {interactions.length > 0 ? (
+                  <div className="space-y-4">
+                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <p className="text-sm font-medium text-green-800">
+                        ✅ Se detectaron {interactions.length} interacciones entre áreas
+                      </p>
+                    </div>
+                    
+                    {interactions.map((interaction, index) => (
+                      <Card key={index} className="border-2 border-blue-200">
+                        <CardContent className="pt-6">
+                          <div className="flex items-center gap-4">
+                            <div className="flex-1 text-right">
+                              <p className="font-bold text-lg text-blue-600">
+                                {interaction.source}
+                              </p>
+                              <p className="text-sm text-slate-600">Salida</p>
+                            </div>
+                            
+                            <div className="flex flex-col items-center gap-2">
+                              <ArrowRight className="h-8 w-8 text-green-600" />
+                              <div className="bg-green-100 px-3 py-1 rounded-full">
+                                <p className="text-xs font-medium text-green-800">
+                                  {interaction.items.length} flujo(s)
+                                </p>
+                              </div>
+                            </div>
+                            
+                            <div className="flex-1">
+                              <p className="font-bold text-lg text-purple-600">
+                                {interaction.target}
+                              </p>
+                              <p className="text-sm text-slate-600">Entrada</p>
+                            </div>
+                          </div>
+                          
+                          <Separator className="my-4" />
+                          
+                          <div className="space-y-2">
+                            <p className="text-sm font-semibold text-slate-700">
+                              Elementos transferidos:
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {interaction.items.map((item, idx) => (
+                                <Badge key={idx} variant="outline" className="text-xs">
+                                  {item}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <Network className="h-16 w-16 text-slate-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-slate-900 mb-2">
+                      No se detectaron interacciones
+                    </h3>
+                    <p className="text-slate-600 mb-4">
+                      Asegúrate de completar la metodología Tortuga (Entradas y Salidas) en cada
+                      área para visualizar las interacciones
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Resumen de Procesos */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {savedAreas.map((area) => {
+                const hasTurtle = area.turtleProcess && 
+                  Object.values(area.turtleProcess).some(arr => arr.length > 0);
+                
+                if (!hasTurtle) return null;
+                
+                return (
+                  <Card key={area.id}>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">{area.areaName}</CardTitle>
+                      <CardDescription>Proceso Tortuga</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-sm">
+                      <div>
+                        <p className="font-semibold text-slate-700">📥 Entradas:</p>
+                        <p className="text-slate-600">
+                          {area.turtleProcess?.inputs.length || 0} items
+                        </p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-700">📤 Salidas:</p>
+                        <p className="text-slate-600">
+                          {area.turtleProcess?.outputs.length || 0} items
+                        </p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-700">🔧 Recursos:</p>
+                        <p className="text-slate-600">
+                          {area.turtleProcess?.resources.length || 0} items
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
           </div>
         )}
       </main>

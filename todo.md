@@ -39,3 +39,18 @@
 - [x] Editar áreas existentes
 - [x] Eliminar áreas
 - [x] Exportar comparativa de todas las áreas
+
+
+## Metodología de la Tortuga
+
+- [x] Formulario para definir proceso Tortuga por área
+- [x] Campo: Entradas (¿Qué necesito?)
+- [x] Campo: Salidas (¿Qué produzco?)
+- [x] Campo: Recursos (¿Con qué?)
+- [x] Campo: Métodos (¿Cómo lo hago?)
+- [x] Campo: Indicadores (¿Cómo mido?)
+- [x] Campo: Competencias (¿Quién lo hace?)
+- [x] Sistema de mapeo de interacciones entre áreas
+- [x] Visualización gráfica de flujos entre procesos
+- [x] Identificación automática de dependencias
+- [x] Exportar diagrama de Tortuga completo
