@@ -80,3 +80,12 @@
 - [x] Hacer tarjetas expandibles/colapsables
 - [x] Mostrar todas las entradas, salidas, recursos, métodos, indicadores y competencias
 - [x] Verificar detección correcta de interacciones
+
+
+## Vista Matriz SIPOC
+
+- [x] Crear vista de matriz SIPOC consolidada
+- [x] Detectar automáticamente proveedores (Suppliers) por área
+- [x] Detectar automáticamente clientes (Customers) por área
+- [x] Mostrar tabla profesional con todas las columnas SIPOC
+- [x] Agregar exportación de matriz SIPOC a JSON/CSV

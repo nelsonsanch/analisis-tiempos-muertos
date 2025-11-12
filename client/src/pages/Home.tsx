@@ -112,7 +112,7 @@ const TURTLE_FIELDS = [
 ];
 
 export default function Home() {
-  const [view, setView] = useState<"list" | "form" | "compare" | "process-map">("list");
+  const [view, setView] = useState<"list" | "form" | "compare" | "process-map" | "sipoc">("list");
   const [savedAreas, setSavedAreas] = useState<InterviewData[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   
@@ -576,6 +576,10 @@ export default function Home() {
                         <Network className="mr-2 h-4 w-4" />
                         Mapa de Procesos
                       </Button>
+                      <Button onClick={() => setView("sipoc")} variant="outline" size="lg">
+                        <FileText className="mr-2 h-4 w-4" />
+                        Matriz SIPOC
+                      </Button>
                       <Button onClick={exportComparative} variant="outline" size="lg">
                         <Download className="mr-2 h-4 w-4" />
                         Exportar
@@ -596,7 +600,7 @@ export default function Home() {
                   </Button>
                 </>
               )}
-              {(view === "compare" || view === "process-map") && (
+              {(view === "compare" || view === "process-map" || view === "sipoc") && (
                 <Button onClick={() => setView("list")} variant="outline" size="lg">
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Volver
@@ -1577,6 +1581,249 @@ export default function Home() {
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* Vista: Matriz SIPOC */}
+        {view === "sipoc" && savedAreas.length > 0 && (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Matriz SIPOC Consolidada</CardTitle>
+                <CardDescription>
+                  Análisis de procesos: Proveedores - Entradas - Proceso - Salidas - Clientes
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100">
+                        <th className="border border-slate-300 px-4 py-3 text-left font-semibold text-slate-900">
+                          Suppliers<br/>
+                          <span className="text-xs font-normal text-slate-600">Proveedores</span>
+                        </th>
+                        <th className="border border-slate-300 px-4 py-3 text-left font-semibold text-slate-900">
+                          Inputs<br/>
+                          <span className="text-xs font-normal text-slate-600">Entradas</span>
+                        </th>
+                        <th className="border border-slate-300 px-4 py-3 text-left font-semibold text-slate-900">
+                          Process<br/>
+                          <span className="text-xs font-normal text-slate-600">Proceso</span>
+                        </th>
+                        <th className="border border-slate-300 px-4 py-3 text-left font-semibold text-slate-900">
+                          Outputs<br/>
+                          <span className="text-xs font-normal text-slate-600">Salidas</span>
+                        </th>
+                        <th className="border border-slate-300 px-4 py-3 text-left font-semibold text-slate-900">
+                          Customers<br/>
+                          <span className="text-xs font-normal text-slate-600">Clientes</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {savedAreas.map((area) => {
+                        if (!area.turtleProcess) return null;
+                        
+                        // Detectar proveedores (areas que tienen salidas que coinciden con mis entradas)
+                        const suppliers = savedAreas
+                          .filter(otherArea => 
+                            otherArea.id !== area.id && 
+                            otherArea.turtleProcess &&
+                            otherArea.turtleProcess.outputs.some(output =>
+                              area.turtleProcess!.inputs.includes(output)
+                            )
+                          )
+                          .map(a => a.areaName);
+                        
+                        // Detectar clientes (areas que tienen entradas que coinciden con mis salidas)
+                        const customers = savedAreas
+                          .filter(otherArea => 
+                            otherArea.id !== area.id && 
+                            otherArea.turtleProcess &&
+                            otherArea.turtleProcess.inputs.some(input =>
+                              area.turtleProcess!.outputs.includes(input)
+                            )
+                          )
+                          .map(a => a.areaName);
+                        
+                        return (
+                          <tr key={area.id} className="hover:bg-slate-50">
+                            {/* Suppliers */}
+                            <td className="border border-slate-300 px-4 py-3 align-top">
+                              {suppliers.length > 0 ? (
+                                <ul className="space-y-1">
+                                  {suppliers.map((supplier, idx) => (
+                                    <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
+                                      <span className="text-blue-500">\u2022</span>
+                                      <span className="font-medium">{supplier}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <span className="text-sm text-slate-400 italic">Sin proveedores internos</span>
+                              )}
+                            </td>
+                            
+                            {/* Inputs */}
+                            <td className="border border-slate-300 px-4 py-3 align-top">
+                              {area.turtleProcess.inputs.length > 0 ? (
+                                <ul className="space-y-1">
+                                  {area.turtleProcess.inputs.map((input, idx) => (
+                                    <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
+                                      <span className="text-green-500">\u25B6</span>
+                                      <span>{input}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <span className="text-sm text-slate-400 italic">-</span>
+                              )}
+                            </td>
+                            
+                            {/* Process */}
+                            <td className="border border-slate-300 px-4 py-3 align-top bg-blue-50">
+                              <div className="space-y-2">
+                                <div>
+                                  <h4 className="font-bold text-slate-900 text-base">{area.areaName}</h4>
+                                  <p className="text-xs text-slate-600 mt-1">{area.managerName}</p>
+                                </div>
+                                {area.turtleProcess.methods.length > 0 && (
+                                  <div className="mt-2 pt-2 border-t border-blue-200">
+                                    <p className="text-xs font-semibold text-slate-700 mb-1">Métodos:</p>
+                                    <ul className="space-y-1">
+                                      {area.turtleProcess.methods.map((method, idx) => (
+                                        <li key={idx} className="text-xs text-slate-600 flex items-start gap-1">
+                                          <span>\u2022</span>
+                                          <span>{method}</span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                            
+                            {/* Outputs */}
+                            <td className="border border-slate-300 px-4 py-3 align-top">
+                              {area.turtleProcess.outputs.length > 0 ? (
+                                <ul className="space-y-1">
+                                  {area.turtleProcess.outputs.map((output, idx) => (
+                                    <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
+                                      <span className="text-orange-500">\u25C0</span>
+                                      <span>{output}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <span className="text-sm text-slate-400 italic">-</span>
+                              )}
+                            </td>
+                            
+                            {/* Customers */}
+                            <td className="border border-slate-300 px-4 py-3 align-top">
+                              {customers.length > 0 ? (
+                                <ul className="space-y-1">
+                                  {customers.map((customer, idx) => (
+                                    <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
+                                      <span className="text-purple-500">\u2022</span>
+                                      <span className="font-medium">{customer}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <span className="text-sm text-slate-400 italic">Sin clientes internos</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                
+                {/* Leyenda */}
+                <div className="mt-6 p-4 bg-slate-50 rounded-lg">
+                  <h4 className="font-semibold text-slate-900 mb-3">Leyenda SIPOC</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-sm">
+                    <div>
+                      <span className="font-semibold text-blue-600">Suppliers:</span>
+                      <p className="text-slate-600 mt-1">\u00c1reas internas que proveen entradas a este proceso</p>
+                    </div>
+                    <div>
+                      <span className="font-semibold text-green-600">Inputs:</span>
+                      <p className="text-slate-600 mt-1">Recursos, materiales o información que recibe el proceso</p>
+                    </div>
+                    <div>
+                      <span className="font-semibold text-blue-800">Process:</span>
+                      <p className="text-slate-600 mt-1">El área y los métodos que utiliza para transformar entradas</p>
+                    </div>
+                    <div>
+                      <span className="font-semibold text-orange-600">Outputs:</span>
+                      <p className="text-slate-600 mt-1">Productos, servicios o información que genera el proceso</p>
+                    </div>
+                    <div>
+                      <span className="font-semibold text-purple-600">Customers:</span>
+                      <p className="text-slate-600 mt-1">\u00c1reas internas que reciben las salidas de este proceso</p>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Botón de exportación */}
+                <div className="mt-6 flex justify-end">
+                  <Button 
+                    onClick={() => {
+                      const sipocData = savedAreas.map(area => {
+                        if (!area.turtleProcess) return null;
+                        
+                        const suppliers = savedAreas
+                          .filter(otherArea => 
+                            otherArea.id !== area.id && 
+                            otherArea.turtleProcess &&
+                            otherArea.turtleProcess.outputs.some(output =>
+                              area.turtleProcess!.inputs.includes(output)
+                            )
+                          )
+                          .map(a => a.areaName);
+                        
+                        const customers = savedAreas
+                          .filter(otherArea => 
+                            otherArea.id !== area.id && 
+                            otherArea.turtleProcess &&
+                            otherArea.turtleProcess.inputs.some(input =>
+                              area.turtleProcess!.outputs.includes(input)
+                            )
+                          )
+                          .map(a => a.areaName);
+                        
+                        return {
+                          Suppliers: suppliers.join(", ") || "Sin proveedores internos",
+                          Inputs: area.turtleProcess.inputs.join(", ") || "-",
+                          Process: area.areaName,
+                          Methods: area.turtleProcess.methods.join(", ") || "-",
+                          Outputs: area.turtleProcess.outputs.join(", ") || "-",
+                          Customers: customers.join(", ") || "Sin clientes internos",
+                        };
+                      }).filter(Boolean);
+                      
+                      const blob = new Blob([JSON.stringify(sipocData, null, 2)], {
+                        type: "application/json",
+                      });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `matriz-sipoc-${new Date().toISOString().split("T")[0]}.json`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                    variant="outline"
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Exportar Matriz SIPOC
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
       </main>
