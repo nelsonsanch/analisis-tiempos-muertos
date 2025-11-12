@@ -70,3 +70,5 @@
 - [x] Selector de lista global no muestra opciones precargadas
 - [x] Verificar que globalTurtleItems se actualice correctamente
 - [x] Asegurar que el Popover muestre los items disponibles
+
+- [x] Corregir warning de refs en componente Button
