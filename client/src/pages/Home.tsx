@@ -146,6 +146,7 @@ export default function Home() {
   const [currentTurtleField, setCurrentTurtleField] = useState<keyof TurtleProcess | null>(null);
   const [openCombobox, setOpenCombobox] = useState(false);
   const [selectedFromList, setSelectedFromList] = useState("");
+  const [expandedProcesses, setExpandedProcesses] = useState<Set<string>>(new Set());
 
   // Cargar áreas guardadas
   useEffect(() => {
@@ -495,6 +496,76 @@ export default function Home() {
                     <Plus className="mr-2 h-4 w-4" />
                     Nueva Área
                   </Button>
+                  {savedAreas.length === 0 && (
+                    <Button 
+                      onClick={() => {
+                        // Cargar datos de ejemplo
+                        const ejemplos: InterviewData[] = [
+                          {
+                            id: "ejemplo1",
+                            areaName: "Compras",
+                            managerName: "María García",
+                            date: new Date().toISOString().split('T')[0],
+                            workdayMinutes: 540,
+                            fixedBreaksMinutes: 60,
+                            activities: [],
+                            observations: "",
+                            turtleProcess: {
+                              inputs: ["Requisición de compra", "Presupuesto aprobado"],
+                              outputs: ["Orden de compra", "Materiales", "Insumos"],
+                              resources: ["Sistema ERP", "Proveedores"],
+                              methods: ["Proceso de cotización", "Análisis de proveedores"],
+                              indicators: ["Tiempo de respuesta", "Costo de compra"],
+                              competencies: ["Negociación", "Análisis de costos"]
+                            }
+                          },
+                          {
+                            id: "ejemplo2",
+                            areaName: "Producción",
+                            managerName: "Carlos Rodríguez",
+                            date: new Date().toISOString().split('T')[0],
+                            workdayMinutes: 540,
+                            fixedBreaksMinutes: 60,
+                            activities: [],
+                            observations: "",
+                            turtleProcess: {
+                              inputs: ["Materiales", "Insumos", "Orden de producción"],
+                              outputs: ["Producto terminado", "Unidades producidas"],
+                              resources: ["Maquinaria", "Personal operativo"],
+                              methods: ["Proceso de manufactura", "Control de calidad"],
+                              indicators: ["Eficiencia productiva", "Unidades por hora"],
+                              competencies: ["Operación de maquinaria", "Control de calidad"]
+                            }
+                          },
+                          {
+                            id: "ejemplo3",
+                            areaName: "Logística",
+                            managerName: "Ana Martínez",
+                            date: new Date().toISOString().split('T')[0],
+                            workdayMinutes: 600,
+                            fixedBreaksMinutes: 60,
+                            activities: [],
+                            observations: "",
+                            turtleProcess: {
+                              inputs: ["Producto terminado", "Orden de despacho"],
+                              outputs: ["Producto despachado", "Guía de envío"],
+                              resources: ["Vehículos", "Almacén"],
+                              methods: ["Proceso de empaque", "Ruteo de entregas"],
+                              indicators: ["Entregas a tiempo", "Costo de envío"],
+                              competencies: ["Gestión de inventario", "Coordinación logística"]
+                            }
+                          }
+                        ];
+                        setSavedAreas(ejemplos);
+                        localStorage.setItem("timeAnalysisInterviews", JSON.stringify(ejemplos));
+                        alert("✅ Se cargaron 3 áreas de ejemplo con interacciones detectadas");
+                      }}
+                      variant="outline" 
+                      size="lg"
+                    >
+                      🎯 Cargar Ejemplo
+                    </Button>
+                  )}
                   {savedAreas.length > 0 && (
                     <>
                       <Button onClick={() => setView("compare")} variant="outline" size="lg">
@@ -1404,39 +1475,103 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            {/* Resumen de Procesos */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Detalle de Procesos */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {savedAreas.map((area) => {
                 const hasTurtle = area.turtleProcess && 
                   Object.values(area.turtleProcess).some(arr => arr.length > 0);
                 
                 if (!hasTurtle) return null;
                 
+                const isExpanded = expandedProcesses.has(area.id!);
+                
                 return (
-                  <Card key={area.id}>
+                  <Card key={area.id} className="border-2 hover:shadow-lg transition-shadow">
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-base">{area.areaName}</CardTitle>
-                      <CardDescription>Proceso Tortuga</CardDescription>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-lg">{area.areaName}</CardTitle>
+                          <CardDescription>Proceso Tortuga - {area.managerName}</CardDescription>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const newExpanded = new Set(expandedProcesses);
+                            if (isExpanded) {
+                              newExpanded.delete(area.id!);
+                            } else {
+                              newExpanded.add(area.id!);
+                            }
+                            setExpandedProcesses(newExpanded);
+                          }}
+                        >
+                          {isExpanded ? "Colapsar" : "Ver Detalle"}
+                        </Button>
+                      </div>
                     </CardHeader>
-                    <CardContent className="space-y-2 text-sm">
-                      <div>
-                        <p className="font-semibold text-slate-700">📥 Entradas:</p>
-                        <p className="text-slate-600">
-                          {area.turtleProcess?.inputs.length || 0} items
-                        </p>
-                      </div>
-                      <div>
-                        <p className="font-semibold text-slate-700">📤 Salidas:</p>
-                        <p className="text-slate-600">
-                          {area.turtleProcess?.outputs.length || 0} items
-                        </p>
-                      </div>
-                      <div>
-                        <p className="font-semibold text-slate-700">🔧 Recursos:</p>
-                        <p className="text-slate-600">
-                          {area.turtleProcess?.resources.length || 0} items
-                        </p>
-                      </div>
+                    <CardContent className="space-y-4">
+                      {/* Vista Resumida */}
+                      {!isExpanded && (
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div className="p-3 bg-blue-50 rounded-lg">
+                            <p className="font-semibold text-blue-700">📥 Entradas</p>
+                            <p className="text-2xl font-bold text-blue-600">
+                              {area.turtleProcess?.inputs.length || 0}
+                            </p>
+                          </div>
+                          <div className="p-3 bg-green-50 rounded-lg">
+                            <p className="font-semibold text-green-700">📤 Salidas</p>
+                            <p className="text-2xl font-bold text-green-600">
+                              {area.turtleProcess?.outputs.length || 0}
+                            </p>
+                          </div>
+                          <div className="p-3 bg-orange-50 rounded-lg">
+                            <p className="font-semibold text-orange-700">🔧 Recursos</p>
+                            <p className="text-2xl font-bold text-orange-600">
+                              {area.turtleProcess?.resources.length || 0}
+                            </p>
+                          </div>
+                          <div className="p-3 bg-purple-50 rounded-lg">
+                            <p className="font-semibold text-purple-700">📋 Métodos</p>
+                            <p className="text-2xl font-bold text-purple-600">
+                              {area.turtleProcess?.methods.length || 0}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Vista Expandida */}
+                      {isExpanded && (
+                        <div className="space-y-4">
+                          {TURTLE_FIELDS.map((field) => {
+                            const fieldKey = field.key as keyof TurtleProcess;
+                            const items = area.turtleProcess?.[fieldKey] || [];
+                            
+                            if (items.length === 0) return null;
+                            
+                            return (
+                              <div key={field.key} className="border-l-4 border-blue-500 pl-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className="text-xl">{field.icon}</span>
+                                  <h4 className="font-semibold text-slate-900">{field.label}</h4>
+                                  <Badge variant="outline" className="text-xs">
+                                    {items.length}
+                                  </Badge>
+                                </div>
+                                <ul className="space-y-1">
+                                  {items.map((item, idx) => (
+                                    <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
+                                      <span className="text-blue-500 mt-1">•</span>
+                                      <span>{item}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 );

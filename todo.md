@@ -72,3 +72,11 @@
 - [x] Asegurar que el Popover muestre los items disponibles
 
 - [x] Corregir warning de refs en componente Button
+
+
+## Mejoras Mapa de Procesos
+
+- [x] Mostrar detalle completo de procesos en tarjetas
+- [x] Hacer tarjetas expandibles/colapsables
+- [x] Mostrar todas las entradas, salidas, recursos, métodos, indicadores y competencias
+- [x] Verificar detección correcta de interacciones
