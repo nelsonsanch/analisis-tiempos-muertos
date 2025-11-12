@@ -112,3 +112,7 @@
 - [x] Crear script de instalación para macOS
 - [x] Crear script de instalación para Linux
 - [x] Crear script de lanzamiento con icono en escritorio
+
+- [x] Corregir errores de sintaxis en INSTALAR.bat
+
+- [x] Corregir error de PostCSS en postcss.config.mjs
