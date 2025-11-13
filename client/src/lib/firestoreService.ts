@@ -8,7 +8,8 @@ import {
   onSnapshot,
   query,
   orderBy,
-  Timestamp 
+  Timestamp,
+  deleteField 
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -67,17 +68,20 @@ const cleanUndefined = (obj: any): any => {
  */
 export const saveArea = async (area: InterviewData): Promise<string> => {
   try {
+    // Excluir el campo 'id' de los datos a guardar (Firestore maneja los IDs automáticamente)
+    const { id, ...areaWithoutId } = area;
+    
     const areaData = cleanUndefined({
-      ...area,
+      ...areaWithoutId,
       savedAt: new Date().toISOString(),
       updatedAt: Timestamp.now()
     });
 
-    if (area.id) {
+    if (id) {
       // Actualizar área existente
-      const areaRef = doc(db, COLLECTION_NAME, area.id);
+      const areaRef = doc(db, COLLECTION_NAME, id);
       await updateDoc(areaRef, areaData);
-      return area.id;
+      return id;
     } else {
       // Crear nueva área
       const docRef = await addDoc(collection(db, COLLECTION_NAME), areaData);
@@ -184,5 +188,36 @@ export const migrateFromLocalStorage = async (): Promise<number> => {
   } catch (error) {
     console.error('Error migrating from localStorage:', error);
     throw new Error('Error al migrar datos locales a la nube');
+  }
+};
+
+/**
+ * Limpiar documentos existentes que tienen el campo 'id' guardado (migración única)
+ */
+export const cleanExistingDocuments = async (): Promise<number> => {
+  try {
+    console.log('[Firestore] Iniciando limpieza de documentos...');
+    const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
+    let cleanedCount = 0;
+    
+    for (const docSnapshot of querySnapshot.docs) {
+      const docId = docSnapshot.id;
+      const data = docSnapshot.data();
+      
+      // Si el documento tiene el campo 'id' en sus datos, eliminarlo
+      if ('id' in data) {
+        console.log('[Firestore] Limpiando documento:', docId, 'Nombre:', data.areaName);
+        await updateDoc(doc(db, COLLECTION_NAME, docId), {
+          id: deleteField()
+        });
+        cleanedCount++;
+      }
+    }
+    
+    console.log(`[Firestore] ✅ Limpieza completada: ${cleanedCount} documentos actualizados`);
+    return cleanedCount;
+  } catch (error) {
+    console.error('[Firestore] Error al limpiar documentos:', error);
+    throw new Error('Error al limpiar documentos existentes');
   }
 };

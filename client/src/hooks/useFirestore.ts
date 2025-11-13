@@ -4,7 +4,8 @@ import {
   saveArea as saveAreaToFirestore, 
   deleteArea as deleteAreaFromFirestore,
   subscribeToAreas,
-  migrateFromLocalStorage 
+  migrateFromLocalStorage,
+  cleanExistingDocuments 
 } from '@/lib/firestoreService';
 
 export type SyncStatus = 'idle' | 'loading' | 'syncing' | 'synced' | 'error';
@@ -107,11 +108,32 @@ export const useFirestore = () => {
     }
   };
 
+  /**
+   * Limpiar documentos existentes (migración única)
+   */
+  const cleanDocuments = async (): Promise<number> => {
+    try {
+      setSyncStatus('syncing');
+      setError(null);
+      
+      const count = await cleanExistingDocuments();
+      
+      setSyncStatus('synced');
+      return count;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+      setError(errorMessage);
+      setSyncStatus('error');
+      throw err;
+    }
+  };
+
   return {
     areas,
     saveArea,
     deleteArea,
     migrateData,
+    cleanDocuments,
     syncStatus,
     error,
     isMigrated,

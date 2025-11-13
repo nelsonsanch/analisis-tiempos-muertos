@@ -132,6 +132,7 @@ export default function Home() {
     saveArea: saveAreaToFirestore, 
     deleteArea: deleteAreaFromFirestore,
     migrateData,
+    cleanDocuments,
     syncStatus,
     error: firestoreError,
     isMigrated
@@ -429,12 +430,18 @@ export default function Home() {
     setView("form");
   };
 
-  const deleteArea = async (id: string) => {
+  const deleteArea = async (id: string | undefined) => {
+    if (!id) {
+      alert("Error: No se puede eliminar un área sin ID");
+      return;
+    }
+    
     if (confirm("¿Estás seguro de eliminar esta área?")) {
       try {
         await deleteAreaFromFirestore(id);
         alert("Área eliminada exitosamente");
       } catch (error) {
+        console.error("Error deleting area:", error);
         alert("Error al eliminar el área: " + (error instanceof Error ? error.message : "Error desconocido"));
       }
     }
@@ -804,9 +811,10 @@ export default function Home() {
                                 Exportar
                               </Button>
                               <Button
-                                onClick={() => deleteArea(area.id!)}
+                                onClick={() => deleteArea(area.id)}
                                 variant="outline"
                                 size="sm"
+                                disabled={!area.id}
                               >
                                 <Trash2 className="h-3 w-3 text-red-500" />
                               </Button>

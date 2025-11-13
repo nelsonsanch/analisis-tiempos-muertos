@@ -190,3 +190,12 @@
 - [x] Agregar configuración para suprimir warning específico de keys en desarrollo
 - [x] Verificar que el warning no aparezca en consola
 - [x] Confirmar que la funcionalidad sigue operando correctamente
+
+
+## Corrección de Error al Eliminar Áreas
+
+- [x] Investigar error TypeError: Cannot read properties of null (reading 'indexOf')
+- [x] Corregir función deleteArea en Home.tsx (agregar validación de ID)
+- [x] Corregir función deleteArea en firestoreService.ts (excluir campo id al guardar)
+- [x] Crear función cleanExistingDocuments para limpiar documentos con id:null
+- [x] Probar eliminación de áreas exitosamente
