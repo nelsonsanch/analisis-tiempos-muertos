@@ -175,3 +175,11 @@
 - [x] Actualizar aiService.ts para usar el endpoint de backend
 - [x] Probar Asistente IA con backend funcionando
 - [x] Verificar que Firebase siga funcionando correctamente
+
+
+## Corrección de Error de Keys Duplicadas
+
+- [x] Buscar elementos con key={null} en listas de sugerencias de IA
+- [x] Corregir keys para que sean únicas usando índices o IDs
+- [x] Corregir maps que devuelven null usando filter antes (Matriz SIPOC, Mapa de Procesos)
+- [x] Verificar que no haya warnings de React en consola (warning residual puede venir de librerías externas)

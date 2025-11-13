@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-// import { useAuth } from "@/hooks/useAuth"; // Comentado temporalmente - auth no implementado aún
+// // import { useAuth } from "@/hooks/useAuth"; // Comentado temporalmente // Comentado temporalmente - auth no implementado aún
 import { useFirestore } from "@/hooks/useFirestore";
 import { generateTurtleSuggestions, type TurtleSuggestions } from "@/lib/aiService";
 import { trpc } from "@/lib/trpc";
@@ -1785,11 +1785,13 @@ export default function Home() {
 
             {/* Detalle de Procesos */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {savedAreas.map((area) => {
-                const hasTurtle = area.turtleProcess && 
-                  Object.values(area.turtleProcess).some(arr => arr.length > 0);
-                
-                if (!hasTurtle) return null;
+              {savedAreas
+                .filter((area) => {
+                  const hasTurtle = area.turtleProcess && 
+                    Object.values(area.turtleProcess).some(arr => arr.length > 0);
+                  return hasTurtle;
+                })
+                .map((area) => {
                 
                 const isExpanded = expandedProcesses.has(area.id!);
                 
@@ -1852,11 +1854,15 @@ export default function Home() {
                       {/* Vista Expandida */}
                       {isExpanded && (
                         <div className="space-y-4">
-                          {TURTLE_FIELDS.map((field) => {
+                          {TURTLE_FIELDS
+                            .filter((field) => {
+                              const fieldKey = field.key as keyof TurtleProcess;
+                              const items = area.turtleProcess?.[fieldKey] || [];
+                              return items.length > 0;
+                            })
+                            .map((field) => {
                             const fieldKey = field.key as keyof TurtleProcess;
                             const items = area.turtleProcess?.[fieldKey] || [];
-                            
-                            if (items.length === 0) return null;
                             
                             return (
                               <div key={field.key} className="border-l-4 border-blue-500 pl-4">
@@ -1926,8 +1932,9 @@ export default function Home() {
                       </tr>
                     </thead>
                     <tbody>
-                      {savedAreas.map((area) => {
-                        if (!area.turtleProcess) return null;
+                      {savedAreas
+                        .filter((area) => area.turtleProcess)
+                        .map((area) => {
                         
                         // Detectar proveedores (areas que tienen salidas que coinciden con mis entradas)
                         const suppliers = savedAreas
@@ -1971,9 +1978,9 @@ export default function Home() {
                             
                             {/* Inputs */}
                             <td className="border border-slate-300 px-4 py-3 align-top">
-                              {area.turtleProcess.inputs.length > 0 ? (
+                              {area.turtleProcess!.inputs.length > 0 ? (
                                 <ul className="space-y-1">
-                                  {area.turtleProcess.inputs.map((input, idx) => (
+                                  {area.turtleProcess!.inputs.map((input, idx) => (
                                     <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
                                       <span className="text-green-500">\u25B6</span>
                                       <span>{input}</span>
@@ -1992,11 +1999,11 @@ export default function Home() {
                                   <h4 className="font-bold text-slate-900 text-base">{area.areaName}</h4>
                                   <p className="text-xs text-slate-600 mt-1">{area.managerName}</p>
                                 </div>
-                                {area.turtleProcess.methods.length > 0 && (
+                                {area.turtleProcess!.methods.length > 0 && (
                                   <div className="mt-2 pt-2 border-t border-blue-200">
                                     <p className="text-xs font-semibold text-slate-700 mb-1">Métodos:</p>
                                     <ul className="space-y-1">
-                                      {area.turtleProcess.methods.map((method, idx) => (
+                                      {area.turtleProcess!.methods.map((method, idx) => (
                                         <li key={idx} className="text-xs text-slate-600 flex items-start gap-1">
                                           <span>\u2022</span>
                                           <span>{method}</span>
@@ -2010,9 +2017,9 @@ export default function Home() {
                             
                             {/* Outputs */}
                             <td className="border border-slate-300 px-4 py-3 align-top">
-                              {area.turtleProcess.outputs.length > 0 ? (
+                              {area.turtleProcess!.outputs.length > 0 ? (
                                 <ul className="space-y-1">
-                                  {area.turtleProcess.outputs.map((output, idx) => (
+                                  {area.turtleProcess!.outputs.map((output, idx) => (
                                     <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
                                       <span className="text-orange-500">\u25C0</span>
                                       <span>{output}</span>
@@ -2077,8 +2084,9 @@ export default function Home() {
                 <div className="mt-6 flex justify-end">
                   <Button 
                     onClick={() => {
-                      const sipocData = savedAreas.map(area => {
-                        if (!area.turtleProcess) return null;
+                      const sipocData = savedAreas
+                        .filter(area => area.turtleProcess)
+                        .map(area => {
                         
                         const suppliers = savedAreas
                           .filter(otherArea => 
@@ -2102,10 +2110,10 @@ export default function Home() {
                         
                         return {
                           Suppliers: suppliers.join(", ") || "Sin proveedores internos",
-                          Inputs: area.turtleProcess.inputs.join(", ") || "-",
+                          Inputs: area.turtleProcess!.inputs.join(", ") || "-",
                           Process: area.areaName,
-                          Methods: area.turtleProcess.methods.join(", ") || "-",
-                          Outputs: area.turtleProcess.outputs.join(", ") || "-",
+                          Methods: area.turtleProcess!.methods.join(", ") || "-",
+                          Outputs: area.turtleProcess!.outputs.join(", ") || "-",
                           Customers: customers.join(", ") || "Sin clientes internos",
                         };
                       }).filter(Boolean);
@@ -2208,7 +2216,7 @@ export default function Home() {
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Entradas */}
-                <div className="border rounded-lg p-4">
+                <div key="entradas" className="border rounded-lg p-4">
                   <h4 className="font-semibold text-blue-700 mb-2 flex items-center gap-2">
                     📥 Entradas ({aiSuggestions.entradas.length})
                   </h4>
@@ -2223,7 +2231,7 @@ export default function Home() {
                 </div>
                 
                 {/* Salidas */}
-                <div className="border rounded-lg p-4">
+                <div key="salidas" className="border rounded-lg p-4">
                   <h4 className="font-semibold text-green-700 mb-2 flex items-center gap-2">
                     📤 Salidas ({aiSuggestions.salidas.length})
                   </h4>
@@ -2238,7 +2246,7 @@ export default function Home() {
                 </div>
                 
                 {/* Recursos */}
-                <div className="border rounded-lg p-4">
+                <div key="recursos" className="border rounded-lg p-4">
                   <h4 className="font-semibold text-orange-700 mb-2 flex items-center gap-2">
                     🔧 Recursos ({aiSuggestions.recursos.length})
                   </h4>
@@ -2253,7 +2261,7 @@ export default function Home() {
                 </div>
                 
                 {/* Métodos */}
-                <div className="border rounded-lg p-4">
+                <div key="metodos" className="border rounded-lg p-4">
                   <h4 className="font-semibold text-purple-700 mb-2 flex items-center gap-2">
                     📋 Métodos ({aiSuggestions.metodos.length})
                   </h4>
@@ -2268,7 +2276,7 @@ export default function Home() {
                 </div>
                 
                 {/* Indicadores */}
-                <div className="border rounded-lg p-4">
+                <div key="indicadores" className="border rounded-lg p-4">
                   <h4 className="font-semibold text-pink-700 mb-2 flex items-center gap-2">
                     📊 Indicadores ({aiSuggestions.indicadores.length})
                   </h4>
@@ -2283,7 +2291,7 @@ export default function Home() {
                 </div>
                 
                 {/* Competencias */}
-                <div className="border rounded-lg p-4">
+                <div key="competencias" className="border rounded-lg p-4">
                   <h4 className="font-semibold text-indigo-700 mb-2 flex items-center gap-2">
                     👥 Competencias ({aiSuggestions.competencias.length})
                   </h4>
