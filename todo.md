@@ -154,3 +154,24 @@
 - [x] Verificar que la aplicación se conecte correctamente
 - [x] Probar creación y sincronización de áreas
 - [x] Verificar datos guardados en Firebase Console
+
+
+## Asistente Tortuga con IA
+
+- [x] Crear servicio de IA usando Manus Forge API
+- [x] Implementar función de generación de sugerencias Tortuga
+- [x] Agregar botón "🤖 Asistente IA" en formulario Tortuga
+- [x] Mostrar sugerencias de IA para cada campo (entradas, salidas, recursos, métodos, indicadores, competencias)
+- [x] Permitir al usuario aceptar o editar sugerencias
+- [x] Agregar indicador de carga mientras IA genera sugerencias
+- [x] Manejar errores de API gracefully
+- [x] Probar con diferentes tipos de áreas (producción, logística, compras, etc.)
+
+
+## Upgrade a Backend para Asistente IA
+
+- [x] Ejecutar webdev_add_feature para agregar backend (web-db-user)
+- [x] Crear endpoint de API /api/ai/turtle-suggestions
+- [x] Actualizar aiService.ts para usar el endpoint de backend
+- [x] Probar Asistente IA con backend funcionando
+- [x] Verificar que Firebase siga funcionando correctamente

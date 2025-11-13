@@ -1,5 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
+// import { useAuth } from "@/hooks/useAuth"; // Comentado temporalmente - auth no implementado aún
 import { useFirestore } from "@/hooks/useFirestore";
+import { generateTurtleSuggestions, type TurtleSuggestions } from "@/lib/aiService";
+import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +29,8 @@ import {
   ArrowRight,
   CheckCircle2,
   Check,
-  ChevronsUpDown
+  ChevronsUpDown,
+  Loader2
 } from "lucide-react";
 import {
   BarChart,
@@ -71,12 +75,12 @@ interface Activity {
 }
 
 interface TurtleProcess {
-  inputs: string[];
-  outputs: string[];
-  resources: string[];
-  methods: string[];
-  indicators: string[];
-  competencies: string[];
+  inputs: string[]; // Entradas
+  outputs: string[]; // Salidas
+  resources: string[]; // Recursos
+  methods: string[]; // Métodos
+  indicators: string[]; // Indicadores
+  competencies: string[]; // Competencias
 }
 
 interface InterviewData {
@@ -114,6 +118,10 @@ const TURTLE_FIELDS = [
 ];
 
 export default function Home() {
+  // The userAuth hooks provides authentication state
+  // To implement login/logout functionality, simply call logout() or redirect to getLoginUrl()
+  // let { user, loading, error, isAuthenticated, logout } = useAuth(); // Comentado - auth opcional por ahora
+
   const [view, setView] = useState<"list" | "form" | "compare" | "process-map" | "sipoc">("list");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showMigrateDialog, setShowMigrateDialog] = useState(false);
@@ -161,6 +169,11 @@ export default function Home() {
   const [openCombobox, setOpenCombobox] = useState(false);
   const [selectedFromList, setSelectedFromList] = useState("");
   const [expandedProcesses, setExpandedProcesses] = useState<Set<string>>(new Set());
+  
+  // Estados para Asistente IA
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<TurtleSuggestions | null>(null);
+  const [showAISuggestions, setShowAISuggestions] = useState(false);
 
   // Verificar si hay datos en localStorage para migrar
   useEffect(() => {
@@ -320,6 +333,53 @@ export default function Home() {
         [field]: turtle[field].filter((_, i) => i !== index),
       },
     });
+  };
+  
+  // Mutation de tRPC para generar sugerencias con IA
+  const generateAIMutation = trpc.ai.generateTurtleSuggestions.useMutation({
+    onSuccess: (data: any) => {
+      if (data.success && data.suggestions) {
+        setAiSuggestions(data.suggestions);
+        setShowAISuggestions(true);
+      }
+    },
+    onError: (error: any) => {
+      console.error('Error al generar sugerencias:', error);
+      alert('No se pudieron generar sugerencias. Por favor, intenta de nuevo.');
+    },
+  });
+  
+  // Función para generar sugerencias con IA
+  const handleGenerateAISuggestions = () => {
+    if (!interviewData.areaName) {
+      alert("¡Primero ingresa el nombre del área!");
+      return;
+    }
+    
+    generateAIMutation.mutate({
+      areaName: interviewData.areaName,
+      processDescription: interviewData.observations,
+    });
+  };
+  
+  // Función para aplicar sugerencias de IA
+  const applyAISuggestions = () => {
+    if (!aiSuggestions) return;
+    
+    setInterviewData({
+      ...interviewData,
+      turtleProcess: {
+        inputs: aiSuggestions.entradas,
+        outputs: aiSuggestions.salidas,
+        resources: aiSuggestions.recursos,
+        methods: aiSuggestions.metodos,
+        indicators: aiSuggestions.indicadores,
+        competencies: aiSuggestions.competencias,
+      },
+    });
+    
+    setShowAISuggestions(false);
+    alert('¡Sugerencias aplicadas! Puedes editarlas según necesites.');
   };
 
   // Funciones de Área
@@ -1049,10 +1109,30 @@ export default function Home() {
             <TabsContent value="turtle" className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>🐢 Metodología de la Tortuga</CardTitle>
-                  <CardDescription>
-                    Define el proceso completo del área. Usa la lista global para garantizar conexiones exactas entre áreas.
-                  </CardDescription>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle>🐢 Metodología de la Tortuga</CardTitle>
+                      <CardDescription>
+                        Define el proceso completo del área. Usa la lista global para garantizar conexiones exactas entre áreas.
+                      </CardDescription>
+                    </div>
+                    <Button
+                      onClick={handleGenerateAISuggestions}
+                      disabled={generateAIMutation.isPending || !interviewData.areaName}
+                      className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                    >
+                      {generateAIMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Generando...
+                        </>
+                      ) : (
+                        <>
+                          🤖 Asistente IA
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -2095,6 +2175,142 @@ export default function Home() {
                   className="flex-1"
                 >
                   Omitir
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+      
+      {/* Diálogo de Sugerencias de IA */}
+      {showAISuggestions && aiSuggestions && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <CardHeader>
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    🤖 Sugerencias del Asistente IA
+                  </CardTitle>
+                  <CardDescription>
+                    Revisa las sugerencias generadas para el área "{interviewData.areaName}". Puedes aplicarlas todas o cerrar y agregar manualmente.
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowAISuggestions(false)}
+                >
+                  ✕
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Entradas */}
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-semibold text-blue-700 mb-2 flex items-center gap-2">
+                    📥 Entradas ({aiSuggestions.entradas.length})
+                  </h4>
+                  <ul className="space-y-1">
+                    {aiSuggestions.entradas.map((item: string, idx: number) => (
+                      <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
+                        <span className="text-blue-500">•</span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                
+                {/* Salidas */}
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-semibold text-green-700 mb-2 flex items-center gap-2">
+                    📤 Salidas ({aiSuggestions.salidas.length})
+                  </h4>
+                  <ul className="space-y-1">
+                    {aiSuggestions.salidas.map((item: string, idx: number) => (
+                      <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
+                        <span className="text-green-500">•</span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                
+                {/* Recursos */}
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-semibold text-orange-700 mb-2 flex items-center gap-2">
+                    🔧 Recursos ({aiSuggestions.recursos.length})
+                  </h4>
+                  <ul className="space-y-1">
+                    {aiSuggestions.recursos.map((item: string, idx: number) => (
+                      <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
+                        <span className="text-orange-500">•</span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                
+                {/* Métodos */}
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-semibold text-purple-700 mb-2 flex items-center gap-2">
+                    📋 Métodos ({aiSuggestions.metodos.length})
+                  </h4>
+                  <ul className="space-y-1">
+                    {aiSuggestions.metodos.map((item: string, idx: number) => (
+                      <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
+                        <span className="text-purple-500">•</span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                
+                {/* Indicadores */}
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-semibold text-pink-700 mb-2 flex items-center gap-2">
+                    📊 Indicadores ({aiSuggestions.indicadores.length})
+                  </h4>
+                  <ul className="space-y-1">
+                    {aiSuggestions.indicadores.map((item: string, idx: number) => (
+                      <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
+                        <span className="text-pink-500">•</span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                
+                {/* Competencias */}
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-semibold text-indigo-700 mb-2 flex items-center gap-2">
+                    👥 Competencias ({aiSuggestions.competencias.length})
+                  </h4>
+                  <ul className="space-y-1">
+                    {aiSuggestions.competencias.map((item: string, idx: number) => (
+                      <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
+                        <span className="text-indigo-500">•</span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+              
+              <div className="flex gap-2 pt-4 border-t">
+                <Button
+                  onClick={applyAISuggestions}
+                  className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                >
+                  ✔️ Aplicar Todas las Sugerencias
+                </Button>
+                <Button
+                  onClick={() => setShowAISuggestions(false)}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Cerrar
                 </Button>
               </div>
             </CardContent>
