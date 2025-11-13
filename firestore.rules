@@ -1,0 +1,11 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Permitir acceso público a la colección 'timeAnalysisAreas'
+    // NOTA: En producción, considera usar autenticación
+    match /timeAnalysisAreas/{areaId} {
+      allow read, write: if true;
+    }
+  }
+}

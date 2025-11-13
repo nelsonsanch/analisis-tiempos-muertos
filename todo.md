@@ -143,3 +143,14 @@
 - [ ] Configurar reglas de seguridad en Firebase (requiere acción del usuario)
 - [ ] Probar sincronización entre múltiples dispositivos
 - [ ] Publicar aplicación con Firebase integrado
+
+
+## Corrección de Error de Permisos Firebase
+
+- [x] Crear archivo de reglas de Firebase (firestore.rules)
+- [x] Crear guía paso a paso para el usuario
+- [x] Usuario configuró reglas en Firebase Console
+- [x] Corregir error de valores undefined en Firestore
+- [x] Verificar que la aplicación se conecte correctamente
+- [x] Probar creación y sincronización de áreas
+- [x] Verificar datos guardados en Firebase Console

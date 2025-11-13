@@ -46,15 +46,32 @@ export interface TurtleProcess {
 const COLLECTION_NAME = 'timeAnalysisAreas';
 
 /**
+ * Limpiar valores undefined de un objeto (Firestore no los permite)
+ */
+const cleanUndefined = (obj: any): any => {
+  if (obj === null || obj === undefined) return null;
+  if (Array.isArray(obj)) return obj.map(cleanUndefined);
+  if (typeof obj === 'object') {
+    const cleaned: any = {};
+    for (const key in obj) {
+      const value = obj[key];
+      cleaned[key] = value === undefined ? null : cleanUndefined(value);
+    }
+    return cleaned;
+  }
+  return obj;
+};
+
+/**
  * Guardar o actualizar un área
  */
 export const saveArea = async (area: InterviewData): Promise<string> => {
   try {
-    const areaData = {
+    const areaData = cleanUndefined({
       ...area,
       savedAt: new Date().toISOString(),
       updatedAt: Timestamp.now()
-    };
+    });
 
     if (area.id) {
       // Actualizar área existente
