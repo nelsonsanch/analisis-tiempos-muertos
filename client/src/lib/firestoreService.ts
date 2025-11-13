@@ -20,10 +20,16 @@ export interface InterviewData {
   date: string;
   workdayMinutes: number;
   fixedBreaksMinutes: number;
-  activities: Activity[];
+  positions: Position[]; // Cargos dentro del área
   observations: string;
   savedAt?: string;
   turtleProcess?: TurtleProcess;
+}
+
+export interface Position {
+  id: string;
+  name: string; // Nombre del cargo (ej: "Contador Senior", "Auxiliar Contable")
+  activities: Activity[]; // Actividades asignadas a este cargo
 }
 
 export interface Activity {

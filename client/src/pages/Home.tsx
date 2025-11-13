@@ -74,6 +74,12 @@ interface Activity {
   cause?: string;
 }
 
+interface Position {
+  id: string;
+  name: string; // Nombre del cargo (ej: "Contador Senior", "Auxiliar Contable")
+  activities: Activity[]; // Actividades asignadas a este cargo
+}
+
 interface TurtleProcess {
   inputs: string[]; // Entradas
   outputs: string[]; // Salidas
@@ -90,7 +96,7 @@ interface InterviewData {
   date: string;
   workdayMinutes: number;
   fixedBreaksMinutes: number;
-  activities: Activity[];
+  positions: Position[]; // Cargos dentro del área
   observations: string;
   savedAt?: string;
   turtleProcess?: TurtleProcess;
@@ -144,7 +150,7 @@ export default function Home() {
     date: new Date().toISOString().split("T")[0],
     workdayMinutes: 480,
     fixedBreaksMinutes: 60,
-    activities: [],
+    positions: [], // Cargos del área
     observations: "",
     turtleProcess: {
       inputs: [],
@@ -156,6 +162,11 @@ export default function Home() {
     },
   });
 
+  // Estados para gestión de cargos
+  const [currentPosition, setCurrentPosition] = useState<Position | null>(null); // Cargo actual seleccionado
+  const [newPositionName, setNewPositionName] = useState("");
+  const [showPositionDialog, setShowPositionDialog] = useState(false);
+
   const [newActivity, setNewActivity] = useState({
     name: "",
     timeMinutes: 0,
@@ -163,6 +174,14 @@ export default function Home() {
     type: "productive" as Activity["type"],
     cause: "",
   });
+
+  // Función auxiliar: Obtener todas las actividades de un área (de todos los cargos)
+  const getAllActivities = (area: InterviewData): Activity[] => {
+    return area.positions.flatMap(position => position.activities);
+  };
+
+  // Función auxiliar: Obtener todas las actividades del área actual
+  const currentActivities = useMemo(() => getAllActivities(interviewData), [interviewData]);
 
   // Estados para Tortuga
   const [newTurtleItem, setNewTurtleItem] = useState("");
@@ -233,21 +252,24 @@ export default function Home() {
 
   // Cálculos automáticos
   const calculateTotals = (data: InterviewData) => {
+    // Obtener todas las actividades de todos los cargos
+    const allActivities = getAllActivities(data);
+    
     // Calcular tiempo total = duración × frecuencia
-    const totalActivities = data.activities.reduce(
+    const totalActivities = allActivities.reduce(
       (acc, activity) => acc + (activity.timeMinutes * activity.frequency),
       0
     );
 
-    const productiveTime = data.activities
+    const productiveTime = allActivities
       .filter((a) => a.type === "productive")
       .reduce((acc, a) => acc + (a.timeMinutes * a.frequency), 0);
 
-    const supportTime = data.activities
+    const supportTime = allActivities
       .filter((a) => a.type === "support")
       .reduce((acc, a) => acc + (a.timeMinutes * a.frequency), 0);
 
-    const deadTime = data.activities
+    const deadTime = allActivities
       .filter((a) => a.type === "dead_time")
       .reduce((acc, a) => acc + (a.timeMinutes * a.frequency), 0);
 
@@ -269,8 +291,50 @@ export default function Home() {
 
   const totals = calculateTotals(interviewData);
 
-  // Funciones de Actividades
+  // Funciones de Cargos
+  const addPosition = () => {
+    if (!newPositionName.trim()) {
+      alert("Por favor ingresa el nombre del cargo");
+      return;
+    }
+
+    const position: Position = {
+      id: Date.now().toString(),
+      name: newPositionName,
+      activities: [],
+    };
+
+    setInterviewData({
+      ...interviewData,
+      positions: [...interviewData.positions, position],
+    });
+
+    setNewPositionName("");
+    setShowPositionDialog(false);
+    setCurrentPosition(position); // Seleccionar el cargo recién creado
+  };
+
+  const removePosition = (positionId: string) => {
+    if (confirm("¿Estás seguro de eliminar este cargo y todas sus actividades?")) {
+      setInterviewData({
+        ...interviewData,
+        positions: interviewData.positions.filter((p) => p.id !== positionId),
+      });
+      
+      // Si el cargo eliminado era el actual, limpiar selección
+      if (currentPosition?.id === positionId) {
+        setCurrentPosition(null);
+      }
+    }
+  };
+
+  // Funciones de Actividades (ahora trabajan con el cargo actual)
   const addActivity = () => {
+    if (!currentPosition) {
+      alert("Por favor selecciona un cargo primero");
+      return;
+    }
+    
     if (!newActivity.name || newActivity.timeMinutes <= 0) return;
 
     const activity: Activity = {
@@ -282,18 +346,41 @@ export default function Home() {
       cause: newActivity.type === "dead_time" ? newActivity.cause : undefined,
     };
 
+    // Actualizar el cargo con la nueva actividad
     setInterviewData({
       ...interviewData,
-      activities: [...interviewData.activities, activity],
+      positions: interviewData.positions.map(p => 
+        p.id === currentPosition.id 
+          ? { ...p, activities: [...p.activities, activity] }
+          : p
+      ),
+    });
+
+    // Actualizar currentPosition
+    setCurrentPosition({
+      ...currentPosition,
+      activities: [...currentPosition.activities, activity],
     });
 
     setNewActivity({ name: "", timeMinutes: 0, frequency: 1, type: "productive", cause: "" });
   };
 
-  const removeActivity = (id: string) => {
+  const removeActivity = (activityId: string) => {
+    if (!currentPosition) return;
+
     setInterviewData({
       ...interviewData,
-      activities: interviewData.activities.filter((a) => a.id !== id),
+      positions: interviewData.positions.map(p => 
+        p.id === currentPosition.id 
+          ? { ...p, activities: p.activities.filter((a) => a.id !== activityId) }
+          : p
+      ),
+    });
+
+    // Actualizar currentPosition
+    setCurrentPosition({
+      ...currentPosition,
+      activities: currentPosition.activities.filter((a) => a.id !== activityId),
     });
   };
 
@@ -400,18 +487,19 @@ export default function Home() {
       await saveAreaToFirestore(newArea);
       alert("Área guardada exitosamente en la nube ☁️");
       
-      setInterviewData({
-        areaName: "",
-        managerName: "",
-        date: new Date().toISOString().split("T")[0],
-        workdayMinutes: 480,
-        fixedBreaksMinutes: 60,
-        activities: [],
-        observations: "",
-        turtleProcess: {
-          inputs: [], outputs: [], resources: [], methods: [], indicators: [], competencies: []
-        },
-      });
+    setInterviewData({
+      areaName: "",
+      managerName: "",
+      date: new Date().toISOString().split("T")[0],
+      workdayMinutes: 480,
+      fixedBreaksMinutes: 60,
+      positions: [],
+      observations: "",
+      turtleProcess: {
+        inputs: [], outputs: [], resources: [], methods: [], indicators: [], competencies: []
+      },
+    });
+    setCurrentPosition(null);
       setEditingId(null);
       setView("list");
     } catch (error) {
@@ -454,12 +542,13 @@ export default function Home() {
       date: new Date().toISOString().split("T")[0],
       workdayMinutes: 480,
       fixedBreaksMinutes: 60,
-      activities: [],
+      positions: [],
       observations: "",
       turtleProcess: {
         inputs: [], outputs: [], resources: [], methods: [], indicators: [], competencies: []
       },
     });
+    setCurrentPosition(null);
     setEditingId(null);
     setView("form");
   };
@@ -526,7 +615,7 @@ export default function Home() {
     { name: "Tiempo Muerto", value: totals.deadTime, color: COLORS.dead_time },
   ].filter((item) => item.value > 0);
 
-  const barChartData = interviewData.activities.map((activity) => ({
+  const barChartData = currentActivities.map((activity) => ({
     name: activity.name.length > 20 ? activity.name.substring(0, 20) + "..." : activity.name,
     minutos: activity.timeMinutes * activity.frequency,
     tipo: ACTIVITY_TYPES[activity.type].label,
@@ -607,7 +696,7 @@ export default function Home() {
                             date: new Date().toISOString().split('T')[0],
                             workdayMinutes: 540,
                             fixedBreaksMinutes: 60,
-                            activities: [],
+                            positions: [],
                             observations: "",
                             turtleProcess: {
                               inputs: ["Requisición de compra", "Presupuesto aprobado"],
@@ -624,7 +713,7 @@ export default function Home() {
                             date: new Date().toISOString().split('T')[0],
                             workdayMinutes: 540,
                             fixedBreaksMinutes: 60,
-                            activities: [],
+                            positions: [],
                             observations: "",
                             turtleProcess: {
                               inputs: ["Materiales", "Insumos", "Orden de producción"],
@@ -641,7 +730,7 @@ export default function Home() {
                             date: new Date().toISOString().split('T')[0],
                             workdayMinutes: 600,
                             fixedBreaksMinutes: 60,
-                            activities: [],
+                            positions: [],
                             observations: "",
                             turtleProcess: {
                               inputs: ["Producto terminado", "Orden de despacho"],
@@ -789,7 +878,7 @@ export default function Home() {
                             </div>
                             <Separator />
                             <div className="text-sm text-slate-600">
-                              <strong>{area.activities.length}</strong> actividades registradas
+                              <strong>{getAllActivities(area).length}</strong> actividades registradas
                             </div>
                             <div className="flex gap-2">
                               <Button
@@ -945,12 +1034,96 @@ export default function Home() {
                 </CardContent>
               </Card>
 
+              {/* Gestión de Cargos */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Cargos del Área</CardTitle>
+                  <CardDescription>
+                    Gestiona los cargos y sus actividades
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Lista de cargos */}
+                  {interviewData.positions.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>Selecciona un cargo para agregar actividades:</Label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {interviewData.positions.map((position) => (
+                          <div
+                            key={position.id}
+                            className={`flex items-center justify-between p-3 border-2 rounded-lg cursor-pointer transition-colors ${
+                              currentPosition?.id === position.id
+                                ? "border-blue-500 bg-blue-50"
+                                : "border-slate-200 hover:border-blue-300 hover:bg-slate-50"
+                            }`}
+                            onClick={() => setCurrentPosition(position)}
+                          >
+                            <div>
+                              <p className="font-semibold">{position.name}</p>
+                              <p className="text-sm text-slate-600">
+                                {position.activities.length} actividad{position.activities.length !== 1 ? "es" : ""}
+                              </p>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removePosition(position.id);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 text-red-600" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Botón para agregar cargo */}
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Nombre del cargo (ej: Contador Senior)"
+                      value={newPositionName}
+                      onChange={(e) => setNewPositionName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          addPosition();
+                        }
+                      }}
+                    />
+                    <Button onClick={addPosition}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Agregar Cargo
+                    </Button>
+                  </div>
+
+                  {interviewData.positions.length === 0 && (
+                    <div className="text-center py-6 text-slate-500">
+                      <p>No hay cargos registrados.</p>
+                      <p className="text-sm">Agrega un cargo para comenzar a registrar actividades.</p>
+                    </div>
+                  )}
+
+                  {currentPosition && (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm font-medium text-blue-900">
+                        💼 Cargo seleccionado: <strong>{currentPosition.name}</strong>
+                      </p>
+                      <p className="text-xs text-blue-700 mt-1">
+                        Las actividades que agregues se asignarán a este cargo
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
               {/* Agregar Actividades */}
               <Card>
                 <CardHeader>
                   <CardTitle>Registrar Actividades</CardTitle>
                   <CardDescription>
-                    Registra las actividades del área
+                    Registra las actividades del cargo seleccionado
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -1046,49 +1219,66 @@ export default function Home() {
                 </CardContent>
               </Card>
 
-              {/* Lista de Actividades */}
-              {interviewData.activities.length > 0 && (
+              {/* Lista de Actividades por Cargo */}
+              {interviewData.positions.length > 0 && (
                 <Card>
                   <CardHeader>
-                    <CardTitle>Actividades ({interviewData.activities.length})</CardTitle>
+                    <CardTitle>Actividades por Cargo ({currentActivities.length} total)</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-2">
-                      {interviewData.activities.map((activity) => (
-                        <div
-                          key={activity.id}
-                          className="flex items-center justify-between p-3 border rounded-lg hover:bg-slate-50"
-                        >
-                          <div className="flex items-center gap-3 flex-1">
-                            <Badge className={ACTIVITY_TYPES[activity.type].color}>
-                              {ACTIVITY_TYPES[activity.type].label}
-                            </Badge>
-                            <div className="flex-1">
-                              <p className="font-medium">{activity.name}</p>
-                              {activity.cause && (
-                                <p className="text-sm text-slate-600 mt-1">
-                                  Causa: {activity.cause}
-                                </p>
-                              )}
+                    <div className="space-y-4">
+                      {interviewData.positions.map((position) => (
+                        position.activities.length > 0 && (
+                          <div key={position.id} className="border rounded-lg p-4">
+                            <div className="flex items-center justify-between mb-3">
+                              <h3 className="font-semibold text-lg">💼 {position.name}</h3>
+                              <Badge variant="outline">
+                                {position.activities.length} actividad{position.activities.length !== 1 ? 'es' : ''}
+                              </Badge>
                             </div>
-                            <div className="text-right">
-                              <p className="text-sm text-slate-600">
-                                {activity.timeMinutes} min × {activity.frequency} {activity.frequency === 1 ? 'vez' : 'veces'}
-                              </p>
-                              <p className="font-semibold text-blue-600">
-                                = {activity.timeMinutes * activity.frequency} min/día
-                              </p>
+                            <div className="space-y-2">
+                              {position.activities.map((activity) => (
+                                <div
+                                  key={activity.id}
+                                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-slate-50"
+                                >
+                                  <div className="flex items-center gap-3 flex-1">
+                                    <Badge className={ACTIVITY_TYPES[activity.type].color}>
+                                      {ACTIVITY_TYPES[activity.type].label}
+                                    </Badge>
+                                    <div className="flex-1">
+                                      <p className="font-medium">{activity.name}</p>
+                                      {activity.cause && (
+                                        <p className="text-sm text-slate-600 mt-1">
+                                          Causa: {activity.cause}
+                                        </p>
+                                      )}
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-sm text-slate-600">
+                                        {activity.timeMinutes} min × {activity.frequency} {activity.frequency === 1 ? 'vez' : 'veces'}
+                                      </p>
+                                      <p className="font-semibold text-blue-600">
+                                        = {activity.timeMinutes * activity.frequency} min/día
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                      setCurrentPosition(position);
+                                      removeActivity(activity.id);
+                                    }}
+                                    className="ml-2"
+                                  >
+                                    <Trash2 className="h-4 w-4 text-red-500" />
+                                  </Button>
+                                </div>
+                              ))}
                             </div>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeActivity(activity.id)}
-                            className="ml-2"
-                          >
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </div>
+                        )
                       ))}
                     </div>
                   </CardContent>
@@ -1562,14 +1752,14 @@ export default function Home() {
                 </CardContent>
               </Card>
 
-              {interviewData.activities.filter((a) => a.type === "dead_time").length > 0 && (
+              {currentActivities.filter((a) => a.type === "dead_time").length > 0 && (
                 <Card>
                   <CardHeader>
                     <CardTitle>Causas Raíz de Tiempos Muertos</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {interviewData.activities
+                      {currentActivities
                         .filter((a) => a.type === "dead_time")
                         .map((activity) => (
                           <div key={activity.id} className="border-l-4 border-red-500 pl-4 py-2">

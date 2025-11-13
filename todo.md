@@ -199,3 +199,20 @@
 - [x] Corregir función deleteArea en firestoreService.ts (excluir campo id al guardar)
 - [x] Crear función cleanExistingDocuments para limpiar documentos con id:null
 - [x] Probar eliminación de áreas exitosamente
+
+
+## Sistema de Cargos dentro de Áreas
+
+- [x] Modificar estructura de datos para incluir cargos
+- [x] Cada área debe contener múltiples cargos
+- [x] Cada cargo debe tener sus propias actividades
+- [x] Actualizar interfaces TypeScript (InterviewData, Position, Activity)
+- [x] Modificar firestoreService.ts para nueva estructura
+- [x] Crear formulario para agregar/editar cargos
+- [x] Crear formulario para agregar actividades a cada cargo
+- [x] Actualizar vista de lista de áreas para mostrar cargos
+- [x] Actualizar cálculos de tiempos por cargo y por área
+- [x] Actualizar gráficos para mostrar distribución por cargo
+- [x] Actualizar exportación para incluir estructura de cargos
+- [x] Migrar datos existentes a nueva estructura (limpieza de documentos con id:null)
+- [x] Probar funcionalidad completa
