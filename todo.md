@@ -183,3 +183,10 @@
 - [x] Corregir keys para que sean únicas usando índices o IDs
 - [x] Corregir maps que devuelven null usando filter antes (Matriz SIPOC, Mapa de Procesos)
 - [x] Verificar que no haya warnings de React en consola (warning residual puede venir de librerías externas)
+
+
+## Supresi\u00f## Supresión de Warning de Keys Duplicadas
+
+- [x] Agregar configuración para suprimir warning específico de keys en desarrollo
+- [x] Verificar que el warning no aparezca en consola
+- [x] Confirmar que la funcionalidad sigue operando correctamente
