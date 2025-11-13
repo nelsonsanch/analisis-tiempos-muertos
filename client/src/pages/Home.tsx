@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useFirestore } from "@/hooks/useFirestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -114,8 +115,19 @@ const TURTLE_FIELDS = [
 
 export default function Home() {
   const [view, setView] = useState<"list" | "form" | "compare" | "process-map" | "sipoc">("list");
-  const [savedAreas, setSavedAreas] = useState<InterviewData[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [showMigrateDialog, setShowMigrateDialog] = useState(false);
+  
+  // Hook de Firestore para sincronización en la nube
+  const { 
+    areas: savedAreas, 
+    saveArea: saveAreaToFirestore, 
+    deleteArea: deleteAreaFromFirestore,
+    migrateData,
+    syncStatus,
+    error: firestoreError,
+    isMigrated
+  } = useFirestore();
   
   const [interviewData, setInterviewData] = useState<InterviewData>({
     areaName: "",
@@ -150,13 +162,16 @@ export default function Home() {
   const [selectedFromList, setSelectedFromList] = useState("");
   const [expandedProcesses, setExpandedProcesses] = useState<Set<string>>(new Set());
 
-  // Cargar áreas guardadas
+  // Verificar si hay datos en localStorage para migrar
   useEffect(() => {
     const stored = localStorage.getItem("timeAnalysisInterviews");
-    if (stored) {
-      setSavedAreas(JSON.parse(stored));
+    if (stored && !isMigrated) {
+      const areas = JSON.parse(stored);
+      if (areas.length > 0) {
+        setShowMigrateDialog(true);
+      }
     }
-  }, []);
+  }, [isMigrated]);
 
   // Generar lista global de items únicos por campo
   const globalTurtleItems = useMemo(() => {
@@ -308,45 +323,39 @@ export default function Home() {
   };
 
   // Funciones de Área
-  const saveArea = () => {
+  const saveArea = async () => {
     if (!interviewData.areaName) {
       alert("Por favor ingresa el nombre del área");
       return;
     }
 
-    const newArea: InterviewData = {
-      ...interviewData,
-      id: editingId || Date.now().toString(),
-      savedAt: new Date().toISOString(),
-    };
+    try {
+      const newArea: InterviewData = {
+        ...interviewData,
+        id: editingId || undefined,
+        savedAt: new Date().toISOString(),
+      };
 
-    let updatedAreas: InterviewData[];
-    if (editingId) {
-      updatedAreas = savedAreas.map((area) =>
-        area.id === editingId ? newArea : area
-      );
-    } else {
-      updatedAreas = [...savedAreas, newArea];
+      await saveAreaToFirestore(newArea);
+      alert("Área guardada exitosamente en la nube ☁️");
+      
+      setInterviewData({
+        areaName: "",
+        managerName: "",
+        date: new Date().toISOString().split("T")[0],
+        workdayMinutes: 480,
+        fixedBreaksMinutes: 60,
+        activities: [],
+        observations: "",
+        turtleProcess: {
+          inputs: [], outputs: [], resources: [], methods: [], indicators: [], competencies: []
+        },
+      });
+      setEditingId(null);
+      setView("list");
+    } catch (error) {
+      alert("Error al guardar el área: " + (error instanceof Error ? error.message : "Error desconocido"));
     }
-
-    localStorage.setItem("timeAnalysisInterviews", JSON.stringify(updatedAreas));
-    setSavedAreas(updatedAreas);
-    alert("Área guardada exitosamente");
-    
-    setInterviewData({
-      areaName: "",
-      managerName: "",
-      date: new Date().toISOString().split("T")[0],
-      workdayMinutes: 480,
-      fixedBreaksMinutes: 60,
-      activities: [],
-      observations: "",
-      turtleProcess: {
-        inputs: [], outputs: [], resources: [], methods: [], indicators: [], competencies: []
-      },
-    });
-    setEditingId(null);
-    setView("list");
   };
 
   const editArea = (area: InterviewData) => {
@@ -360,11 +369,14 @@ export default function Home() {
     setView("form");
   };
 
-  const deleteArea = (id: string) => {
+  const deleteArea = async (id: string) => {
     if (confirm("¿Estás seguro de eliminar esta área?")) {
-      const updatedAreas = savedAreas.filter((area) => area.id !== id);
-      localStorage.setItem("timeAnalysisInterviews", JSON.stringify(updatedAreas));
-      setSavedAreas(updatedAreas);
+      try {
+        await deleteAreaFromFirestore(id);
+        alert("Área eliminada exitosamente");
+      } catch (error) {
+        alert("Error al eliminar el área: " + (error instanceof Error ? error.message : "Error desconocido"));
+      }
     }
   };
 
@@ -488,9 +500,26 @@ export default function Home() {
                 <h1 className="text-3xl font-bold tracking-tight text-slate-900">
                   Análisis de Tiempos Muertos
                 </h1>
-                <p className="text-slate-600 mt-1">
-                  Gestión de áreas y mapas de procesos - Metodología Tortuga
-                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="text-slate-600">
+                    Gestión de áreas y mapas de procesos - Metodología Tortuga
+                  </p>
+                  {syncStatus === 'syncing' && (
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                      🔄 Sincronizando...
+                    </Badge>
+                  )}
+                  {syncStatus === 'synced' && (
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                      ☁️ Sincronizado
+                    </Badge>
+                  )}
+                  {syncStatus === 'error' && (
+                    <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                      ⚠️ Error de conexión
+                    </Badge>
+                  )}
+                </div>
               </div>
             </div>
             <div className="flex gap-2">
@@ -502,11 +531,10 @@ export default function Home() {
                   </Button>
                   {savedAreas.length === 0 && (
                     <Button 
-                      onClick={() => {
+                      onClick={async () => {
                         // Cargar datos de ejemplo
                         const ejemplos: InterviewData[] = [
                           {
-                            id: "ejemplo1",
                             areaName: "Compras",
                             managerName: "María García",
                             date: new Date().toISOString().split('T')[0],
@@ -524,7 +552,6 @@ export default function Home() {
                             }
                           },
                           {
-                            id: "ejemplo2",
                             areaName: "Producción",
                             managerName: "Carlos Rodríguez",
                             date: new Date().toISOString().split('T')[0],
@@ -542,7 +569,6 @@ export default function Home() {
                             }
                           },
                           {
-                            id: "ejemplo3",
                             areaName: "Logística",
                             managerName: "Ana Martínez",
                             date: new Date().toISOString().split('T')[0],
@@ -560,9 +586,15 @@ export default function Home() {
                             }
                           }
                         ];
-                        setSavedAreas(ejemplos);
-                        localStorage.setItem("timeAnalysisInterviews", JSON.stringify(ejemplos));
-                        alert("✅ Se cargaron 3 áreas de ejemplo con interacciones detectadas");
+                        
+                        try {
+                          for (const ejemplo of ejemplos) {
+                            await saveAreaToFirestore(ejemplo);
+                          }
+                          alert("✅ Se cargaron 3 áreas de ejemplo en la nube");
+                        } catch (error) {
+                          alert("Error al cargar ejemplos: " + (error instanceof Error ? error.message : "Error desconocido"));
+                        }
                       }}
                       variant="outline" 
                       size="lg"
@@ -2019,6 +2051,56 @@ export default function Home() {
           </div>
         )}
       </main>
+
+      {/* Diálogo de migración de datos */}
+      {showMigrateDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-blue-600" />
+                Migrar Datos a la Nube
+              </CardTitle>
+              <CardDescription>
+                Se detectaron datos guardados localmente. ¿Deseas migrarlos a Firebase para sincronizarlos entre dispositivos?
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-900">
+                  👉 Después de migrar, tus datos estarán disponibles en todos tus dispositivos.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={async () => {
+                    try {
+                      const count = await migrateData();
+                      alert(`✅ Se migraron ${count} áreas exitosamente a la nube`);
+                      setShowMigrateDialog(false);
+                    } catch (error) {
+                      alert("Error al migrar datos: " + (error instanceof Error ? error.message : "Error desconocido"));
+                    }
+                  }}
+                  className="flex-1"
+                >
+                  ☁️ Migrar a la Nube
+                </Button>
+                <Button
+                  onClick={() => {
+                    localStorage.setItem('firestoreMigrated', 'true');
+                    setShowMigrateDialog(false);
+                  }}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Omitir
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

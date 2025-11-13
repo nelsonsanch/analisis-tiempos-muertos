@@ -127,3 +127,19 @@
 - [x] Mostrar tiempo total calculado en la interfaz
 - [x] Actualizar cálculos de porcentajes con tiempo total
 - [x] Actualizar gráficos para reflejar tiempos totales
+
+
+## Integración Firebase para Sincronización en la Nube
+
+- [x] Instalar dependencias de Firebase (firebase SDK)
+- [x] Configurar Firebase en el proyecto con credenciales del usuario
+- [x] Crear servicio de Firestore para operaciones CRUD
+- [x] Implementar hook useFirestore para manejo de datos
+- [x] Migrar guardado de áreas de localStorage a Firestore
+- [x] Migrar carga de áreas de localStorage a Firestore
+- [x] Implementar sincronización en tiempo real
+- [x] Agregar indicadores de estado de sincronización (guardando, sincronizado, error)
+- [x] Implementar diálogo de migración de datos de localStorage
+- [ ] Configurar reglas de seguridad en Firebase (requiere acción del usuario)
+- [ ] Probar sincronización entre múltiples dispositivos
+- [ ] Publicar aplicación con Firebase integrado
