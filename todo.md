@@ -216,3 +216,13 @@
 - [x] Actualizar exportación para incluir estructura de cargos
 - [x] Migrar datos existentes a nueva estructura (limpieza de documentos con id:null)
 - [x] Probar funcionalidad completa
+
+
+## Subir Código a GitHub
+
+- [ ] Verificar configuración de Git en el proyecto
+- [ ] Crear nuevo repositorio en GitHub
+- [ ] Configurar remote origin
+- [ ] Hacer commit inicial con todo el código
+- [ ] Push al repositorio remoto
+- [ ] Verificar que el código se subió correctamente
