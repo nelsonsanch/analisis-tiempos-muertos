@@ -220,9 +220,18 @@
 
 ## Subir Código a GitHub
 
-- [ ] Verificar configuración de Git en el proyecto
-- [ ] Crear nuevo repositorio en GitHub
-- [ ] Configurar remote origin
-- [ ] Hacer commit inicial con todo el código
-- [ ] Push al repositorio remoto
-- [ ] Verificar que el código se subió correctamente
+- [x] Verificar configuración de Git en el proyecto
+- [x] Crear nuevo repositorio en GitHub (nelsonsanch/analisis-tiempos-muertos)
+- [x] Configurar remote github
+- [x] Hacer commit inicial con todo el código
+- [x] Push al repositorio remoto
+- [x] Verificar que el código se subió correctamente
+
+
+## Corrección de Visualización de Botones de Editar/Eliminar
+
+- [x] Investigar por qué los íconos no se mostraban (cambios no estaban en el código)
+- [x] Verificar que los íconos estén correctamente importados (Pencil agregado)
+- [x] Revisar el código JSX de los botones de editar y eliminar
+- [x] Implementar botones con íconos de lápiz azul (editar) y basura roja (eliminar)
+- [x] Probar que los botones se vean correctamente en el navegador

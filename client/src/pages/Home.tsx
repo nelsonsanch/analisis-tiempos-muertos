@@ -15,6 +15,7 @@ import {
   Clock, 
   Plus, 
   Trash2, 
+  Pencil,
   PieChart, 
   BarChart3, 
   FileText,
@@ -166,6 +167,9 @@ export default function Home() {
   const [currentPosition, setCurrentPosition] = useState<Position | null>(null); // Cargo actual seleccionado
   const [newPositionName, setNewPositionName] = useState("");
   const [showPositionDialog, setShowPositionDialog] = useState(false);
+  
+  // Estado para edición de actividades
+  const [editingActivity, setEditingActivity] = useState<{position: Position, activity: Activity} | null>(null);
 
   const [newActivity, setNewActivity] = useState({
     name: "",
@@ -382,6 +386,60 @@ export default function Home() {
       ...currentPosition,
       activities: currentPosition.activities.filter((a) => a.id !== activityId),
     });
+  };
+
+  const editActivity = (position: Position, activity: Activity) => {
+    setEditingActivity({ position, activity });
+    setCurrentPosition(position);
+    setNewActivity({
+      name: activity.name,
+      timeMinutes: activity.timeMinutes,
+      frequency: activity.frequency,
+      type: activity.type,
+      cause: activity.cause || "",
+    });
+  };
+
+  const updateActivity = () => {
+    if (!editingActivity || !currentPosition) return;
+    if (!newActivity.name || newActivity.timeMinutes <= 0) return;
+
+    const updatedActivity: Activity = {
+      ...editingActivity.activity,
+      name: newActivity.name,
+      timeMinutes: newActivity.timeMinutes,
+      frequency: newActivity.frequency,
+      type: newActivity.type,
+      cause: newActivity.type === "dead_time" ? newActivity.cause : undefined,
+    };
+
+    setInterviewData({
+      ...interviewData,
+      positions: interviewData.positions.map(p =>
+        p.id === currentPosition.id
+          ? {
+              ...p,
+              activities: p.activities.map(a =>
+                a.id === editingActivity.activity.id ? updatedActivity : a
+              ),
+            }
+          : p
+      ),
+    });
+
+    setCurrentPosition({
+      ...currentPosition,
+      activities: currentPosition.activities.map(a =>
+        a.id === editingActivity.activity.id ? updatedActivity : a
+      ),
+    });
+
+    cancelEdit();
+  };
+
+  const cancelEdit = () => {
+    setEditingActivity(null);
+    setNewActivity({ name: "", timeMinutes: 0, frequency: 1, type: "productive", cause: "" });
   };
 
   // Funciones de Tortuga
@@ -1119,11 +1177,16 @@ export default function Home() {
               </Card>
 
               {/* Agregar Actividades */}
-              <Card>
+              <Card className={editingActivity ? "border-blue-500 border-2" : ""}>
                 <CardHeader>
-                  <CardTitle>Registrar Actividades</CardTitle>
+                  <CardTitle>
+                    {editingActivity ? "Editar Actividad" : "Registrar Actividades"}
+                  </CardTitle>
                   <CardDescription>
-                    Registra las actividades del cargo seleccionado
+                    {editingActivity 
+                      ? "Modifica los datos de la actividad seleccionada"
+                      : "Registra las actividades del cargo seleccionado"
+                    }
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -1188,10 +1251,22 @@ export default function Home() {
                     </div>
                     <div className="space-y-2">
                       <Label>&nbsp;</Label>
-                      <Button onClick={addActivity} className="w-full">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Agregar
-                      </Button>
+                      {editingActivity ? (
+                        <div className="flex gap-2">
+                          <Button onClick={updateActivity} className="flex-1">
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Actualizar
+                          </Button>
+                          <Button onClick={cancelEdit} variant="outline" className="flex-1">
+                            Cancelar
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button onClick={addActivity} className="w-full">
+                          <Plus className="mr-2 h-4 w-4" />
+                          Agregar
+                        </Button>
+                      )}
                     </div>
                   </div>
 
@@ -1263,17 +1338,27 @@ export default function Home() {
                                       </p>
                                     </div>
                                   </div>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => {
-                                      setCurrentPosition(position);
-                                      removeActivity(activity.id);
-                                    }}
-                                    className="ml-2"
-                                  >
-                                    <Trash2 className="h-4 w-4 text-red-500" />
-                                  </Button>
+                                  <div className="flex gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => editActivity(position, activity)}
+                                      title="Editar actividad"
+                                    >
+                                      <Pencil className="h-4 w-4 text-blue-500" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => {
+                                        setCurrentPosition(position);
+                                        removeActivity(activity.id);
+                                      }}
+                                      title="Eliminar actividad"
+                                    >
+                                      <Trash2 className="h-4 w-4 text-red-500" />
+                                    </Button>
+                                  </div>
                                 </div>
                               ))}
                             </div>
