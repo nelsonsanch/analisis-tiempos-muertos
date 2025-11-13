@@ -216,3 +216,27 @@
 - [x] Actualizar exportación para incluir estructura de cargos
 - [x] Migrar datos existentes a nueva estructura (limpieza de documentos con id:null)
 - [x] Probar funcionalidad completa
+
+
+## Subir Código a GitHub
+
+- [x] Verificar configuración de Git en el proyecto
+- [x] Crear nuevo repositorio en GitHub (nelsonsanch/analisis-tiempos-muertos)
+- [x] Configurar remote github
+- [x] Hacer commit inicial con todo el código
+- [x] Push al repositorio remoto
+- [x] Verificar que el código se subió correctamente
+
+
+## Edición de Actividades
+
+- [x] Agregar estado editingActivity para rastrear actividad en edición
+- [x] Crear función editActivity para cargar actividad en el formulario
+- [x] Crear función updateActivity para guardar cambios
+- [x] Crear función cancelEdit para salir del modo edición
+- [x] Agregar botón de editar (ícono de lápiz azul) junto al botón de eliminar
+- [x] Modificar formulario para mostrar "Actualizar" en lugar de "Agregar" cuando está editando
+- [x] Agregar botón "Cancelar" para salir del modo edición
+- [x] Agregar indicador visual (borde azul) cuando está en modo edición
+- [x] Cambiar título y descripción del formulario según el modo
+- [x] Probar edición de actividades existentes

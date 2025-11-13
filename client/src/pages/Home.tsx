@@ -15,6 +15,7 @@ import {
   Clock, 
   Plus, 
   Trash2, 
+  Pencil,
   PieChart, 
   BarChart3, 
   FileText,
@@ -174,6 +175,8 @@ export default function Home() {
     type: "productive" as Activity["type"],
     cause: "",
   });
+
+  const [editingActivity, setEditingActivity] = useState<{activityId: string, positionId: string} | null>(null);
 
   // Función auxiliar: Obtener todas las actividades de un área (de todos los cargos)
   const getAllActivities = (area: InterviewData): Activity[] => {
@@ -382,6 +385,85 @@ export default function Home() {
       ...currentPosition,
       activities: currentPosition.activities.filter((a) => a.id !== activityId),
     });
+  };
+
+  const editActivity = (activityId: string, positionId: string) => {
+    // Encontrar el cargo y la actividad
+    const position = interviewData.positions.find(p => p.id === positionId);
+    if (!position) return;
+
+    const activity = position.activities.find(a => a.id === activityId);
+    if (!activity) return;
+
+    // Cargar la actividad en el formulario
+    setNewActivity({
+      name: activity.name,
+      timeMinutes: activity.timeMinutes,
+      frequency: activity.frequency,
+      type: activity.type,
+      cause: activity.cause || "",
+    });
+
+    // Establecer el cargo actual
+    setCurrentPosition(position);
+
+    // Marcar que estamos editando
+    setEditingActivity({ activityId, positionId });
+  };
+
+  const updateActivity = () => {
+    if (!editingActivity || !currentPosition) return;
+    if (!newActivity.name || newActivity.timeMinutes <= 0) return;
+
+    // Actualizar la actividad
+    setInterviewData({
+      ...interviewData,
+      positions: interviewData.positions.map(p => 
+        p.id === editingActivity.positionId
+          ? {
+              ...p,
+              activities: p.activities.map(a =>
+                a.id === editingActivity.activityId
+                  ? {
+                      ...a,
+                      name: newActivity.name,
+                      timeMinutes: newActivity.timeMinutes,
+                      frequency: newActivity.frequency,
+                      type: newActivity.type,
+                      cause: newActivity.type === "dead_time" ? newActivity.cause : undefined,
+                    }
+                  : a
+              ),
+            }
+          : p
+      ),
+    });
+
+    // Actualizar currentPosition
+    setCurrentPosition({
+      ...currentPosition,
+      activities: currentPosition.activities.map(a =>
+        a.id === editingActivity.activityId
+          ? {
+              ...a,
+              name: newActivity.name,
+              timeMinutes: newActivity.timeMinutes,
+              frequency: newActivity.frequency,
+              type: newActivity.type,
+              cause: newActivity.type === "dead_time" ? newActivity.cause : undefined,
+            }
+          : a
+      ),
+    });
+
+    // Limpiar el formulario y salir del modo edición
+    setNewActivity({ name: "", timeMinutes: 0, frequency: 1, type: "productive", cause: "" });
+    setEditingActivity(null);
+  };
+
+  const cancelEdit = () => {
+    setNewActivity({ name: "", timeMinutes: 0, frequency: 1, type: "productive", cause: "" });
+    setEditingActivity(null);
   };
 
   // Funciones de Tortuga
@@ -1119,11 +1201,16 @@ export default function Home() {
               </Card>
 
               {/* Agregar Actividades */}
-              <Card>
+              <Card className={editingActivity ? "border-blue-500 border-2" : ""}>
                 <CardHeader>
-                  <CardTitle>Registrar Actividades</CardTitle>
+                  <CardTitle>
+                    {editingActivity ? "Editar Actividad" : "Registrar Actividades"}
+                  </CardTitle>
                   <CardDescription>
-                    Registra las actividades del cargo seleccionado
+                    {editingActivity 
+                      ? "Modifica los datos de la actividad seleccionada"
+                      : "Registra las actividades del cargo seleccionado"
+                    }
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -1188,10 +1275,22 @@ export default function Home() {
                     </div>
                     <div className="space-y-2">
                       <Label>&nbsp;</Label>
-                      <Button onClick={addActivity} className="w-full">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Agregar
-                      </Button>
+                      {editingActivity ? (
+                        <div className="flex gap-2">
+                          <Button onClick={updateActivity} className="flex-1">
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Actualizar
+                          </Button>
+                          <Button onClick={cancelEdit} variant="outline" className="flex-1">
+                            Cancelar
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button onClick={addActivity} className="w-full">
+                          <Plus className="mr-2 h-4 w-4" />
+                          Agregar
+                        </Button>
+                      )}
                     </div>
                   </div>
 
@@ -1263,17 +1362,28 @@ export default function Home() {
                                       </p>
                                     </div>
                                   </div>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => {
-                                      setCurrentPosition(position);
-                                      removeActivity(activity.id);
-                                    }}
-                                    className="ml-2"
-                                  >
-                                    <Trash2 className="h-4 w-4 text-red-500" />
-                                  </Button>
+                                  <div className="flex gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => editActivity(activity.id, position.id)}
+                                      className="ml-2"
+                                      title="Editar actividad"
+                                    >
+                                      <Pencil className="h-4 w-4 text-blue-500" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => {
+                                        setCurrentPosition(position);
+                                        removeActivity(activity.id);
+                                      }}
+                                      title="Eliminar actividad"
+                                    >
+                                      <Trash2 className="h-4 w-4 text-red-500" />
+                                    </Button>
+                                  </div>
                                 </div>
                               ))}
                             </div>
