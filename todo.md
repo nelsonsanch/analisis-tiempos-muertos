@@ -235,3 +235,18 @@
 - [x] Revisar el código JSX de los botones de editar y eliminar
 - [x] Implementar botones con íconos de lápiz azul (editar) y basura roja (eliminar)
 - [x] Probar que los botones se vean correctamente en el navegador
+
+
+## Dashboard Ejecutivo Consolidado
+
+- [x] Crear componente Dashboard.tsx en pages
+- [x] Implementar cálculos de métricas consolidadas (promedios, totales)
+- [x] Crear tarjetas de resumen con estadísticas clave (Total Áreas, Promedio Productivo, Áreas Eficientes, Áreas Críticas)
+- [x] Implementar ranking de áreas por eficiencia (ordenado por % productivo)
+- [x] Agregar gráfico comparativo de barras horizontales para todas las áreas
+- [x] Implementar sistema de alertas para áreas críticas (>30% tiempo muerto)
+- [x] Mostrar área más eficiente y área con mayor tiempo muerto
+- [x] Crear visualización de distribución de tiempos global con colores
+- [x] Integrar dashboard en la navegación principal (botón "Dashboard")
+- [x] Agregar ruta /dashboard en App.tsx
+- [x] Probar con datos reales de las 9 áreas existentes

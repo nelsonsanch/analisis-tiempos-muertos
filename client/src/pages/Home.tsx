@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useLocation } from "wouter";
 // // import { useAuth } from "@/hooks/useAuth"; // Comentado temporalmente // Comentado temporalmente - auth no implementado aún
 import { useFirestore } from "@/hooks/useFirestore";
 import { generateTurtleSuggestions, type TurtleSuggestions } from "@/lib/aiService";
@@ -129,6 +130,7 @@ export default function Home() {
   // To implement login/logout functionality, simply call logout() or redirect to getLoginUrl()
   // let { user, loading, error, isAuthenticated, logout } = useAuth(); // Comentado - auth opcional por ahora
 
+  const [, setLocation] = useLocation();
   const [view, setView] = useState<"list" | "form" | "compare" | "process-map" | "sipoc">("list");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showMigrateDialog, setShowMigrateDialog] = useState(false);
@@ -818,9 +820,9 @@ export default function Home() {
                   )}
                   {savedAreas.length > 0 && (
                     <>
-                      <Button onClick={() => setView("compare")} variant="outline" size="lg">
-                        <TrendingUp className="mr-2 h-4 w-4" />
-                        Comparar
+                      <Button onClick={() => setLocation("/dashboard")} variant="outline" size="lg">
+                        <BarChart3 className="mr-2 h-4 w-4" />
+                        Dashboard
                       </Button>
                       <Button onClick={() => setView("process-map")} variant="outline" size="lg">
                         <Network className="mr-2 h-4 w-4" />
