@@ -269,3 +269,13 @@
 
 - [x] Botón "Cerrar Sesión" superpuesto con botón "Exportar" en el header
 - [x] Botón "Cerrar Sesión" se sale de la pantalla - reorganizar header
+
+
+## Campo de Cantidad de Personas por Cargo
+
+- [x] Agregar campo "Cantidad de personas" a la estructura de datos de Position
+- [x] Modificar interfaz para agregar campo numérico al crear/editar cargo
+- [x] Actualizar función calculateTotals para multiplicar actividades por cantidad de personas
+- [x] Mostrar cantidad de personas en la lista de cargos
+- [x] Actualizar visualizaciones y gráficos para reflejar multiplicación
+- [x] Probar con ejemplo: 3 operarios con las mismas actividades

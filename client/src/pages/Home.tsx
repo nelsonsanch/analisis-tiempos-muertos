@@ -81,6 +81,7 @@ interface Activity {
 interface Position {
   id: string;
   name: string; // Nombre del cargo (ej: "Contador Senior", "Auxiliar Contable")
+  count: number; // Cantidad de personas en este cargo
   activities: Activity[]; // Actividades asignadas a este cargo
 }
 
@@ -167,6 +168,7 @@ export default function Home() {
   // Estados para gestión de cargos
   const [currentPosition, setCurrentPosition] = useState<Position | null>(null); // Cargo actual seleccionado
   const [newPositionName, setNewPositionName] = useState("");
+  const [newPositionCount, setNewPositionCount] = useState(1); // Cantidad de personas en el cargo
   const [showPositionDialog, setShowPositionDialog] = useState(false);
   
   // Estado para edición de actividades
@@ -181,8 +183,19 @@ export default function Home() {
   });
 
   // Función auxiliar: Obtener todas las actividades de un área (de todos los cargos)
+  // Ahora incluye la multiplicación por cantidad de personas en el cargo
   const getAllActivities = (area: InterviewData): Activity[] => {
     return area.positions.flatMap(position => position.activities);
+  };
+  
+  // Función auxiliar: Obtener todas las actividades con su multiplicador de personas
+  const getAllActivitiesWithCount = (area: InterviewData): Array<{activity: Activity, count: number}> => {
+    return area.positions.flatMap(position => 
+      position.activities.map(activity => ({
+        activity,
+        count: position.count
+      }))
+    );
   };
 
   // Función auxiliar: Obtener todas las actividades del área actual
@@ -257,26 +270,26 @@ export default function Home() {
 
   // Cálculos automáticos
   const calculateTotals = (data: InterviewData) => {
-    // Obtener todas las actividades de todos los cargos
-    const allActivities = getAllActivities(data);
+    // Obtener todas las actividades con su multiplicador de personas
+    const allActivitiesWithCount = getAllActivitiesWithCount(data);
     
-    // Calcular tiempo total = duración × frecuencia
-    const totalActivities = allActivities.reduce(
-      (acc, activity) => acc + (activity.timeMinutes * activity.frequency),
+    // Calcular tiempo total = duración × frecuencia × cantidad de personas
+    const totalActivities = allActivitiesWithCount.reduce(
+      (acc, {activity, count}) => acc + (activity.timeMinutes * activity.frequency * count),
       0
     );
 
-    const productiveTime = allActivities
-      .filter((a) => a.type === "productive")
-      .reduce((acc, a) => acc + (a.timeMinutes * a.frequency), 0);
+    const productiveTime = allActivitiesWithCount
+      .filter(({activity}) => activity.type === "productive")
+      .reduce((acc, {activity, count}) => acc + (activity.timeMinutes * activity.frequency * count), 0);
 
-    const supportTime = allActivities
-      .filter((a) => a.type === "support")
-      .reduce((acc, a) => acc + (a.timeMinutes * a.frequency), 0);
+    const supportTime = allActivitiesWithCount
+      .filter(({activity}) => activity.type === "support")
+      .reduce((acc, {activity, count}) => acc + (activity.timeMinutes * activity.frequency * count), 0);
 
-    const deadTime = allActivities
-      .filter((a) => a.type === "dead_time")
-      .reduce((acc, a) => acc + (a.timeMinutes * a.frequency), 0);
+    const deadTime = allActivitiesWithCount
+      .filter(({activity}) => activity.type === "dead_time")
+      .reduce((acc, {activity, count}) => acc + (activity.timeMinutes * activity.frequency * count), 0);
 
     const availableTime = data.workdayMinutes - data.fixedBreaksMinutes;
     const unassignedTime = availableTime - totalActivities;
@@ -306,6 +319,7 @@ export default function Home() {
     const position: Position = {
       id: Date.now().toString(),
       name: newPositionName,
+      count: newPositionCount,
       activities: [],
     };
 
@@ -315,6 +329,7 @@ export default function Home() {
     });
 
     setNewPositionName("");
+    setNewPositionCount(1);
     setShowPositionDialog(false);
     setCurrentPosition(position); // Seleccionar el cargo recién creado
   };
@@ -1139,7 +1154,12 @@ export default function Home() {
                             onClick={() => setCurrentPosition(position)}
                           >
                             <div>
-                              <p className="font-semibold">{position.name}</p>
+                              <div className="flex items-center gap-2">
+                                <p className="font-semibold">{position.name}</p>
+                                <Badge variant="secondary" className="text-xs">
+                                  {position.count} {position.count === 1 ? "persona" : "personas"}
+                                </Badge>
+                              </div>
                               <p className="text-sm text-slate-600">
                                 {position.activities.length} actividad{position.activities.length !== 1 ? "es" : ""}
                               </p>
@@ -1171,6 +1191,20 @@ export default function Home() {
                           addPosition();
                         }
                       }}
+                      className="flex-1"
+                    />
+                    <Input
+                      type="number"
+                      min="1"
+                      placeholder="Cant."
+                      value={newPositionCount}
+                      onChange={(e) => setNewPositionCount(parseInt(e.target.value) || 1)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          addPosition();
+                        }
+                      }}
+                      className="w-24"
                     />
                     <Button onClick={addPosition}>
                       <Plus className="mr-2 h-4 w-4" />
