@@ -263,3 +263,8 @@
 - [ ] Crear usuario inicial en Firebase Console: hsesupergas@gmail.com (requiere acción del usuario)
 - [ ] Configurar reglas de seguridad en Firestore (requiere acción del usuario)
 - [ ] Desplegar versión segura a producción
+
+
+## 🐛 Bugs a Corregir
+
+- [x] Botón "Cerrar Sesión" superpuesto con botón "Exportar" en el header

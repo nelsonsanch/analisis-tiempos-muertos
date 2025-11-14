@@ -856,27 +856,27 @@ export default function Home() {
                     {editingId ? "Actualizar" : "Guardar"} Área
                   </Button>
                 </>
-                          )}
+              )}
               {(view === "compare" || view === "process-map" || view === "sipoc") && (
                 <Button onClick={() => setView("list")} variant="outline" size="lg">
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Volver
                 </Button>
               )}
+              <Button 
+                onClick={async () => {
+                  if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+                    await signOut();
+                  }
+                }} 
+                variant="outline" 
+                size="lg"
+                className="text-red-600 hover:text-red-700 hover:bg-red-50 ml-2"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Cerrar Sesión
+              </Button>
             </div>
-            <Button 
-              onClick={async () => {
-                if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
-                  await signOut();
-                }
-              }} 
-              variant="outline" 
-              size="lg"
-              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Cerrar Sesión
-            </Button>
           </div>
         </div>
       </header>
