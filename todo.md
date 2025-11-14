@@ -268,3 +268,4 @@
 ## 🐛 Bugs a Corregir
 
 - [x] Botón "Cerrar Sesión" superpuesto con botón "Exportar" en el header
+- [x] Botón "Cerrar Sesión" se sale de la pantalla - reorganizar header

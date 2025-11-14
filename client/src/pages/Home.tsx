@@ -706,7 +706,7 @@ export default function Home() {
       {/* Header */}
       <header className="bg-white border-b shadow-sm">
         <div className="container mx-auto py-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-600 rounded-lg">
                 <Clock className="h-8 w-8 text-white" />
@@ -737,7 +737,21 @@ export default function Home() {
                 </div>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 items-end">
+              <Button 
+                onClick={async () => {
+                  if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+                    await signOut();
+                  }
+                }} 
+                variant="outline" 
+                size="sm"
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Cerrar Sesión
+              </Button>
+              <div className="flex gap-2 flex-wrap justify-end">
               {view === "list" && (
                 <>
                   <Button onClick={newArea} size="lg">
@@ -863,19 +877,7 @@ export default function Home() {
                   Volver
                 </Button>
               )}
-              <Button 
-                onClick={async () => {
-                  if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
-                    await signOut();
-                  }
-                }} 
-                variant="outline" 
-                size="lg"
-                className="text-red-600 hover:text-red-700 hover:bg-red-50 ml-2"
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                Cerrar Sesión
-              </Button>
+              </div>
             </div>
           </div>
         </div>
