@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useLocation } from "wouter";
-// // import { useAuth } from "@/hooks/useAuth"; // Comentado temporalmente // Comentado temporalmente - auth no implementado aún
+import { useAuth } from "@/contexts/AuthContext";
 import { useFirestore } from "@/hooks/useFirestore";
 import { generateTurtleSuggestions, type TurtleSuggestions } from "@/lib/aiService";
 import { trpc } from "@/lib/trpc";
@@ -32,7 +32,9 @@ import {
   CheckCircle2,
   Check,
   ChevronsUpDown,
-  Loader2
+  Loader2,
+  LogOut,
+  Shield
 } from "lucide-react";
 import {
   BarChart,
@@ -126,10 +128,7 @@ const TURTLE_FIELDS = [
 ];
 
 export default function Home() {
-  // The userAuth hooks provides authentication state
-  // To implement login/logout functionality, simply call logout() or redirect to getLoginUrl()
-  // let { user, loading, error, isAuthenticated, logout } = useAuth(); // Comentado - auth opcional por ahora
-
+  const { user, signOut } = useAuth();
   const [, setLocation] = useLocation();
   const [view, setView] = useState<"list" | "form" | "compare" | "process-map" | "sipoc">("list");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -824,6 +823,12 @@ export default function Home() {
                         <BarChart3 className="mr-2 h-4 w-4" />
                         Dashboard
                       </Button>
+                      {user?.email === 'hsesupergas@gmail.com' && (
+                        <Button onClick={() => setLocation("/admin/users")} variant="outline" size="lg">
+                          <Shield className="mr-2 h-4 w-4" />
+                          Usuarios
+                        </Button>
+                      )}
                       <Button onClick={() => setView("process-map")} variant="outline" size="lg">
                         <Network className="mr-2 h-4 w-4" />
                         Mapa de Procesos
@@ -851,7 +856,7 @@ export default function Home() {
                     {editingId ? "Actualizar" : "Guardar"} Área
                   </Button>
                 </>
-              )}
+                          )}
               {(view === "compare" || view === "process-map" || view === "sipoc") && (
                 <Button onClick={() => setView("list")} variant="outline" size="lg">
                   <ArrowLeft className="mr-2 h-4 w-4" />
@@ -859,6 +864,19 @@ export default function Home() {
                 </Button>
               )}
             </div>
+            <Button 
+              onClick={async () => {
+                if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+                  await signOut();
+                }
+              }} 
+              variant="outline" 
+              size="lg"
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Cerrar Sesión
+            </Button>
           </div>
         </div>
       </header>

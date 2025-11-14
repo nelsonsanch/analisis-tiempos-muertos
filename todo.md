@@ -250,3 +250,16 @@
 - [x] Integrar dashboard en la navegación principal (botón "Dashboard")
 - [x] Agregar ruta /dashboard en App.tsx
 - [x] Probar con datos reales de las 9 áreas existentes
+
+
+## 🚨 SEGURIDAD Y AUTENTICACIÓN (URGENTE)
+
+- [x] Configurar Firebase Authentication
+- [x] Implementar página de Login
+- [x] Proteger todas las rutas con AuthGuard
+- [x] Crear panel de administración de usuarios (solo para admin)
+- [x] Agregar botón de cerrar sesión en todas las páginas
+- [x] Crear guía de configuración (CONFIGURAR_AUTENTICACION.md)
+- [ ] Crear usuario inicial en Firebase Console: hsesupergas@gmail.com (requiere acción del usuario)
+- [ ] Configurar reglas de seguridad en Firestore (requiere acción del usuario)
+- [ ] Desplegar versión segura a producción

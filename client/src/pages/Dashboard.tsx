@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useFirestore } from "@/hooks/useFirestore";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,8 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
-  ArrowLeft
+  ArrowLeft,
+  LogOut
 } from "lucide-react";
 import { useLocation } from "wouter";
 import type { InterviewData } from "@/lib/firestoreService";
@@ -20,6 +22,7 @@ import type { InterviewData } from "@/lib/firestoreService";
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { areas } = useFirestore();
+  const { signOut } = useAuth();
   
   // Calcular métricas consolidadas
   const metrics = useMemo(() => {
@@ -163,6 +166,18 @@ export default function Dashboard() {
               Visión consolidada de todas las áreas analizadas
             </p>
           </div>
+          <Button 
+            onClick={async () => {
+              if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+                await signOut();
+              }
+            }} 
+            variant="outline"
+            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            Cerrar Sesión
+          </Button>
         </div>
 
         {/* Métricas Clave */}
