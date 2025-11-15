@@ -276,4 +276,4 @@
 - [x] Restaurar botones funcionales en proyecto actual
 - [x] Verificar que Dashboard muestre tiempos por áreas
 - [x] Verificar que gestión de Usuarios funcione
-- [ ] Subir código completo a GitHub
+- [x] Subir código completo a GitHub
