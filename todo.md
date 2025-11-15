@@ -251,3 +251,10 @@
 - [x] Crear totalizador consolidado del área con suma de todos los cargos
 - [x] Mostrar totalizador al final de la lista de cargos
 - [x] Probar edición de nombres y verificar cálculos
+
+
+## Botones Dashboard y Usuarios en Header
+
+- [x] Agregar botón "Dashboard" al header principal
+- [x] Agregar botón "Usuarios" al header principal
+- [x] Verificar que los botones aparezcan en todas las vistas

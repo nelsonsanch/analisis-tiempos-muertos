@@ -31,7 +31,9 @@ import {
   CheckCircle2,
   Check,
   ChevronsUpDown,
-  Loader2
+  Loader2,
+  LayoutDashboard,
+  Shield
 } from "lucide-react";
 import {
   BarChart,
@@ -837,6 +839,14 @@ export default function Home() {
             <div className="flex gap-2">
               {view === "list" && (
                 <>
+                  <Button onClick={() => alert('Dashboard en desarrollo')} variant="outline" size="lg">
+                    <LayoutDashboard className="mr-2 h-4 w-4" />
+                    Dashboard
+                  </Button>
+                  <Button onClick={() => alert('Gestión de usuarios en desarrollo')} variant="outline" size="lg">
+                    <Shield className="mr-2 h-4 w-4" />
+                    Usuarios
+                  </Button>
                   <Button onClick={newArea} size="lg">
                     <Plus className="mr-2 h-4 w-4" />
                     Nueva Área
