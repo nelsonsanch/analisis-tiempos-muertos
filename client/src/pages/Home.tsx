@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
-// // import { useAuth } from "@/hooks/useAuth"; // Comentado temporalmente // Comentado temporalmente - auth no implementado aún
+import { useLocation } from "wouter";
+import { useAuth } from "@/contexts/AuthContext";
 import { useFirestore } from "@/hooks/useFirestore";
 import { generateTurtleSuggestions, type TurtleSuggestions } from "@/lib/aiService";
 import { trpc } from "@/lib/trpc";
@@ -31,7 +32,8 @@ import {
   CheckCircle2,
   Check,
   ChevronsUpDown,
-  Loader2
+  Loader2,
+  Shield
 } from "lucide-react";
 import {
   BarChart,
@@ -125,9 +127,8 @@ const TURTLE_FIELDS = [
 ];
 
 export default function Home() {
-  // The userAuth hooks provides authentication state
-  // To implement login/logout functionality, simply call logout() or redirect to getLoginUrl()
-  // let { user, loading, error, isAuthenticated, logout } = useAuth(); // Comentado - auth opcional por ahora
+  const [, setLocation] = useLocation();
+  const { user } = useAuth();
 
   const [view, setView] = useState<"list" | "form" | "compare" | "process-map" | "sipoc">("list");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -837,6 +838,20 @@ export default function Home() {
             <div className="flex gap-2">
               {view === "list" && (
                 <>
+                  {savedAreas.length > 0 && (
+                    <>
+                      <Button onClick={() => setLocation("/dashboard")} variant="outline" size="lg">
+                        <BarChart3 className="mr-2 h-4 w-4" />
+                        Dashboard
+                      </Button>
+                      {user?.email === 'hsesupergas@gmail.com' && (
+                        <Button onClick={() => setLocation("/admin/users")} variant="outline" size="lg">
+                          <Shield className="mr-2 h-4 w-4" />
+                          Usuarios
+                        </Button>
+                      )}
+                    </>
+                  )}
                   <Button onClick={newArea} size="lg">
                     <Plus className="mr-2 h-4 w-4" />
                     Nueva Área

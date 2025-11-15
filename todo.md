@@ -265,4 +265,15 @@
 - [x] Eliminar botones Dashboard y Usuarios no funcionales
 - [x] Eliminar imports de iconos LayoutDashboard y Shield
 - [x] Crear checkpoint limpio
-- [ ] Subir código a GitHub
+- [x] Subir código a GitHub
+
+
+## Recuperación de Botones Dashboard y Usuarios Funcionales
+
+- [x] Clonar repositorio de GitHub
+- [x] Analizar código de Dashboard ejecutivo con gráficos de barras
+- [x] Analizar código de gestión de Usuarios
+- [x] Restaurar botones funcionales en proyecto actual
+- [x] Verificar que Dashboard muestre tiempos por áreas
+- [x] Verificar que gestión de Usuarios funcione
+- [ ] Subir código completo a GitHub
