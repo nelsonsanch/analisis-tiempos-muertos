@@ -177,6 +177,10 @@ export default function Home() {
   });
 
   const [editingActivity, setEditingActivity] = useState<{activityId: string, positionId: string} | null>(null);
+  
+  // Estado para edición de nombre de cargo
+  const [editingPosition, setEditingPosition] = useState<{id: string, name: string} | null>(null);
+  const [editPositionName, setEditPositionName] = useState("");
 
   // Función auxiliar: Obtener todas las actividades de un área (de todos los cargos)
   const getAllActivities = (area: InterviewData): Activity[] => {
@@ -293,6 +297,42 @@ export default function Home() {
   };
 
   const totals = calculateTotals(interviewData);
+  
+  // Cálculo de tiempos por cargo individual
+  const calculatePositionTotals = (position: Position, workdayMinutes: number, fixedBreaksMinutes: number) => {
+    const activities = position.activities;
+    const count = position.count;
+    
+    // Calcular tiempo total por tipo (duración × frecuencia × cantidad de personas)
+    const productiveTime = activities
+      .filter(a => a.type === "productive")
+      .reduce((acc, a) => acc + (a.timeMinutes * a.frequency * count), 0);
+    
+    const supportTime = activities
+      .filter(a => a.type === "support")
+      .reduce((acc, a) => acc + (a.timeMinutes * a.frequency * count), 0);
+    
+    const deadTime = activities
+      .filter(a => a.type === "dead_time")
+      .reduce((acc, a) => acc + (a.timeMinutes * a.frequency * count), 0);
+    
+    const totalActivities = productiveTime + supportTime + deadTime;
+    const availableTime = (workdayMinutes - fixedBreaksMinutes) * count; // Tiempo disponible multiplicado por cantidad de personas
+    const unassignedTime = availableTime - totalActivities;
+    
+    return {
+      productiveTime,
+      supportTime,
+      deadTime,
+      totalActivities,
+      availableTime,
+      unassignedTime,
+      productivePercentage: availableTime > 0 ? (productiveTime / availableTime) * 100 : 0,
+      supportPercentage: availableTime > 0 ? (supportTime / availableTime) * 100 : 0,
+      deadTimePercentage: availableTime > 0 ? (deadTime / availableTime) * 100 : 0,
+      unassignedPercentage: availableTime > 0 ? (unassignedTime / availableTime) * 100 : 0,
+    };
+  };
 
   // Funciones de Cargos
   const addPosition = () => {
@@ -329,6 +369,40 @@ export default function Home() {
         setCurrentPosition(null);
       }
     }
+  };
+  
+  const startEditPosition = (position: Position) => {
+    setEditingPosition({ id: position.id, name: position.name });
+    setEditPositionName(position.name);
+  };
+  
+  const saveEditPosition = () => {
+    if (!editingPosition || !editPositionName.trim()) {
+      alert("Por favor ingresa un nombre válido para el cargo");
+      return;
+    }
+    
+    setInterviewData({
+      ...interviewData,
+      positions: interviewData.positions.map(p => 
+        p.id === editingPosition.id 
+          ? { ...p, name: editPositionName.trim() }
+          : p
+      ),
+    });
+    
+    // Actualizar currentPosition si es el que se está editando
+    if (currentPosition?.id === editingPosition.id) {
+      setCurrentPosition({ ...currentPosition, name: editPositionName.trim() });
+    }
+    
+    setEditingPosition(null);
+    setEditPositionName("");
+  };
+  
+  const cancelEditPosition = () => {
+    setEditingPosition(null);
+    setEditPositionName("");
   };
 
   // Funciones de Actividades (ahora trabajan con el cargo actual)
@@ -1146,16 +1220,30 @@ export default function Home() {
                                 {position.activities.length} actividad{position.activities.length !== 1 ? "es" : ""}
                               </p>
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                removePosition(position.id);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4 text-red-600" />
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  startEditPosition(position);
+                                }}
+                                title="Editar nombre del cargo"
+                              >
+                                <Pencil className="h-4 w-4 text-blue-600" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removePosition(position.id);
+                                }}
+                                title="Eliminar cargo"
+                              >
+                                <Trash2 className="h-4 w-4 text-red-600" />
+                              </Button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -1328,13 +1416,48 @@ export default function Home() {
                     <div className="space-y-4">
                       {interviewData.positions.map((position) => (
                         position.activities.length > 0 && (
-                          <div key={position.id} className="border rounded-lg p-4">
+                          <div key={position.id} className="border rounded-lg p-4 bg-slate-50">
                             <div className="flex items-center justify-between mb-3">
-                              <h3 className="font-semibold text-lg">💼 {position.name}</h3>
+                              <div>
+                                <h3 className="font-semibold text-lg">💼 {position.name}</h3>
+                                <Badge variant="secondary" className="text-xs mt-1">
+                                  {position.count} {position.count === 1 ? "persona" : "personas"}
+                                </Badge>
+                              </div>
                               <Badge variant="outline">
                                 {position.activities.length} actividad{position.activities.length !== 1 ? 'es' : ''}
                               </Badge>
                             </div>
+                            
+                            {/* Contador de Tiempos por Cargo */}
+                            {(() => {
+                              const positionTotals = calculatePositionTotals(position, interviewData.workdayMinutes, interviewData.fixedBreaksMinutes);
+                              return (
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4 p-3 bg-white rounded-lg border">
+                                  <div className="text-center">
+                                    <p className="text-xs text-slate-600">Productivo</p>
+                                    <p className="font-bold text-green-600">{positionTotals.productiveTime} min</p>
+                                    <p className="text-xs text-slate-500">{positionTotals.productivePercentage.toFixed(1)}%</p>
+                                  </div>
+                                  <div className="text-center">
+                                    <p className="text-xs text-slate-600">Apoyo</p>
+                                    <p className="font-bold text-blue-600">{positionTotals.supportTime} min</p>
+                                    <p className="text-xs text-slate-500">{positionTotals.supportPercentage.toFixed(1)}%</p>
+                                  </div>
+                                  <div className="text-center">
+                                    <p className="text-xs text-slate-600">Muerto</p>
+                                    <p className="font-bold text-red-600">{positionTotals.deadTime} min</p>
+                                    <p className="text-xs text-slate-500">{positionTotals.deadTimePercentage.toFixed(1)}%</p>
+                                  </div>
+                                  <div className="text-center">
+                                    <p className="text-xs text-slate-600">Disponible</p>
+                                    <p className="font-bold text-slate-600">{positionTotals.unassignedTime} min</p>
+                                    <p className="text-xs text-slate-500">{positionTotals.unassignedPercentage.toFixed(1)}%</p>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                            
                             <div className="space-y-2">
                               {position.activities.map((activity) => (
                                 <div
@@ -1390,6 +1513,40 @@ export default function Home() {
                           </div>
                         )
                       ))}
+                      
+                      {/* Totalizador del Área */}
+                      {interviewData.positions.some(p => p.activities.length > 0) && (
+                        <div className="border-2 border-blue-500 rounded-lg p-4 bg-gradient-to-r from-blue-50 to-indigo-50">
+                          <h3 className="font-bold text-lg text-blue-900 mb-3 flex items-center gap-2">
+                            <TrendingUp className="h-5 w-5" />
+                            Totalizador del Área: {interviewData.areaName}
+                          </h3>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div className="bg-white rounded-lg p-4 text-center shadow-sm">
+                              <p className="text-sm text-slate-600 mb-1">Total Productivo</p>
+                              <p className="text-2xl font-bold text-green-600">{totals.productiveTime} min</p>
+                              <p className="text-sm text-slate-500 mt-1">{totals.productivePercentage.toFixed(1)}%</p>
+                            </div>
+                            <div className="bg-white rounded-lg p-4 text-center shadow-sm">
+                              <p className="text-sm text-slate-600 mb-1">Total Apoyo</p>
+                              <p className="text-2xl font-bold text-blue-600">{totals.supportTime} min</p>
+                              <p className="text-sm text-slate-500 mt-1">{totals.supportPercentage.toFixed(1)}%</p>
+                            </div>
+                            <div className="bg-white rounded-lg p-4 text-center shadow-sm">
+                              <p className="text-sm text-slate-600 mb-1">Total Muerto</p>
+                              <p className="text-2xl font-bold text-red-600">{totals.deadTime} min</p>
+                              <p className="text-sm text-slate-500 mt-1">{totals.deadTimePercentage.toFixed(1)}%</p>
+                            </div>
+                            <div className="bg-white rounded-lg p-4 text-center shadow-sm">
+                              <p className="text-sm text-slate-600 mb-1">Total Disponible</p>
+                              <p className="text-2xl font-bold text-slate-600">{totals.unassignedTime} min</p>
+                              <p className="text-sm text-slate-500 mt-1">
+                                {totals.availableTime > 0 ? ((totals.unassignedTime / totals.availableTime) * 100).toFixed(1) : 0}%
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -2627,6 +2784,48 @@ export default function Home() {
                   className="flex-1"
                 >
                   Cerrar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+      
+      {/* Diálogo de Edición de Nombre de Cargo */}
+      {editingPosition && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader>
+              <CardTitle>Editar Nombre del Cargo</CardTitle>
+              <CardDescription>
+                Modifica el nombre del cargo sin perder las actividades registradas
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="edit-position-name">Nombre del Cargo</Label>
+                <Input
+                  id="edit-position-name"
+                  value={editPositionName}
+                  onChange={(e) => setEditPositionName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      saveEditPosition();
+                    } else if (e.key === "Escape") {
+                      cancelEditPosition();
+                    }
+                  }}
+                  placeholder="Ej: Contador Senior"
+                  autoFocus
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={saveEditPosition} className="flex-1">
+                  <Check className="mr-2 h-4 w-4" />
+                  Guardar
+                </Button>
+                <Button onClick={cancelEditPosition} variant="outline" className="flex-1">
+                  Cancelar
                 </Button>
               </div>
             </CardContent>

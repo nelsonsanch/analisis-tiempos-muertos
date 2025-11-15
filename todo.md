@@ -240,3 +240,14 @@
 - [x] Agregar indicador visual (borde azul) cuando está en modo edición
 - [x] Cambiar título y descripción del formulario según el modo
 - [x] Probar edición de actividades existentes
+
+
+## Edición de Cargos y Contadores de Tiempo
+
+- [x] Agregar botón para editar nombre del cargo
+- [x] Implementar diálogo de edición de nombre de cargo
+- [x] Crear función calculatePositionTotals para calcular tiempos por cargo
+- [x] Mostrar contador de tiempos por cada cargo (Productivo, Apoyo, Muerto, Disponible)
+- [x] Crear totalizador consolidado del área con suma de todos los cargos
+- [x] Mostrar totalizador al final de la lista de cargos
+- [x] Probar edición de nombres y verificar cálculos
