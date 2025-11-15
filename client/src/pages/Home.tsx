@@ -12,6 +12,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { 
   Clock, 
   Plus, 
@@ -33,7 +40,10 @@ import {
   Check,
   ChevronsUpDown,
   Loader2,
-  Shield
+  Shield,
+  LogOut,
+  MoreVertical,
+  FileText as FileTextIcon
 } from "lucide-react";
 import {
   BarChart,
@@ -92,17 +102,29 @@ interface TurtleProcess {
   competencies: string[]; // Competencias
 }
 
+interface Measurement {
+  id: string;
+  periodName: string; // Nombre del período (ej: "Enero 2025", "Q1 2025")
+  date: string; // Fecha de la medición
+  workdayMinutes: number;
+  fixedBreaksMinutes: number;
+  positions: Position[]; // Cargos y actividades en este período
+  observations: string;
+  createdAt: string;
+}
+
 interface InterviewData {
   id?: string;
   areaName: string;
   managerName: string;
-  date: string;
+  date: string; // Fecha de creación del área
   workdayMinutes: number;
   fixedBreaksMinutes: number;
-  positions: Position[]; // Cargos dentro del área
+  positions: Position[]; // Cargos dentro del área (medición inicial)
   observations: string;
   savedAt?: string;
   turtleProcess?: TurtleProcess;
+  measurements?: Measurement[]; // Mediciones adicionales por períodos
 }
 
 const COLORS = {
@@ -128,9 +150,9 @@ const TURTLE_FIELDS = [
 
 export default function Home() {
   const [, setLocation] = useLocation();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
 
-  const [view, setView] = useState<"list" | "form" | "compare" | "process-map" | "sipoc">("list");
+  const [view, setView] = useState<"list" | "form" | "process-map" | "sipoc">("list");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showMigrateDialog, setShowMigrateDialog] = useState(false);
   
@@ -154,6 +176,7 @@ export default function Home() {
     fixedBreaksMinutes: 60,
     positions: [], // Cargos del área
     observations: "",
+    measurements: [], // Mediciones por períodos
     turtleProcess: {
       inputs: [],
       outputs: [],
@@ -835,27 +858,67 @@ export default function Home() {
                 </div>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {view === "list" && (
                 <>
-                  {savedAreas.length > 0 && (
-                    <>
-                      <Button onClick={() => setLocation("/dashboard")} variant="outline" size="lg">
-                        <BarChart3 className="mr-2 h-4 w-4" />
-                        Dashboard
-                      </Button>
-                      {user?.email === 'hsesupergas@gmail.com' && (
-                        <Button onClick={() => setLocation("/admin/users")} variant="outline" size="lg">
-                          <Shield className="mr-2 h-4 w-4" />
-                          Usuarios
-                        </Button>
-                      )}
-                    </>
-                  )}
                   <Button onClick={newArea} size="lg">
                     <Plus className="mr-2 h-4 w-4" />
                     Nueva Área
                   </Button>
+                  
+                  {savedAreas.length > 0 && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="lg">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuItem onClick={() => setLocation("/dashboard")}>
+                          <BarChart3 className="mr-2 h-4 w-4" />
+                          Dashboard
+                        </DropdownMenuItem>
+                        {user?.email === 'hsesupergas@gmail.com' && (
+                          <DropdownMenuItem onClick={() => setLocation("/admin/users")}>
+                            <Shield className="mr-2 h-4 w-4" />
+                            Usuarios
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem onClick={() => setView("process-map")}>
+                          <Network className="mr-2 h-4 w-4" />
+                          Mapa de Procesos
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setView("sipoc")}>
+                          <FileTextIcon className="mr-2 h-4 w-4" />
+                          Matriz SIPOC
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {
+                          const dataStr = JSON.stringify(savedAreas, null, 2);
+                          const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                          const url = URL.createObjectURL(dataBlob);
+                          const link = document.createElement('a');
+                          link.href = url;
+                          link.download = `analisis-tiempos-muertos-${new Date().toISOString().split('T')[0]}.json`;
+                          link.click();
+                          URL.revokeObjectURL(url);
+                        }}>
+                          <Download className="mr-2 h-4 w-4" />
+                          Exportar
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          onClick={async () => {
+                            await signOut();
+                            setLocation('/login');
+                          }}
+                          className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                        >
+                          <LogOut className="mr-2 h-4 w-4" />
+                          Cerrar Sesión
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                   {savedAreas.length === 0 && (
                     <Button 
                       onClick={async () => {
@@ -929,26 +992,7 @@ export default function Home() {
                       🎯 Cargar Ejemplo
                     </Button>
                   )}
-                  {savedAreas.length > 0 && (
-                    <>
-                      <Button onClick={() => setView("compare")} variant="outline" size="lg">
-                        <TrendingUp className="mr-2 h-4 w-4" />
-                        Comparar
-                      </Button>
-                      <Button onClick={() => setView("process-map")} variant="outline" size="lg">
-                        <Network className="mr-2 h-4 w-4" />
-                        Mapa de Procesos
-                      </Button>
-                      <Button onClick={() => setView("sipoc")} variant="outline" size="lg">
-                        <FileText className="mr-2 h-4 w-4" />
-                        Matriz SIPOC
-                      </Button>
-                      <Button onClick={exportComparative} variant="outline" size="lg">
-                        <Download className="mr-2 h-4 w-4" />
-                        Exportar
-                      </Button>
-                    </>
-                  )}
+
                 </>
               )}
               {view === "form" && (
@@ -963,7 +1007,7 @@ export default function Home() {
                   </Button>
                 </>
               )}
-              {(view === "compare" || view === "process-map" || view === "sipoc") && (
+              {(view === "process-map" || view === "sipoc") && (
                 <Button onClick={() => setView("list")} variant="outline" size="lg">
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Volver
@@ -1051,33 +1095,52 @@ export default function Home() {
                             <div className="text-sm text-slate-600">
                               <strong>{getAllActivities(area).length}</strong> actividades registradas
                             </div>
-                            <div className="flex gap-2">
+                            <div className="space-y-2">
+                              <div className="flex gap-2">
+                                <Button
+                                  onClick={() => editArea(area)}
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-1"
+                                >
+                                  <Edit className="mr-1 h-3 w-3" />
+                                  Ver/Editar
+                                </Button>
+                                <Button
+                                  onClick={() => exportArea(area)}
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-1"
+                                >
+                                  <Download className="mr-1 h-3 w-3" />
+                                  Exportar
+                                </Button>
+                                <Button
+                                  onClick={() => deleteArea(area.id)}
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={!area.id}
+                                >
+                                  <Trash2 className="h-3 w-3 text-red-500" />
+                                </Button>
+                              </div>
                               <Button
-                                onClick={() => editArea(area)}
-                                variant="outline"
+                                onClick={() => {
+                                  // TODO: Implementar nueva medición
+                                  alert('Función de nueva medición en desarrollo');
+                                }}
+                                variant="default"
                                 size="sm"
-                                className="flex-1"
+                                className="w-full"
                               >
-                                <Edit className="mr-1 h-3 w-3" />
-                                Ver/Editar
+                                <Clock className="mr-1 h-3 w-3" />
+                                Nueva Medición
                               </Button>
-                              <Button
-                                onClick={() => exportArea(area)}
-                                variant="outline"
-                                size="sm"
-                                className="flex-1"
-                              >
-                                <Download className="mr-1 h-3 w-3" />
-                                Exportar
-                              </Button>
-                              <Button
-                                onClick={() => deleteArea(area.id)}
-                                variant="outline"
-                                size="sm"
-                                disabled={!area.id}
-                              >
-                                <Trash2 className="h-3 w-3 text-red-500" />
-                              </Button>
+                              {area.measurements && area.measurements.length > 0 && (
+                                <div className="text-xs text-slate-600 text-center">
+                                  {area.measurements.length} medición(es) registrada(s)
+                                </div>
+                              )}
                             </div>
                           </CardContent>
                         </Card>
@@ -2062,123 +2125,6 @@ export default function Home() {
               )}
             </TabsContent>
           </Tabs>
-        )}
-
-        {/* Vista: Comparativa */}
-        {view === "compare" && savedAreas.length > 0 && (
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Comparativa entre Áreas</CardTitle>
-                <CardDescription>
-                  Análisis de {savedAreas.length} áreas
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div>
-                    <h3 className="font-semibold mb-4">Distribución (%)</h3>
-                    <ResponsiveContainer width="100%" height={400}>
-                      <BarChart data={comparativeData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="area" angle={-45} textAnchor="end" height={100} />
-                        <YAxis />
-                        <Tooltip />
-                        <Legend />
-                        <Bar dataKey="Productivo" fill={COLORS.productive} />
-                        <Bar dataKey="Soporte" fill={COLORS.support} />
-                        <Bar dataKey="Tiempo Muerto" fill={COLORS.dead_time} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-
-                  <div>
-                    <h3 className="font-semibold mb-4">Vista Radar</h3>
-                    <ResponsiveContainer width="100%" height={400}>
-                      <RadarChart data={radarData}>
-                        <PolarGrid />
-                        <PolarAngleAxis dataKey="area" />
-                        <PolarRadiusAxis angle={90} domain={[0, 100]} />
-                        <Radar
-                          name="Productivo"
-                          dataKey="productivo"
-                          stroke={COLORS.productive}
-                          fill={COLORS.productive}
-                          fillOpacity={0.6}
-                        />
-                        <Radar
-                          name="Tiempo Muerto"
-                          dataKey="muerto"
-                          stroke={COLORS.dead_time}
-                          fill={COLORS.dead_time}
-                          fillOpacity={0.6}
-                        />
-                        <Legend />
-                      </RadarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Tabla Comparativa</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left p-3">Área</th>
-                        <th className="text-left p-3">Jefe</th>
-                        <th className="text-right p-3">Productivo</th>
-                        <th className="text-right p-3">Soporte</th>
-                        <th className="text-right p-3">Muerto</th>
-                        <th className="text-center p-3">Tortuga</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {savedAreas.map((area) => {
-                        const totals = calculateTotals(area);
-                        const hasTurtle = area.turtleProcess && 
-                          Object.values(area.turtleProcess).some(arr => arr.length > 0);
-                        
-                        return (
-                          <tr key={area.id} className="border-b hover:bg-slate-50">
-                            <td className="p-3 font-medium">{area.areaName}</td>
-                            <td className="p-3 text-slate-600">{area.managerName}</td>
-                            <td className="p-3 text-right">
-                              <span className="font-semibold text-green-600">
-                                {totals.productivePercentage.toFixed(1)}%
-                              </span>
-                            </td>
-                            <td className="p-3 text-right">
-                              <span className="font-semibold text-blue-600">
-                                {totals.supportPercentage.toFixed(1)}%
-                              </span>
-                            </td>
-                            <td className="p-3 text-right">
-                              <span className="font-semibold text-red-600">
-                                {totals.deadTimePercentage.toFixed(1)}%
-                              </span>
-                            </td>
-                            <td className="p-3 text-center">
-                              {hasTurtle ? (
-                                <CheckCircle2 className="h-5 w-5 text-green-600 mx-auto" />
-                              ) : (
-                                <span className="text-slate-300">-</span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
         )}
 
         {/* Vista: Mapa de Procesos */}

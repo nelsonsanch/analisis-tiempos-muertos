@@ -277,3 +277,30 @@
 - [x] Verificar que Dashboard muestre tiempos por áreas
 - [x] Verificar que gestión de Usuarios funcione
 - [x] Subir código completo a GitHub
+
+
+## Mejoras de Header y Sistema de Mediciones por Períodos
+
+- [x] Quitar botón "Comparar" del header
+- [x] Agregar botón "Cerrar Sesión" visible en el header
+- [x] Hacer header responsivo para móviles
+- [ ] Diseñar estructura de datos para mediciones por períodos
+- [ ] Crear interfaz para nueva medición de tiempo
+- [ ] Implementar selector de período de medición
+- [ ] Crear vista comparativa entre períodos
+- [ ] Probar funcionalidad completa antes de subir a GitHub
+
+
+## Reorganización de Header con Menú Desplegable
+
+- [x] Crear menú desplegable con ícono de 3 puntos
+- [x] Mover Dashboard, Usuarios, Mapa de Procesos, Matriz SIPOC y Exportar al menú
+- [x] Agregar separador antes de Cerrar Sesión
+- [x] Poner Cerrar Sesión en rojo al final del menú
+- [x] Dejar solo "Nueva Área" como botón principal visible
+
+
+## Corrección de Botones Duplicados
+
+- [x] Eliminar botones "Mapa de Procesos", "Matriz SIPOC" y "Exportar" que quedaron fuera del menú
+- [x] Verificar que solo queden dentro del menú desplegable
