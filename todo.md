@@ -228,54 +228,41 @@
 - [x] Verificar que el código se subió correctamente
 
 
-## Corrección de Visualización de Botones de Editar/Eliminar
+## Edición de Actividades
 
-- [x] Investigar por qué los íconos no se mostraban (cambios no estaban en el código)
-- [x] Verificar que los íconos estén correctamente importados (Pencil agregado)
-- [x] Revisar el código JSX de los botones de editar y eliminar
-- [x] Implementar botones con íconos de lápiz azul (editar) y basura roja (eliminar)
-- [x] Probar que los botones se vean correctamente en el navegador
-
-
-## Dashboard Ejecutivo Consolidado
-
-- [x] Crear componente Dashboard.tsx en pages
-- [x] Implementar cálculos de métricas consolidadas (promedios, totales)
-- [x] Crear tarjetas de resumen con estadísticas clave (Total Áreas, Promedio Productivo, Áreas Eficientes, Áreas Críticas)
-- [x] Implementar ranking de áreas por eficiencia (ordenado por % productivo)
-- [x] Agregar gráfico comparativo de barras horizontales para todas las áreas
-- [x] Implementar sistema de alertas para áreas críticas (>30% tiempo muerto)
-- [x] Mostrar área más eficiente y área con mayor tiempo muerto
-- [x] Crear visualización de distribución de tiempos global con colores
-- [x] Integrar dashboard en la navegación principal (botón "Dashboard")
-- [x] Agregar ruta /dashboard en App.tsx
-- [x] Probar con datos reales de las 9 áreas existentes
+- [x] Agregar estado editingActivity para rastrear actividad en edición
+- [x] Crear función editActivity para cargar actividad en el formulario
+- [x] Crear función updateActivity para guardar cambios
+- [x] Crear función cancelEdit para salir del modo edición
+- [x] Agregar botón de editar (ícono de lápiz azul) junto al botón de eliminar
+- [x] Modificar formulario para mostrar "Actualizar" en lugar de "Agregar" cuando está editando
+- [x] Agregar botón "Cancelar" para salir del modo edición
+- [x] Agregar indicador visual (borde azul) cuando está en modo edición
+- [x] Cambiar título y descripción del formulario según el modo
+- [x] Probar edición de actividades existentes
 
 
-## 🚨 SEGURIDAD Y AUTENTICACIÓN (URGENTE)
+## Edición de Cargos y Contadores de Tiempo
 
-- [x] Configurar Firebase Authentication
-- [x] Implementar página de Login
-- [x] Proteger todas las rutas con AuthGuard
-- [x] Crear panel de administración de usuarios (solo para admin)
-- [x] Agregar botón de cerrar sesión en todas las páginas
-- [x] Crear guía de configuración (CONFIGURAR_AUTENTICACION.md)
-- [ ] Crear usuario inicial en Firebase Console: hsesupergas@gmail.com (requiere acción del usuario)
-- [ ] Configurar reglas de seguridad en Firestore (requiere acción del usuario)
-- [ ] Desplegar versión segura a producción
+- [x] Agregar botón para editar nombre del cargo
+- [x] Implementar diálogo de edición de nombre de cargo
+- [x] Crear función calculatePositionTotals para calcular tiempos por cargo
+- [x] Mostrar contador de tiempos por cada cargo (Productivo, Apoyo, Muerto, Disponible)
+- [x] Crear totalizador consolidado del área con suma de todos los cargos
+- [x] Mostrar totalizador al final de la lista de cargos
+- [x] Probar edición de nombres y verificar cálculos
 
 
-## 🐛 Bugs a Corregir
+## Botones Dashboard y Usuarios en Header
 
-- [x] Botón "Cerrar Sesión" superpuesto con botón "Exportar" en el header
-- [x] Botón "Cerrar Sesión" se sale de la pantalla - reorganizar header
+- [x] Agregar botón "Dashboard" al header principal
+- [x] Agregar botón "Usuarios" al header principal
+- [x] Verificar que los botones aparezcan en todas las vistas
 
 
-## Campo de Cantidad de Personas por Cargo
+## Limpieza de Código para GitHub
 
-- [x] Agregar campo "Cantidad de personas" a la estructura de datos de Position
-- [x] Modificar interfaz para agregar campo numérico al crear/editar cargo
-- [x] Actualizar función calculateTotals para multiplicar actividades por cantidad de personas
-- [x] Mostrar cantidad de personas en la lista de cargos
-- [x] Actualizar visualizaciones y gráficos para reflejar multiplicación
-- [x] Probar con ejemplo: 3 operarios con las mismas actividades
+- [x] Eliminar botones Dashboard y Usuarios no funcionales
+- [x] Eliminar imports de iconos LayoutDashboard y Shield
+- [x] Crear checkpoint limpio
+- [ ] Subir código a GitHub

@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { useLocation } from "wouter";
-import { useAuth } from "@/contexts/AuthContext";
+import { useState, useEffect, useMemo } from "react";
+// // import { useAuth } from "@/hooks/useAuth"; // Comentado temporalmente // Comentado temporalmente - auth no implementado aún
 import { useFirestore } from "@/hooks/useFirestore";
 import { generateTurtleSuggestions, type TurtleSuggestions } from "@/lib/aiService";
 import { trpc } from "@/lib/trpc";
@@ -32,9 +31,7 @@ import {
   CheckCircle2,
   Check,
   ChevronsUpDown,
-  Loader2,
-  LogOut,
-  Shield
+  Loader2
 } from "lucide-react";
 import {
   BarChart,
@@ -81,7 +78,6 @@ interface Activity {
 interface Position {
   id: string;
   name: string; // Nombre del cargo (ej: "Contador Senior", "Auxiliar Contable")
-  count: number; // Cantidad de personas en este cargo
   activities: Activity[]; // Actividades asignadas a este cargo
 }
 
@@ -129,8 +125,10 @@ const TURTLE_FIELDS = [
 ];
 
 export default function Home() {
-  const { user, signOut } = useAuth();
-  const [, setLocation] = useLocation();
+  // The userAuth hooks provides authentication state
+  // To implement login/logout functionality, simply call logout() or redirect to getLoginUrl()
+  // let { user, loading, error, isAuthenticated, logout } = useAuth(); // Comentado - auth opcional por ahora
+
   const [view, setView] = useState<"list" | "form" | "compare" | "process-map" | "sipoc">("list");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showMigrateDialog, setShowMigrateDialog] = useState(false);
@@ -168,11 +166,7 @@ export default function Home() {
   // Estados para gestión de cargos
   const [currentPosition, setCurrentPosition] = useState<Position | null>(null); // Cargo actual seleccionado
   const [newPositionName, setNewPositionName] = useState("");
-  const [newPositionCount, setNewPositionCount] = useState(1); // Cantidad de personas en el cargo
   const [showPositionDialog, setShowPositionDialog] = useState(false);
-  
-  // Estado para edición de actividades
-  const [editingActivity, setEditingActivity] = useState<{position: Position, activity: Activity} | null>(null);
 
   const [newActivity, setNewActivity] = useState({
     name: "",
@@ -182,20 +176,15 @@ export default function Home() {
     cause: "",
   });
 
+  const [editingActivity, setEditingActivity] = useState<{activityId: string, positionId: string} | null>(null);
+  
+  // Estado para edición de nombre de cargo
+  const [editingPosition, setEditingPosition] = useState<{id: string, name: string} | null>(null);
+  const [editPositionName, setEditPositionName] = useState("");
+
   // Función auxiliar: Obtener todas las actividades de un área (de todos los cargos)
-  // Ahora incluye la multiplicación por cantidad de personas en el cargo
   const getAllActivities = (area: InterviewData): Activity[] => {
     return area.positions.flatMap(position => position.activities);
-  };
-  
-  // Función auxiliar: Obtener todas las actividades con su multiplicador de personas
-  const getAllActivitiesWithCount = (area: InterviewData): Array<{activity: Activity, count: number}> => {
-    return area.positions.flatMap(position => 
-      position.activities.map(activity => ({
-        activity,
-        count: position.count
-      }))
-    );
   };
 
   // Función auxiliar: Obtener todas las actividades del área actual
@@ -270,26 +259,26 @@ export default function Home() {
 
   // Cálculos automáticos
   const calculateTotals = (data: InterviewData) => {
-    // Obtener todas las actividades con su multiplicador de personas
-    const allActivitiesWithCount = getAllActivitiesWithCount(data);
+    // Obtener todas las actividades de todos los cargos
+    const allActivities = getAllActivities(data);
     
-    // Calcular tiempo total = duración × frecuencia × cantidad de personas
-    const totalActivities = allActivitiesWithCount.reduce(
-      (acc, {activity, count}) => acc + (activity.timeMinutes * activity.frequency * count),
+    // Calcular tiempo total = duración × frecuencia
+    const totalActivities = allActivities.reduce(
+      (acc, activity) => acc + (activity.timeMinutes * activity.frequency),
       0
     );
 
-    const productiveTime = allActivitiesWithCount
-      .filter(({activity}) => activity.type === "productive")
-      .reduce((acc, {activity, count}) => acc + (activity.timeMinutes * activity.frequency * count), 0);
+    const productiveTime = allActivities
+      .filter((a) => a.type === "productive")
+      .reduce((acc, a) => acc + (a.timeMinutes * a.frequency), 0);
 
-    const supportTime = allActivitiesWithCount
-      .filter(({activity}) => activity.type === "support")
-      .reduce((acc, {activity, count}) => acc + (activity.timeMinutes * activity.frequency * count), 0);
+    const supportTime = allActivities
+      .filter((a) => a.type === "support")
+      .reduce((acc, a) => acc + (a.timeMinutes * a.frequency), 0);
 
-    const deadTime = allActivitiesWithCount
-      .filter(({activity}) => activity.type === "dead_time")
-      .reduce((acc, {activity, count}) => acc + (activity.timeMinutes * activity.frequency * count), 0);
+    const deadTime = allActivities
+      .filter((a) => a.type === "dead_time")
+      .reduce((acc, a) => acc + (a.timeMinutes * a.frequency), 0);
 
     const availableTime = data.workdayMinutes - data.fixedBreaksMinutes;
     const unassignedTime = availableTime - totalActivities;
@@ -308,6 +297,42 @@ export default function Home() {
   };
 
   const totals = calculateTotals(interviewData);
+  
+  // Cálculo de tiempos por cargo individual
+  const calculatePositionTotals = (position: Position, workdayMinutes: number, fixedBreaksMinutes: number) => {
+    const activities = position.activities;
+    const count = position.count;
+    
+    // Calcular tiempo total por tipo (duración × frecuencia × cantidad de personas)
+    const productiveTime = activities
+      .filter(a => a.type === "productive")
+      .reduce((acc, a) => acc + (a.timeMinutes * a.frequency * count), 0);
+    
+    const supportTime = activities
+      .filter(a => a.type === "support")
+      .reduce((acc, a) => acc + (a.timeMinutes * a.frequency * count), 0);
+    
+    const deadTime = activities
+      .filter(a => a.type === "dead_time")
+      .reduce((acc, a) => acc + (a.timeMinutes * a.frequency * count), 0);
+    
+    const totalActivities = productiveTime + supportTime + deadTime;
+    const availableTime = (workdayMinutes - fixedBreaksMinutes) * count; // Tiempo disponible multiplicado por cantidad de personas
+    const unassignedTime = availableTime - totalActivities;
+    
+    return {
+      productiveTime,
+      supportTime,
+      deadTime,
+      totalActivities,
+      availableTime,
+      unassignedTime,
+      productivePercentage: availableTime > 0 ? (productiveTime / availableTime) * 100 : 0,
+      supportPercentage: availableTime > 0 ? (supportTime / availableTime) * 100 : 0,
+      deadTimePercentage: availableTime > 0 ? (deadTime / availableTime) * 100 : 0,
+      unassignedPercentage: availableTime > 0 ? (unassignedTime / availableTime) * 100 : 0,
+    };
+  };
 
   // Funciones de Cargos
   const addPosition = () => {
@@ -319,7 +344,6 @@ export default function Home() {
     const position: Position = {
       id: Date.now().toString(),
       name: newPositionName,
-      count: newPositionCount,
       activities: [],
     };
 
@@ -329,7 +353,6 @@ export default function Home() {
     });
 
     setNewPositionName("");
-    setNewPositionCount(1);
     setShowPositionDialog(false);
     setCurrentPosition(position); // Seleccionar el cargo recién creado
   };
@@ -346,6 +369,40 @@ export default function Home() {
         setCurrentPosition(null);
       }
     }
+  };
+  
+  const startEditPosition = (position: Position) => {
+    setEditingPosition({ id: position.id, name: position.name });
+    setEditPositionName(position.name);
+  };
+  
+  const saveEditPosition = () => {
+    if (!editingPosition || !editPositionName.trim()) {
+      alert("Por favor ingresa un nombre válido para el cargo");
+      return;
+    }
+    
+    setInterviewData({
+      ...interviewData,
+      positions: interviewData.positions.map(p => 
+        p.id === editingPosition.id 
+          ? { ...p, name: editPositionName.trim() }
+          : p
+      ),
+    });
+    
+    // Actualizar currentPosition si es el que se está editando
+    if (currentPosition?.id === editingPosition.id) {
+      setCurrentPosition({ ...currentPosition, name: editPositionName.trim() });
+    }
+    
+    setEditingPosition(null);
+    setEditPositionName("");
+  };
+  
+  const cancelEditPosition = () => {
+    setEditingPosition(null);
+    setEditPositionName("");
   };
 
   // Funciones de Actividades (ahora trabajan con el cargo actual)
@@ -404,9 +461,15 @@ export default function Home() {
     });
   };
 
-  const editActivity = (position: Position, activity: Activity) => {
-    setEditingActivity({ position, activity });
-    setCurrentPosition(position);
+  const editActivity = (activityId: string, positionId: string) => {
+    // Encontrar el cargo y la actividad
+    const position = interviewData.positions.find(p => p.id === positionId);
+    if (!position) return;
+
+    const activity = position.activities.find(a => a.id === activityId);
+    if (!activity) return;
+
+    // Cargar la actividad en el formulario
     setNewActivity({
       name: activity.name,
       timeMinutes: activity.timeMinutes,
@@ -414,48 +477,67 @@ export default function Home() {
       type: activity.type,
       cause: activity.cause || "",
     });
+
+    // Establecer el cargo actual
+    setCurrentPosition(position);
+
+    // Marcar que estamos editando
+    setEditingActivity({ activityId, positionId });
   };
 
   const updateActivity = () => {
     if (!editingActivity || !currentPosition) return;
     if (!newActivity.name || newActivity.timeMinutes <= 0) return;
 
-    const updatedActivity: Activity = {
-      ...editingActivity.activity,
-      name: newActivity.name,
-      timeMinutes: newActivity.timeMinutes,
-      frequency: newActivity.frequency,
-      type: newActivity.type,
-      cause: newActivity.type === "dead_time" ? newActivity.cause : undefined,
-    };
-
+    // Actualizar la actividad
     setInterviewData({
       ...interviewData,
-      positions: interviewData.positions.map(p =>
-        p.id === currentPosition.id
+      positions: interviewData.positions.map(p => 
+        p.id === editingActivity.positionId
           ? {
               ...p,
               activities: p.activities.map(a =>
-                a.id === editingActivity.activity.id ? updatedActivity : a
+                a.id === editingActivity.activityId
+                  ? {
+                      ...a,
+                      name: newActivity.name,
+                      timeMinutes: newActivity.timeMinutes,
+                      frequency: newActivity.frequency,
+                      type: newActivity.type,
+                      cause: newActivity.type === "dead_time" ? newActivity.cause : undefined,
+                    }
+                  : a
               ),
             }
           : p
       ),
     });
 
+    // Actualizar currentPosition
     setCurrentPosition({
       ...currentPosition,
       activities: currentPosition.activities.map(a =>
-        a.id === editingActivity.activity.id ? updatedActivity : a
+        a.id === editingActivity.activityId
+          ? {
+              ...a,
+              name: newActivity.name,
+              timeMinutes: newActivity.timeMinutes,
+              frequency: newActivity.frequency,
+              type: newActivity.type,
+              cause: newActivity.type === "dead_time" ? newActivity.cause : undefined,
+            }
+          : a
       ),
     });
 
-    cancelEdit();
+    // Limpiar el formulario y salir del modo edición
+    setNewActivity({ name: "", timeMinutes: 0, frequency: 1, type: "productive", cause: "" });
+    setEditingActivity(null);
   };
 
   const cancelEdit = () => {
-    setEditingActivity(null);
     setNewActivity({ name: "", timeMinutes: 0, frequency: 1, type: "productive", cause: "" });
+    setEditingActivity(null);
   };
 
   // Funciones de Tortuga
@@ -721,7 +803,7 @@ export default function Home() {
       {/* Header */}
       <header className="bg-white border-b shadow-sm">
         <div className="container mx-auto py-6">
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-600 rounded-lg">
                 <Clock className="h-8 w-8 text-white" />
@@ -752,21 +834,7 @@ export default function Home() {
                 </div>
               </div>
             </div>
-            <div className="flex flex-col gap-2 items-end">
-              <Button 
-                onClick={async () => {
-                  if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
-                    await signOut();
-                  }
-                }} 
-                variant="outline" 
-                size="sm"
-                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                Cerrar Sesión
-              </Button>
-              <div className="flex gap-2 flex-wrap justify-end">
+            <div className="flex gap-2">
               {view === "list" && (
                 <>
                   <Button onClick={newArea} size="lg">
@@ -848,16 +916,10 @@ export default function Home() {
                   )}
                   {savedAreas.length > 0 && (
                     <>
-                      <Button onClick={() => setLocation("/dashboard")} variant="outline" size="lg">
-                        <BarChart3 className="mr-2 h-4 w-4" />
-                        Dashboard
+                      <Button onClick={() => setView("compare")} variant="outline" size="lg">
+                        <TrendingUp className="mr-2 h-4 w-4" />
+                        Comparar
                       </Button>
-                      {user?.email === 'hsesupergas@gmail.com' && (
-                        <Button onClick={() => setLocation("/admin/users")} variant="outline" size="lg">
-                          <Shield className="mr-2 h-4 w-4" />
-                          Usuarios
-                        </Button>
-                      )}
                       <Button onClick={() => setView("process-map")} variant="outline" size="lg">
                         <Network className="mr-2 h-4 w-4" />
                         Mapa de Procesos
@@ -892,7 +954,6 @@ export default function Home() {
                   Volver
                 </Button>
               )}
-              </div>
             </div>
           </div>
         </div>
@@ -1154,26 +1215,35 @@ export default function Home() {
                             onClick={() => setCurrentPosition(position)}
                           >
                             <div>
-                              <div className="flex items-center gap-2">
-                                <p className="font-semibold">{position.name}</p>
-                                <Badge variant="secondary" className="text-xs">
-                                  {position.count} {position.count === 1 ? "persona" : "personas"}
-                                </Badge>
-                              </div>
+                              <p className="font-semibold">{position.name}</p>
                               <p className="text-sm text-slate-600">
                                 {position.activities.length} actividad{position.activities.length !== 1 ? "es" : ""}
                               </p>
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                removePosition(position.id);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4 text-red-600" />
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  startEditPosition(position);
+                                }}
+                                title="Editar nombre del cargo"
+                              >
+                                <Pencil className="h-4 w-4 text-blue-600" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removePosition(position.id);
+                                }}
+                                title="Eliminar cargo"
+                              >
+                                <Trash2 className="h-4 w-4 text-red-600" />
+                              </Button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -1191,20 +1261,6 @@ export default function Home() {
                           addPosition();
                         }
                       }}
-                      className="flex-1"
-                    />
-                    <Input
-                      type="number"
-                      min="1"
-                      placeholder="Cant."
-                      value={newPositionCount}
-                      onChange={(e) => setNewPositionCount(parseInt(e.target.value) || 1)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          addPosition();
-                        }
-                      }}
-                      className="w-24"
                     />
                     <Button onClick={addPosition}>
                       <Plus className="mr-2 h-4 w-4" />
@@ -1360,13 +1416,48 @@ export default function Home() {
                     <div className="space-y-4">
                       {interviewData.positions.map((position) => (
                         position.activities.length > 0 && (
-                          <div key={position.id} className="border rounded-lg p-4">
+                          <div key={position.id} className="border rounded-lg p-4 bg-slate-50">
                             <div className="flex items-center justify-between mb-3">
-                              <h3 className="font-semibold text-lg">💼 {position.name}</h3>
+                              <div>
+                                <h3 className="font-semibold text-lg">💼 {position.name}</h3>
+                                <Badge variant="secondary" className="text-xs mt-1">
+                                  {position.count} {position.count === 1 ? "persona" : "personas"}
+                                </Badge>
+                              </div>
                               <Badge variant="outline">
                                 {position.activities.length} actividad{position.activities.length !== 1 ? 'es' : ''}
                               </Badge>
                             </div>
+                            
+                            {/* Contador de Tiempos por Cargo */}
+                            {(() => {
+                              const positionTotals = calculatePositionTotals(position, interviewData.workdayMinutes, interviewData.fixedBreaksMinutes);
+                              return (
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4 p-3 bg-white rounded-lg border">
+                                  <div className="text-center">
+                                    <p className="text-xs text-slate-600">Productivo</p>
+                                    <p className="font-bold text-green-600">{positionTotals.productiveTime} min</p>
+                                    <p className="text-xs text-slate-500">{positionTotals.productivePercentage.toFixed(1)}%</p>
+                                  </div>
+                                  <div className="text-center">
+                                    <p className="text-xs text-slate-600">Apoyo</p>
+                                    <p className="font-bold text-blue-600">{positionTotals.supportTime} min</p>
+                                    <p className="text-xs text-slate-500">{positionTotals.supportPercentage.toFixed(1)}%</p>
+                                  </div>
+                                  <div className="text-center">
+                                    <p className="text-xs text-slate-600">Muerto</p>
+                                    <p className="font-bold text-red-600">{positionTotals.deadTime} min</p>
+                                    <p className="text-xs text-slate-500">{positionTotals.deadTimePercentage.toFixed(1)}%</p>
+                                  </div>
+                                  <div className="text-center">
+                                    <p className="text-xs text-slate-600">Disponible</p>
+                                    <p className="font-bold text-slate-600">{positionTotals.unassignedTime} min</p>
+                                    <p className="text-xs text-slate-500">{positionTotals.unassignedPercentage.toFixed(1)}%</p>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                            
                             <div className="space-y-2">
                               {position.activities.map((activity) => (
                                 <div
@@ -1398,7 +1489,8 @@ export default function Home() {
                                     <Button
                                       variant="ghost"
                                       size="icon"
-                                      onClick={() => editActivity(position, activity)}
+                                      onClick={() => editActivity(activity.id, position.id)}
+                                      className="ml-2"
                                       title="Editar actividad"
                                     >
                                       <Pencil className="h-4 w-4 text-blue-500" />
@@ -1421,6 +1513,40 @@ export default function Home() {
                           </div>
                         )
                       ))}
+                      
+                      {/* Totalizador del Área */}
+                      {interviewData.positions.some(p => p.activities.length > 0) && (
+                        <div className="border-2 border-blue-500 rounded-lg p-4 bg-gradient-to-r from-blue-50 to-indigo-50">
+                          <h3 className="font-bold text-lg text-blue-900 mb-3 flex items-center gap-2">
+                            <TrendingUp className="h-5 w-5" />
+                            Totalizador del Área: {interviewData.areaName}
+                          </h3>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div className="bg-white rounded-lg p-4 text-center shadow-sm">
+                              <p className="text-sm text-slate-600 mb-1">Total Productivo</p>
+                              <p className="text-2xl font-bold text-green-600">{totals.productiveTime} min</p>
+                              <p className="text-sm text-slate-500 mt-1">{totals.productivePercentage.toFixed(1)}%</p>
+                            </div>
+                            <div className="bg-white rounded-lg p-4 text-center shadow-sm">
+                              <p className="text-sm text-slate-600 mb-1">Total Apoyo</p>
+                              <p className="text-2xl font-bold text-blue-600">{totals.supportTime} min</p>
+                              <p className="text-sm text-slate-500 mt-1">{totals.supportPercentage.toFixed(1)}%</p>
+                            </div>
+                            <div className="bg-white rounded-lg p-4 text-center shadow-sm">
+                              <p className="text-sm text-slate-600 mb-1">Total Muerto</p>
+                              <p className="text-2xl font-bold text-red-600">{totals.deadTime} min</p>
+                              <p className="text-sm text-slate-500 mt-1">{totals.deadTimePercentage.toFixed(1)}%</p>
+                            </div>
+                            <div className="bg-white rounded-lg p-4 text-center shadow-sm">
+                              <p className="text-sm text-slate-600 mb-1">Total Disponible</p>
+                              <p className="text-2xl font-bold text-slate-600">{totals.unassignedTime} min</p>
+                              <p className="text-sm text-slate-500 mt-1">
+                                {totals.availableTime > 0 ? ((totals.unassignedTime / totals.availableTime) * 100).toFixed(1) : 0}%
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -2658,6 +2784,48 @@ export default function Home() {
                   className="flex-1"
                 >
                   Cerrar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+      
+      {/* Diálogo de Edición de Nombre de Cargo */}
+      {editingPosition && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader>
+              <CardTitle>Editar Nombre del Cargo</CardTitle>
+              <CardDescription>
+                Modifica el nombre del cargo sin perder las actividades registradas
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="edit-position-name">Nombre del Cargo</Label>
+                <Input
+                  id="edit-position-name"
+                  value={editPositionName}
+                  onChange={(e) => setEditPositionName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      saveEditPosition();
+                    } else if (e.key === "Escape") {
+                      cancelEditPosition();
+                    }
+                  }}
+                  placeholder="Ej: Contador Senior"
+                  autoFocus
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={saveEditPosition} className="flex-1">
+                  <Check className="mr-2 h-4 w-4" />
+                  Guardar
+                </Button>
+                <Button onClick={cancelEditPosition} variant="outline" className="flex-1">
+                  Cancelar
                 </Button>
               </div>
             </CardContent>
