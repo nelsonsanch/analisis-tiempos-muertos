@@ -258,3 +258,11 @@
 - [x] Agregar botón "Dashboard" al header principal
 - [x] Agregar botón "Usuarios" al header principal
 - [x] Verificar que los botones aparezcan en todas las vistas
+
+
+## Limpieza de Código para GitHub
+
+- [x] Eliminar botones Dashboard y Usuarios no funcionales
+- [x] Eliminar imports de iconos LayoutDashboard y Shield
+- [ ] Crear checkpoint limpio
+- [ ] Subir código a GitHub
