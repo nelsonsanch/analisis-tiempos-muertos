@@ -266,3 +266,12 @@
 - [x] Eliminar imports de iconos LayoutDashboard y Shield
 - [ ] Crear checkpoint limpio
 - [ ] Subir código a GitHub
+
+## Reimplementación Vista Comparativa
+- [x] Reimplementar vista comparativa de mediciones (simple y robusta)
+- [x] Agregar selectores de medición base y actual
+- [x] Implementar validación para comparar Estado Actual vs Mediciones
+- [x] Crear tabla comparativa con todas las columnas
+- [x] Agregar gráficos de barras horizontales
+- [x] Implementar botón copiar tabla como imagen
+- [x] Implementar botón copiar gráficos como imagen

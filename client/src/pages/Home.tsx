@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import html2canvas from 'html2canvas';
 // // import { useAuth } from "@/hooks/useAuth"; // Comentado temporalmente // Comentado temporalmente - auth no implementado aún
 import { useFirestore } from "@/hooks/useFirestore";
 import { generateTurtleSuggestions, type TurtleSuggestions } from "@/lib/aiService";
@@ -132,6 +133,13 @@ export default function Home() {
   const [view, setView] = useState<"list" | "form" | "compare" | "process-map" | "sipoc">("list");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showMigrateDialog, setShowMigrateDialog] = useState(false);
+  
+  // Estados para vista comparativa de mediciones
+  const [selectedAreaForComparison, setSelectedAreaForComparison] = useState<InterviewData | null>(null);
+  const [baseMeasurementId, setBaseMeasurementId] = useState<string | null>(null);
+  const [currentMeasurementId, setCurrentMeasurementId] = useState<string | null>(null);
+  const comparisonTableRef = useRef<HTMLDivElement>(null);
+  const comparisonChartsRef = useRef<HTMLDivElement>(null);
   
   // Hook de Firestore para sincronización en la nube
   const { 
@@ -709,6 +717,48 @@ export default function Home() {
     setView("form");
   };
 
+  // Funciones para copiar como imagen
+  const copyElementAsImage = async (element: HTMLElement, filename: string) => {
+    try {
+      const canvas = await html2canvas(element, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+      });
+      
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': blob })
+          ]);
+          alert('¡Imagen copiada al portapapeles! Puedes pegarla en tu informe.');
+        } catch (err) {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `${filename}-${new Date().toISOString().split('T')[0]}.png`;
+          link.click();
+          URL.revokeObjectURL(url);
+          alert('La imagen se ha descargado. Puedes insertarla en tu informe.');
+        }
+      });
+    } catch (error) {
+      console.error('Error al generar imagen:', error);
+      alert('Error al generar la imagen');
+    }
+  };
+  
+  const copyTableAsImage = async () => {
+    if (!comparisonTableRef.current) return;
+    await copyElementAsImage(comparisonTableRef.current, 'tabla-comparativa');
+  };
+  
+  const copyChartsAsImage = async () => {
+    if (!comparisonChartsRef.current) return;
+    await copyElementAsImage(comparisonChartsRef.current, 'graficos-comparativos');
+  };
+
   const exportArea = (area: InterviewData) => {
     const totals = calculateTotals(area);
     const dataStr = JSON.stringify({ ...area, totals }, null, 2);
@@ -1035,36 +1085,47 @@ export default function Home() {
                             <Separator />
                             <div className="text-sm text-slate-600">
                               <strong>{getAllActivities(area).length}</strong> actividades registradas
-                            </div>
-                            <div className="flex gap-2">
-                              <Button
-                                onClick={() => editArea(area)}
-                                variant="outline"
-                                size="sm"
-                                className="flex-1"
-                              >
-                                <Edit className="mr-1 h-3 w-3" />
-                                Ver/Editar
-                              </Button>
-                              <Button
-                                onClick={() => exportArea(area)}
-                                variant="outline"
-                                size="sm"
-                                className="flex-1"
-                              >
-                                <Download className="mr-1 h-3 w-3" />
-                                Exportar
-                              </Button>
-                              <Button
-                                onClick={() => deleteArea(area.id)}
-                                variant="outline"
-                                size="sm"
-                                disabled={!area.id}
-                              >
-                                <Trash2 className="h-3 w-3 text-red-500" />
-                              </Button>
-                            </div>
-                          </CardContent>
+                            </div>                            <div className="space-y-2 mt-4">
+                              <div className="flex gap-2">
+                                <Button
+                                  onClick={() => editArea(area)}
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-1"
+                                >
+                                  <Edit className="mr-1 h-3 w-3" />
+                                  Ver/Editar
+                                </Button>
+                                <Button
+                                  onClick={() => exportArea(area)}
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-1"
+                                >
+                                  <Download className="mr-1 h-3 w-3" />
+                                  Exportar
+                                </Button>
+                                <Button
+                                  onClick={() => deleteArea(area.id)}
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={!area.id}
+                                >
+                                  <Trash2 className="h-3 w-3 text-red-500" />
+                                </Button>
+                              </div>
+                              {area.measurements && area.measurements.length > 0 && (
+                                <Button
+                                  onClick={() => setSelectedAreaForComparison(area)}
+                                  variant="default"
+                                  size="sm"
+                                  className="w-full"
+                                >
+                                  <TrendingUp className="mr-2 h-4 w-4" />
+                                  Ver Mediciones ({area.measurements.length})
+                                </Button>
+                              )}
+                            </div>                       </CardContent>
                         </Card>
                       );
                     })}
@@ -1073,6 +1134,270 @@ export default function Home() {
               </CardContent>
             </Card>
           </div>
+        )}
+
+        {/* Vista: Comparativa de Mediciones */}
+        {selectedAreaForComparison && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Mediciones del Área: {selectedAreaForComparison.areaName}</CardTitle>
+                  <CardDescription>
+                    Compara diferentes períodos de medición para identificar mejoras y oportunidades
+                  </CardDescription>
+                </div>
+                <Button
+                  onClick={() => {
+                    setSelectedAreaForComparison(null);
+                    setBaseMeasurementId(null);
+                    setCurrentMeasurementId(null);
+                  }}
+                  variant="outline"
+                  size="sm"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Volver
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Selectores de Mediciones */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Medición Base</Label>
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={baseMeasurementId || "current"}
+                    onChange={(e) => setBaseMeasurementId(e.target.value === "current" ? null : e.target.value)}
+                  >
+                    <option value="current">Estado Actual</option>
+                    {selectedAreaForComparison.measurements?.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} - {new Date(m.date).toLocaleDateString()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Medición a Comparar</Label>
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={currentMeasurementId || "current"}
+                    onChange={(e) => setCurrentMeasurementId(e.target.value === "current" ? null : e.target.value)}
+                  >
+                    <option value="current">Estado Actual</option>
+                    {selectedAreaForComparison.measurements?.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} - {new Date(m.date).toLocaleDateString()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Contenido de la comparación */}
+              {(() => {
+                const isValidComparison = baseMeasurementId !== currentMeasurementId && 
+                  (baseMeasurementId || currentMeasurementId);
+                
+                if (!isValidComparison) {
+                  return (
+                    <div className="text-center py-12 text-slate-500">
+                      <TrendingUp className="h-16 w-16 mx-auto mb-4 text-slate-300" />
+                      <p className="font-medium">Selecciona dos mediciones diferentes para comparar</p>
+                      <p className="text-sm mt-2">Elige una medición base y otra para comparar en los selectores de arriba</p>
+                    </div>
+                  );
+                }
+
+                // Obtener las mediciones a comparar
+                const baseMeas = baseMeasurementId === null 
+                  ? selectedAreaForComparison 
+                  : selectedAreaForComparison.measurements?.find(m => m.id === baseMeasurementId);
+                  
+                const currentMeas = currentMeasurementId === null
+                  ? selectedAreaForComparison
+                  : selectedAreaForComparison.measurements?.find(m => m.id === currentMeasurementId);
+                
+                if (!baseMeas || !currentMeas) {
+                  return <div className="text-center py-12 text-red-500">Error: No se encontraron las mediciones seleccionadas</div>;
+                }
+                
+                // Calcular comparaciones
+                const comparisons: Array<{
+                  positionName: string;
+                  activityName: string;
+                  baseTime: number;
+                  currentTime: number;
+                  delta: number;
+                  percentChange: number;
+                }> = [];
+                
+                baseMeas.positions.forEach((basePos) => {
+                  const currentPos = currentMeas.positions.find(p => p.id === basePos.id);
+                  if (!currentPos) return;
+                  
+                  basePos.activities.forEach((baseActivity) => {
+                    const currentActivity = currentPos.activities.find(a => a.id === baseActivity.id);
+                    if (!currentActivity) return;
+                    
+                    const baseTime = baseActivity.timeMinutes * baseActivity.frequency;
+                    const currentTime = currentActivity.timeMinutes * currentActivity.frequency;
+                    const delta = currentTime - baseTime;
+                    const percentChange = baseTime > 0 ? ((delta / baseTime) * 100) : 0;
+                    
+                    comparisons.push({
+                      positionName: basePos.name,
+                      activityName: baseActivity.name,
+                      baseTime,
+                      currentTime,
+                      delta,
+                      percentChange,
+                    });
+                  });
+                });
+                
+                return (
+                  <>
+                    <Separator />
+                    {/* Tabla Comparativa */}
+                    <div ref={comparisonTableRef} className="p-6 bg-white rounded-lg">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold">Comparativa por Actividad</h3>
+                        <Button
+                          onClick={copyTableAsImage}
+                          variant="outline"
+                          size="sm"
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          Copiar como Imagen
+                        </Button>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full border-collapse">
+                          <thead>
+                            <tr className="bg-slate-100">
+                              <th className="border border-slate-300 px-4 py-3 text-left">Cargo</th>
+                              <th className="border border-slate-300 px-4 py-3 text-left">Actividad</th>
+                              <th className="border border-slate-300 px-4 py-3 text-right">Base (min)</th>
+                              <th className="border border-slate-300 px-4 py-3 text-right">Actual (min)</th>
+                              <th className="border border-slate-300 px-4 py-3 text-right">Δ</th>
+                              <th className="border border-slate-300 px-4 py-3 text-right">% Cambio</th>
+                              <th className="border border-slate-300 px-4 py-3 text-center">Estado</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {comparisons.map((comp, idx) => (
+                              <tr key={idx} className="hover:bg-slate-50">
+                                <td className="border border-slate-300 px-4 py-3">{comp.positionName}</td>
+                                <td className="border border-slate-300 px-4 py-3">{comp.activityName}</td>
+                                <td className="border border-slate-300 px-4 py-3 text-right">{comp.baseTime}</td>
+                                <td className="border border-slate-300 px-4 py-3 text-right">{comp.currentTime}</td>
+                                <td className={`border border-slate-300 px-4 py-3 text-right font-semibold ${
+                                  comp.delta < 0 ? 'text-green-600' : comp.delta > 0 ? 'text-red-600' : 'text-slate-600'
+                                }`}>
+                                  {comp.delta > 0 ? '+' : ''}{comp.delta}
+                                </td>
+                                <td className={`border border-slate-300 px-4 py-3 text-right font-semibold ${
+                                  comp.percentChange < 0 ? 'text-green-600' : comp.percentChange > 0 ? 'text-red-600' : 'text-slate-600'
+                                }`}>
+                                  {comp.percentChange > 0 ? '+' : ''}{comp.percentChange.toFixed(1)}%
+                                </td>
+                                <td className="border border-slate-300 px-4 py-3 text-center">
+                                  {comp.delta < -5 ? '✅' : comp.delta > 5 ? '❌' : '⚠️'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    
+                    <Separator />
+                    {/* Gráficos de Barras Horizontales */}
+                    <div ref={comparisonChartsRef} className="p-6 bg-white rounded-lg">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold">Evolución Visual por Actividad</h3>
+                        <Button
+                          onClick={copyChartsAsImage}
+                          variant="outline"
+                          size="sm"
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          Copiar Gráficos como Imagen
+                        </Button>
+                      </div>
+                      <div className="space-y-6">
+                        {comparisons.map((comp, idx) => {
+                          const maxTime = Math.max(comp.baseTime, comp.currentTime);
+                          const baseWidth = maxTime > 0 ? (comp.baseTime / maxTime) * 100 : 0;
+                          const currentWidth = maxTime > 0 ? (comp.currentTime / maxTime) * 100 : 0;
+                          
+                          return (
+                            <div key={idx} className="border border-slate-200 rounded-lg p-4 bg-slate-50">
+                              <div className="mb-3">
+                                <h4 className="font-semibold text-sm">{comp.activityName}</h4>
+                                <p className="text-xs text-slate-600">{comp.positionName}</p>
+                              </div>
+                              
+                              {/* Barra Base */}
+                              <div className="mb-2">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-xs text-slate-600">Base</span>
+                                  <span className="text-xs font-semibold">{comp.baseTime} min</span>
+                                </div>
+                                <div className="w-full bg-slate-200 rounded-full h-6">
+                                  <div 
+                                    className="bg-blue-500 h-6 rounded-full flex items-center justify-end pr-2"
+                                    style={{ width: `${baseWidth}%`, minWidth: comp.baseTime > 0 ? '2rem' : '0' }}
+                                  >
+                                    {comp.baseTime > 0 && (
+                                      <span className="text-xs text-white font-medium">{comp.baseTime}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* Barra Actual */}
+                              <div>
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-xs text-slate-600">Actual</span>
+                                  <span className="text-xs font-semibold">{comp.currentTime} min</span>
+                                </div>
+                                <div className="w-full bg-slate-200 rounded-full h-6">
+                                  <div 
+                                    className={`h-6 rounded-full flex items-center justify-end pr-2 ${
+                                      comp.delta < 0 ? 'bg-green-500' : comp.delta > 0 ? 'bg-red-500' : 'bg-slate-500'
+                                    }`}
+                                    style={{ width: `${currentWidth}%`, minWidth: comp.currentTime > 0 ? '2rem' : '0' }}
+                                  >
+                                    {comp.currentTime > 0 && (
+                                      <span className="text-xs text-white font-medium">{comp.currentTime}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* Indicador de cambio */}
+                              <div className="mt-2 text-center">
+                                <span className={`text-xs font-semibold ${
+                                  comp.delta < 0 ? 'text-green-600' : comp.delta > 0 ? 'text-red-600' : 'text-slate-600'
+                                }`}>
+                                  {comp.delta < 0 ? '✅ Mejoró ' : comp.delta > 0 ? '❌ Empeoró ' : '⚠️ Sin cambio '}
+                                  ({comp.delta > 0 ? '+' : ''}{comp.delta} min)
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </CardContent>
+          </Card>
         )}
 
         {/* Vista: Formulario de Área */}
