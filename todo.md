@@ -287,3 +287,23 @@
 - [x] Verificar función createNewMeasurement
 - [x] Corregir manejo del diálogo y estado (cambiar updateArea por saveAreaToFirestore)
 - [ ] Probar creación de mediciones
+
+## Sistema de Mediciones Globales (Opción B - CONFIRMADA)
+- [x] Confirmar diseón propuesto con el usuario
+- [x] Rediseñar estructura de datos para mediciones globales (snapshot de todas las áreas)
+- [x] Crear botón "Crear Medición Global" en header principal
+- [x] Implementar diálogo para nombrar medición global
+- [x] Agregar botón "Mediciones" en header con contador
+- [x] Implementar función createGlobalMeasurement
+- [x] Suscripción en tiempo real a mediciones globales
+- [x] Crear Dashboard de Mediciones con tabla: Nombre | Fecha | # Áreas | Promedios
+- [x] Agregar botones Ver Detalle y Eliminar
+- [x] Agregar sección de comparación con selectores
+- [x] Implementar vista de detalle de medición (mostrar todas las áreas de ese snapshot)
+- [x] Implementar comparación entre 2 mediciones globales
+- [x] Crear gráficos de evolución temporal (productivo y muerto)
+- [x] Agregar indicadores visuales (↑ mejoró, ↓ empeoró, → igual, ∼ mixto)
+- [x] Eliminar sistema antiguo de mediciones por área individual
+- [x] Limpiar botones "Nueva Medición" y "Ver Mediciones" de las tarjetas
+- [x] Comentar estados y funciones del sistema antiguo
+- [x] Probar flujo completo: Crear Medición Global → Ver Dashboard → Comparar

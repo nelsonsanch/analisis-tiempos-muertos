@@ -50,7 +50,16 @@ export interface TurtleProcess {
   competencies: string[];
 }
 
+export interface GlobalMeasurement {
+  id?: string;
+  name: string; // Nombre de la medición global (ej: "Estado Inicial", "Medición Enero 2025")
+  date: string; // Fecha de creación
+  areas: InterviewData[]; // Snapshot de todas las áreas en ese momento
+  createdAt: string;
+}
+
 const COLLECTION_NAME = 'timeAnalysisAreas';
+const GLOBAL_MEASUREMENTS_COLLECTION = 'globalMeasurements';
 
 /**
  * Limpiar valores undefined de un objeto (Firestore no los permite)
@@ -225,5 +234,105 @@ export const cleanExistingDocuments = async (): Promise<number> => {
   } catch (error) {
     console.error('[Firestore] Error al limpiar documentos:', error);
     throw new Error('Error al limpiar documentos existentes');
+  }
+};
+
+/**
+ * Guardar una medición global (snapshot de todas las áreas)
+ */
+export const saveGlobalMeasurement = async (measurement: GlobalMeasurement): Promise<string> => {
+  try {
+    const { id, ...measurementWithoutId } = measurement;
+    
+    const measurementData = cleanUndefined({
+      ...measurementWithoutId,
+      createdAt: new Date().toISOString(),
+      timestamp: Timestamp.now()
+    });
+
+    if (id) {
+      const measurementRef = doc(db, GLOBAL_MEASUREMENTS_COLLECTION, id);
+      await updateDoc(measurementRef, measurementData);
+      return id;
+    } else {
+      const docRef = await addDoc(collection(db, GLOBAL_MEASUREMENTS_COLLECTION), measurementData);
+      return docRef.id;
+    }
+  } catch (error) {
+    console.error('Error saving global measurement:', error);
+    throw new Error('Error al guardar la medición global');
+  }
+};
+
+/**
+ * Obtener todas las mediciones globales
+ */
+export const getGlobalMeasurements = async (): Promise<GlobalMeasurement[]> => {
+  try {
+    const q = query(collection(db, GLOBAL_MEASUREMENTS_COLLECTION), orderBy('createdAt', 'desc'));
+    const querySnapshot = await getDocs(q);
+    
+    const measurements: GlobalMeasurement[] = [];
+    querySnapshot.forEach((doc) => {
+      measurements.push({
+        id: doc.id,
+        ...doc.data()
+      } as GlobalMeasurement);
+    });
+    
+    return measurements;
+  } catch (error) {
+    console.error('Error getting global measurements:', error);
+    throw new Error('Error al cargar las mediciones globales');
+  }
+};
+
+/**
+ * Suscribirse a cambios en mediciones globales en tiempo real
+ */
+export const subscribeToGlobalMeasurements = (
+  callback: (measurements: GlobalMeasurement[]) => void,
+  onError?: (error: Error) => void
+) => {
+  try {
+    const q = query(collection(db, GLOBAL_MEASUREMENTS_COLLECTION), orderBy('createdAt', 'desc'));
+    
+    const unsubscribe = onSnapshot(
+      q,
+      (querySnapshot) => {
+        const measurements: GlobalMeasurement[] = [];
+        querySnapshot.forEach((doc) => {
+          measurements.push({
+            id: doc.id,
+            ...doc.data()
+          } as GlobalMeasurement);
+        });
+        callback(measurements);
+      },
+      (error) => {
+        console.error('Error in global measurements subscription:', error);
+        if (onError) {
+          onError(new Error('Error en la sincronización de mediciones'));
+        }
+      }
+    );
+    
+    return unsubscribe;
+  } catch (error) {
+    console.error('Error subscribing to global measurements:', error);
+    throw new Error('Error al conectar con las mediciones globales');
+  }
+};
+
+/**
+ * Eliminar una medición global
+ */
+export const deleteGlobalMeasurement = async (measurementId: string): Promise<void> => {
+  try {
+    const measurementRef = doc(db, GLOBAL_MEASUREMENTS_COLLECTION, measurementId);
+    await deleteDoc(measurementRef);
+  } catch (error) {
+    console.error('Error deleting global measurement:', error);
+    throw new Error('Error al eliminar la medición global');
   }
 };

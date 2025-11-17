@@ -2,6 +2,12 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import html2canvas from 'html2canvas';
 // // import { useAuth } from "@/hooks/useAuth"; // Comentado temporalmente // Comentado temporalmente - auth no implementado aún
 import { useFirestore } from "@/hooks/useFirestore";
+import { 
+  saveGlobalMeasurement, 
+  subscribeToGlobalMeasurements, 
+  deleteGlobalMeasurement,
+  type GlobalMeasurement 
+} from "@/lib/firestoreService";
 import { generateTurtleSuggestions, type TurtleSuggestions } from "@/lib/aiService";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -130,21 +136,29 @@ export default function Home() {
   // To implement login/logout functionality, simply call logout() or redirect to getLoginUrl()
   // let { user, loading, error, isAuthenticated, logout } = useAuth(); // Comentado - auth opcional por ahora
 
-  const [view, setView] = useState<"list" | "form" | "compare" | "process-map" | "sipoc">("list");
+  const [view, setView] = useState<"list" | "form" | "compare" | "process-map" | "sipoc" | "measurements" | "measurement-detail" | "measurement-compare">("list");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showMigrateDialog, setShowMigrateDialog] = useState(false);
   
-  // Estados para vista comparativa de mediciones
-  const [selectedAreaForComparison, setSelectedAreaForComparison] = useState<InterviewData | null>(null);
-  const [baseMeasurementId, setBaseMeasurementId] = useState<string | null>(null);
-  const [currentMeasurementId, setCurrentMeasurementId] = useState<string | null>(null);
-  const comparisonTableRef = useRef<HTMLDivElement>(null);
-  const comparisonChartsRef = useRef<HTMLDivElement>(null);
+  // Estados para vista comparativa de mediciones (SISTEMA ANTIGUO - ELIMINADO)
+  // const [selectedAreaForComparison, setSelectedAreaForComparison] = useState<InterviewData | null>(null);
+  // const [baseMeasurementId, setBaseMeasurementId] = useState<string | null>(null);
+  // const [currentMeasurementId, setCurrentMeasurementId] = useState<string | null>(null);
+  // const comparisonTableRef = useRef<HTMLDivElement>(null);
+  // const comparisonChartsRef = useRef<HTMLDivElement>(null);
   
-  // Estados para crear nueva medición
-  const [selectedAreaForNewMeasurement, setSelectedAreaForNewMeasurement] = useState<InterviewData | null>(null);
-  const [showNewMeasurementDialog, setShowNewMeasurementDialog] = useState(false);
-  const [newMeasurementName, setNewMeasurementName] = useState("");
+  // Estados para crear nueva medición (SISTEMA ANTIGUO - ELIMINADO)
+  // const [selectedAreaForNewMeasurement, setSelectedAreaForNewMeasurement] = useState<InterviewData | null>(null);
+  // const [showNewMeasurementDialog, setShowNewMeasurementDialog] = useState(false);
+  // const [newMeasurementName, setNewMeasurementName] = useState("");
+  
+  // Estados para Mediciones Globales (NUEVO SISTEMA)
+  const [showGlobalMeasurementDialog, setShowGlobalMeasurementDialog] = useState(false);
+  const [globalMeasurementName, setGlobalMeasurementName] = useState("");
+  const [globalMeasurements, setGlobalMeasurements] = useState<GlobalMeasurement[]>([]);
+  const [selectedMeasurement, setSelectedMeasurement] = useState<GlobalMeasurement | null>(null);
+  const [measurementToCompare1, setMeasurementToCompare1] = useState<GlobalMeasurement | null>(null);
+  const [measurementToCompare2, setMeasurementToCompare2] = useState<GlobalMeasurement | null>(null);
   
   // Hook de Firestore para sincronización en la nube
   const { 
@@ -225,6 +239,20 @@ export default function Home() {
       }
     }
   }, [isMigrated]);
+  
+  // Suscribirse a mediciones globales en tiempo real
+  useEffect(() => {
+    const unsubscribe = subscribeToGlobalMeasurements(
+      (measurements) => {
+        setGlobalMeasurements(measurements);
+      },
+      (error) => {
+        console.error('Error al cargar mediciones globales:', error);
+      }
+    );
+    
+    return () => unsubscribe();
+  }, []);
 
   // Generar lista global de items únicos por campo
   const globalTurtleItems = useMemo(() => {
@@ -764,36 +792,71 @@ export default function Home() {
     await copyElementAsImage(comparisonChartsRef.current, 'graficos-comparativos');
   };
   
-  // Función para crear nueva medición
-  const createNewMeasurement = async () => {
-    if (!selectedAreaForNewMeasurement || !newMeasurementName.trim()) {
-      alert('Por favor ingresa un nombre para la medición');
+  // Función para crear nueva medición (SISTEMA ANTIGUO - ELIMINADO)
+  // const createNewMeasurement = async () => {
+  //   if (!selectedAreaForNewMeasurement || !newMeasurementName.trim()) {
+  //     alert('Por favor ingresa un nombre para la medición');
+  //     return;
+  //   }
+  //   
+  //   try {
+  //     const newMeasurement = {
+  //       id: `measurement-${Date.now()}`,
+  //       name: newMeasurementName.trim(),
+  //       date: new Date().toISOString(),
+  //       positions: JSON.parse(JSON.stringify(selectedAreaForNewMeasurement.positions)), // Deep copy
+  //     };
+  //     
+  //     const updatedArea = {
+  //       ...selectedAreaForNewMeasurement,
+  //       measurements: [...(selectedAreaForNewMeasurement.measurements || []), newMeasurement],
+  //     };
+  //     
+  //     await saveAreaToFirestore(updatedArea);
+  //     
+  //     setShowNewMeasurementDialog(false);
+  //     setNewMeasurementName("");
+  //     setSelectedAreaForNewMeasurement(null);
+  //     
+  //     alert(`¡Medición "${newMeasurement.name}" creada exitosamente!`);
+  //   } catch (error) {
+  //     console.error('Error al crear medición:', error);
+  //     alert('Error al crear la medición. Por favor intenta de nuevo.');
+  //   }
+  // };
+
+  // Función para crear medición global (snapshot de todas las áreas)
+  const createGlobalMeasurement = async () => {
+    if (!globalMeasurementName.trim()) {
+      alert('Por favor ingresa un nombre para la medición global');
+      return;
+    }
+    
+    if (savedAreas.length === 0) {
+      alert('No hay áreas registradas para crear una medición');
       return;
     }
     
     try {
-      const newMeasurement = {
-        id: `measurement-${Date.now()}`,
-        name: newMeasurementName.trim(),
+      // Crear snapshot de todas las áreas actuales
+      const areasSnapshot: InterviewData[] = JSON.parse(JSON.stringify(savedAreas));
+      
+      const newGlobalMeasurement: GlobalMeasurement = {
+        name: globalMeasurementName.trim(),
         date: new Date().toISOString(),
-        positions: JSON.parse(JSON.stringify(selectedAreaForNewMeasurement.positions)), // Deep copy
+        areas: areasSnapshot,
+        createdAt: new Date().toISOString(),
       };
       
-      const updatedArea = {
-        ...selectedAreaForNewMeasurement,
-        measurements: [...(selectedAreaForNewMeasurement.measurements || []), newMeasurement],
-      };
+      await saveGlobalMeasurement(newGlobalMeasurement);
       
-      await saveAreaToFirestore(updatedArea);
+      setShowGlobalMeasurementDialog(false);
+      setGlobalMeasurementName("");
       
-      setShowNewMeasurementDialog(false);
-      setNewMeasurementName("");
-      setSelectedAreaForNewMeasurement(null);
-      
-      alert(`¡Medición "${newMeasurement.name}" creada exitosamente!`);
+      alert(`¡Medición Global "${newGlobalMeasurement.name}" creada exitosamente!\n\nÁreas capturadas: ${areasSnapshot.length}`);
     } catch (error) {
-      console.error('Error al crear medición:', error);
-      alert('Error al crear la medición. Por favor intenta de nuevo.');
+      console.error('Error al crear medición global:', error);
+      alert('Error al crear la medición global. Por favor intenta de nuevo.');
     }
   };
 
@@ -1004,6 +1067,14 @@ export default function Home() {
                   )}
                   {savedAreas.length > 0 && (
                     <>
+                      <Button onClick={() => setShowGlobalMeasurementDialog(true)} variant="default" size="lg">
+                        <Plus className="mr-2 h-4 w-4" />
+                        📸 Crear Medición Global
+                      </Button>
+                      <Button onClick={() => setView("measurements")} variant="outline" size="lg">
+                        <BarChart3 className="mr-2 h-4 w-4" />
+                        📊 Mediciones ({globalMeasurements.length})
+                      </Button>
                       <Button onClick={() => setView("compare")} variant="outline" size="lg">
                         <TrendingUp className="mr-2 h-4 w-4" />
                         Comparar
@@ -1036,7 +1107,7 @@ export default function Home() {
                   </Button>
                 </>
               )}
-              {(view === "compare" || view === "process-map" || view === "sipoc") && (
+              {(view === "compare" || view === "process-map" || view === "sipoc" || view === "measurements" || view === "measurement-detail" || view === "measurement-compare") && (
                 <Button onClick={() => setView("list")} variant="outline" size="lg">
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Volver
@@ -1152,33 +1223,7 @@ export default function Home() {
                                   <Trash2 className="h-3 w-3 text-red-500" />
                                 </Button>
                               </div>
-                              
-                              {/* Botones de Mediciones */}
-                              <div className="grid grid-cols-2 gap-2">
-                                <Button
-                                  onClick={() => {
-                                    setSelectedAreaForNewMeasurement(area);
-                                    setShowNewMeasurementDialog(true);
-                                  }}
-                                  variant="outline"
-                                  size="sm"
-                                  className="w-full"
-                                >
-                                  <Plus className="mr-2 h-4 w-4" />
-                                  Nueva Medición
-                                </Button>
-                                {area.measurements && area.measurements.length > 0 && (
-                                  <Button
-                                    onClick={() => setSelectedAreaForComparison(area)}
-                                    variant="default"
-                                    size="sm"
-                                    className="w-full"
-                                  >
-                                    <TrendingUp className="mr-2 h-4 w-4" />
-                                    Ver Mediciones ({area.measurements.length})
-                                  </Button>
-                                )}
-                              </div>
+
                             </div>                       </CardContent>
                         </Card>
                       );
@@ -1190,8 +1235,8 @@ export default function Home() {
           </div>
         )}
 
-        {/* Vista: Comparativa de Mediciones */}
-        {selectedAreaForComparison && (
+        {/* Vista: Comparativa de Mediciones (ELIMINADA - Ahora se usa el sistema de Mediciones Globales) */}
+        {false && selectedAreaForComparison && (
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -2428,6 +2473,445 @@ export default function Home() {
           </Tabs>
         )}
 
+        {/* Vista: Dashboard de Mediciones Globales */}
+        {view === "measurements" && (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>📊 Dashboard de Mediciones Globales</CardTitle>
+                <CardDescription>
+                  {globalMeasurements.length === 0 
+                    ? "No hay mediciones globales creadas aún. Crea tu primera medición para comenzar a hacer seguimiento."
+                    : `Tienes ${globalMeasurements.length} medición${globalMeasurements.length > 1 ? 'es' : ''} global${globalMeasurements.length > 1 ? 'es' : ''} guardada${globalMeasurements.length > 1 ? 's' : ''}`
+                  }
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {globalMeasurements.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="text-6xl mb-4">📸</div>
+                    <h3 className="text-xl font-semibold mb-2">No hay mediciones globales</h3>
+                    <p className="text-slate-600 mb-6">
+                      Crea tu primera medición global para capturar el estado actual de todas las áreas
+                    </p>
+                    <Button onClick={() => setShowGlobalMeasurementDialog(true)} size="lg">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Crear Primera Medición Global
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left p-3">Nombre</th>
+                          <th className="text-left p-3">Fecha</th>
+                          <th className="text-center p-3"># Áreas</th>
+                          <th className="text-right p-3">Promedio Productivo</th>
+                          <th className="text-right p-3">Promedio Soporte</th>
+                          <th className="text-right p-3">Promedio Muerto</th>
+                          <th className="text-center p-3">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {globalMeasurements.map((measurement) => {
+                          // Calcular promedios de todas las áreas
+                          const avgProductivo = measurement.areas.reduce((sum, area) => {
+                            const totals = calculateTotals(area);
+                            return sum + totals.productivePercentage;
+                          }, 0) / measurement.areas.length;
+                          
+                          const avgSoporte = measurement.areas.reduce((sum, area) => {
+                            const totals = calculateTotals(area);
+                            return sum + totals.supportPercentage;
+                          }, 0) / measurement.areas.length;
+                          
+                          const avgMuerto = measurement.areas.reduce((sum, area) => {
+                            const totals = calculateTotals(area);
+                            return sum + totals.deadTimePercentage;
+                          }, 0) / measurement.areas.length;
+                          
+                          return (
+                            <tr key={measurement.id} className="border-b hover:bg-slate-50">
+                              <td className="p-3 font-medium">{measurement.name}</td>
+                              <td className="p-3 text-slate-600">
+                                {new Date(measurement.date).toLocaleDateString('es-ES', {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric'
+                                })}
+                              </td>
+                              <td className="p-3 text-center">
+                                <Badge variant="outline">{measurement.areas.length}</Badge>
+                              </td>
+                              <td className="p-3 text-right">
+                                <span className="font-semibold text-green-600">
+                                  {avgProductivo.toFixed(1)}%
+                                </span>
+                              </td>
+                              <td className="p-3 text-right">
+                                <span className="font-semibold text-blue-600">
+                                  {avgSoporte.toFixed(1)}%
+                                </span>
+                              </td>
+                              <td className="p-3 text-right">
+                                <span className="font-semibold text-red-600">
+                                  {avgMuerto.toFixed(1)}%
+                                </span>
+                              </td>
+                              <td className="p-3">
+                                <div className="flex gap-2 justify-center">
+                                  <Button 
+                                    onClick={() => {
+                                      setSelectedMeasurement(measurement);
+                                      setView("measurement-detail");
+                                    }}
+                                    variant="outline" 
+                                    size="sm"
+                                  >
+                                    <FileText className="mr-1 h-3 w-3" />
+                                    Ver Detalle
+                                  </Button>
+                                  <Button 
+                                    onClick={async () => {
+                                      if (confirm(`¿Estás seguro de eliminar la medición "${measurement.name}"?`)) {
+                                        try {
+                                          await deleteGlobalMeasurement(measurement.id!);
+                                          alert('Medición eliminada exitosamente');
+                                        } catch (error) {
+                                          alert('Error al eliminar la medición');
+                                        }
+                                      }
+                                    }}
+                                    variant="outline" 
+                                    size="sm"
+                                  >
+                                    <Trash2 className="h-3 w-3 text-red-600" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                
+                {globalMeasurements.length >= 2 && (
+                  <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <h4 className="font-semibold text-blue-900 mb-2">🔍 Comparar Mediciones</h4>
+                    <p className="text-sm text-blue-700 mb-3">
+                      Selecciona dos mediciones para ver su evolución y diferencias
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <Label className="text-xs text-blue-900">Medición Base</Label>
+                        <select 
+                          className="w-full mt-1 p-2 border rounded"
+                          value={measurementToCompare1?.id || ""}
+                          onChange={(e) => {
+                            const m = globalMeasurements.find(m => m.id === e.target.value);
+                            setMeasurementToCompare1(m || null);
+                          }}
+                        >
+                          <option value="">Seleccionar...</option>
+                          {globalMeasurements.map(m => (
+                            <option key={m.id} value={m.id}>{m.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-blue-900">Medición Actual</Label>
+                        <select 
+                          className="w-full mt-1 p-2 border rounded"
+                          value={measurementToCompare2?.id || ""}
+                          onChange={(e) => {
+                            const m = globalMeasurements.find(m => m.id === e.target.value);
+                            setMeasurementToCompare2(m || null);
+                          }}
+                        >
+                          <option value="">Seleccionar...</option>
+                          {globalMeasurements.map(m => (
+                            <option key={m.id} value={m.id}>{m.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex items-end">
+                        <Button 
+                          onClick={() => {
+                            if (measurementToCompare1 && measurementToCompare2) {
+                              setView("measurement-compare");
+                            } else {
+                              alert('Por favor selecciona dos mediciones para comparar');
+                            }
+                          }}
+                          disabled={!measurementToCompare1 || !measurementToCompare2}
+                          className="w-full"
+                        >
+                          <TrendingUp className="mr-2 h-4 w-4" />
+                          Comparar
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+        
+        {/* Vista: Detalle de Medición Global */}
+        {view === "measurement-detail" && selectedMeasurement && (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>📊 Detalle de Medición: {selectedMeasurement.name}</CardTitle>
+                <CardDescription>
+                  Creada el {new Date(selectedMeasurement.date).toLocaleDateString('es-ES', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })} • {selectedMeasurement.areas.length} áreas capturadas
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-3">Área</th>
+                        <th className="text-left p-3">Responsable</th>
+                        <th className="text-center p-3"># Cargos</th>
+                        <th className="text-center p-3"># Actividades</th>
+                        <th className="text-right p-3">Productivo</th>
+                        <th className="text-right p-3">Soporte</th>
+                        <th className="text-right p-3">Muerto</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedMeasurement.areas.map((area, index) => {
+                        const totals = calculateTotals(area);
+                        const allActivities = getAllActivities(area);
+                        
+                        return (
+                          <tr key={index} className="border-b hover:bg-slate-50">
+                            <td className="p-3 font-medium">{area.areaName}</td>
+                            <td className="p-3 text-slate-600">{area.managerName}</td>
+                            <td className="p-3 text-center">
+                              <Badge variant="outline">{area.positions.length}</Badge>
+                            </td>
+                            <td className="p-3 text-center">
+                              <Badge variant="outline">{allActivities.length}</Badge>
+                            </td>
+                            <td className="p-3 text-right">
+                              <span className="font-semibold text-green-600">
+                                {totals.productivePercentage.toFixed(1)}%
+                              </span>
+                            </td>
+                            <td className="p-3 text-right">
+                              <span className="font-semibold text-blue-600">
+                                {totals.supportPercentage.toFixed(1)}%
+                              </span>
+                            </td>
+                            <td className="p-3 text-right">
+                              <span className="font-semibold text-red-600">
+                                {totals.deadTimePercentage.toFixed(1)}%
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                
+                {/* Gráfico de barras */}
+                <div className="mt-6">
+                  <h3 className="font-semibold mb-4">Distribución por Área</h3>
+                  <ResponsiveContainer width="100%" height={400}>
+                    <BarChart data={selectedMeasurement.areas.map(area => {
+                      const totals = calculateTotals(area);
+                      return {
+                        area: area.areaName,
+                        Productivo: totals.productivePercentage,
+                        Soporte: totals.supportPercentage,
+                        "Tiempo Muerto": totals.deadTimePercentage
+                      };
+                    })}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="area" angle={-45} textAnchor="end" height={100} />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="Productivo" fill={COLORS.productive} />
+                      <Bar dataKey="Soporte" fill={COLORS.support} />
+                      <Bar dataKey="Tiempo Muerto" fill={COLORS.dead_time} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+        
+        {/* Vista: Comparación entre Dos Mediciones Globales */}
+        {view === "measurement-compare" && measurementToCompare1 && measurementToCompare2 && (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>🔍 Comparación de Mediciones</CardTitle>
+                <CardDescription>
+                  {measurementToCompare1.name} vs {measurementToCompare2.name}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-3">Área</th>
+                        <th className="text-right p-3" colSpan={2}>
+                          <div className="text-sm font-normal text-slate-600">{measurementToCompare1.name}</div>
+                        </th>
+                        <th className="text-right p-3" colSpan={2}>
+                          <div className="text-sm font-normal text-slate-600">{measurementToCompare2.name}</div>
+                        </th>
+                        <th className="text-center p-3">Evolución</th>
+                      </tr>
+                      <tr className="border-b bg-slate-50">
+                        <th className="text-left p-3"></th>
+                        <th className="text-right p-3 text-xs">Prod.</th>
+                        <th className="text-right p-3 text-xs">Muerto</th>
+                        <th className="text-right p-3 text-xs">Prod.</th>
+                        <th className="text-right p-3 text-xs">Muerto</th>
+                        <th className="text-center p-3 text-xs">Cambio</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {measurementToCompare1.areas.map((area1, index) => {
+                        // Buscar el área correspondiente en la segunda medición
+                        const area2 = measurementToCompare2.areas.find(a => a.areaName === area1.areaName);
+                        
+                        if (!area2) return null; // Área no existe en la segunda medición
+                        
+                        const totals1 = calculateTotals(area1);
+                        const totals2 = calculateTotals(area2);
+                        
+                        const diffProductivo = totals2.productivePercentage - totals1.productivePercentage;
+                        const diffMuerto = totals2.deadTimePercentage - totals1.deadTimePercentage;
+                        
+                        // Determinar si mejoró o empeoró
+                        const improved = diffProductivo > 0 || diffMuerto < 0;
+                        const worsened = diffProductivo < 0 || diffMuerto > 0;
+                        
+                        return (
+                          <tr key={index} className="border-b hover:bg-slate-50">
+                            <td className="p-3 font-medium">{area1.areaName}</td>
+                            <td className="p-3 text-right text-green-600">
+                              {totals1.productivePercentage.toFixed(1)}%
+                            </td>
+                            <td className="p-3 text-right text-red-600">
+                              {totals1.deadTimePercentage.toFixed(1)}%
+                            </td>
+                            <td className="p-3 text-right text-green-600 font-semibold">
+                              {totals2.productivePercentage.toFixed(1)}%
+                            </td>
+                            <td className="p-3 text-right text-red-600 font-semibold">
+                              {totals2.deadTimePercentage.toFixed(1)}%
+                            </td>
+                            <td className="p-3 text-center">
+                              {improved && !worsened && (
+                                <Badge className="bg-green-100 text-green-800 border-green-300">
+                                  ↑ Mejoró
+                                </Badge>
+                              )}
+                              {worsened && !improved && (
+                                <Badge className="bg-red-100 text-red-800 border-red-300">
+                                  ↓ Empeoró
+                                </Badge>
+                              )}
+                              {!improved && !worsened && (
+                                <Badge variant="outline">
+                                  → Igual
+                                </Badge>
+                              )}
+                              {improved && worsened && (
+                                <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                                  ∼ Mixto
+                                </Badge>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                
+                {/* Gráficos de comparación */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                  <div>
+                    <h3 className="font-semibold mb-4">Tiempo Productivo - Comparación</h3>
+                    <ResponsiveContainer width="100%" height={400}>
+                      <BarChart data={measurementToCompare1.areas.map(area1 => {
+                        const area2 = measurementToCompare2.areas.find(a => a.areaName === area1.areaName);
+                        if (!area2) return null;
+                        
+                        const totals1 = calculateTotals(area1);
+                        const totals2 = calculateTotals(area2);
+                        
+                        return {
+                          area: area1.areaName,
+                          [measurementToCompare1.name]: totals1.productivePercentage,
+                          [measurementToCompare2.name]: totals2.productivePercentage
+                        };
+                      }).filter(Boolean)}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="area" angle={-45} textAnchor="end" height={100} />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey={measurementToCompare1.name} fill="#94a3b8" />
+                        <Bar dataKey={measurementToCompare2.name} fill={COLORS.productive} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  
+                  <div>
+                    <h3 className="font-semibold mb-4">Tiempo Muerto - Comparación</h3>
+                    <ResponsiveContainer width="100%" height={400}>
+                      <BarChart data={measurementToCompare1.areas.map(area1 => {
+                        const area2 = measurementToCompare2.areas.find(a => a.areaName === area1.areaName);
+                        if (!area2) return null;
+                        
+                        const totals1 = calculateTotals(area1);
+                        const totals2 = calculateTotals(area2);
+                        
+                        return {
+                          area: area1.areaName,
+                          [measurementToCompare1.name]: totals1.deadTimePercentage,
+                          [measurementToCompare2.name]: totals2.deadTimePercentage
+                        };
+                      }).filter(Boolean)}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="area" angle={-45} textAnchor="end" height={100} />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey={measurementToCompare1.name} fill="#fca5a5" />
+                        <Bar dataKey={measurementToCompare2.name} fill={COLORS.dead_time} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+        
         {/* Vista: Comparativa */}
         {view === "compare" && savedAreas.length > 0 && (
           <div className="space-y-6">
@@ -3170,8 +3654,74 @@ export default function Home() {
         </div>
       )}
       
-      {/* Diálogo de Nueva Medición */}
-      {showNewMeasurementDialog && selectedAreaForNewMeasurement && (
+      {/* Diálogo de Medición Global */}
+      {showGlobalMeasurementDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader>
+              <CardTitle>📸 Crear Medición Global</CardTitle>
+              <CardDescription>
+                Toma una fotografía de TODAS las áreas actuales ({savedAreas.length} áreas) para comparar en el futuro
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="global-measurement-name">Nombre de la Medición Global</Label>
+                <Input
+                  id="global-measurement-name"
+                  value={globalMeasurementName}
+                  onChange={(e) => setGlobalMeasurementName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      createGlobalMeasurement();
+                    } else if (e.key === "Escape") {
+                      setShowGlobalMeasurementDialog(false);
+                      setGlobalMeasurementName("");
+                    }
+                  }}
+                  placeholder="Ej: Estado Inicial, Medición Enero 2025, Después de Mejoras"
+                  autoFocus
+                />
+                <p className="text-xs text-slate-500 mt-2">
+                  Se guardará una copia completa de todas las áreas con sus cargos, actividades y tiempos actuales
+                </p>
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-900 font-medium">
+                  Áreas que se capturarán:
+                </p>
+                <ul className="text-xs text-blue-700 mt-2 space-y-1">
+                  {savedAreas.slice(0, 5).map(area => (
+                    <li key={area.id}>• {area.areaName}</li>
+                  ))}
+                  {savedAreas.length > 5 && (
+                    <li className="text-blue-600 italic">... y {savedAreas.length - 5} áreas más</li>
+                  )}
+                </ul>
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={createGlobalMeasurement} className="flex-1">
+                  <Check className="mr-2 h-4 w-4" />
+                  Crear Medición Global
+                </Button>
+                <Button 
+                  onClick={() => {
+                    setShowGlobalMeasurementDialog(false);
+                    setGlobalMeasurementName("");
+                  }} 
+                  variant="outline" 
+                  className="flex-1"
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+      
+      {/* Diálogo de Nueva Medición (ELIMINADO - Ahora se usa el sistema de Mediciones Globales) */}
+      {false && showNewMeasurementDialog && selectedAreaForNewMeasurement && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <Card className="w-full max-w-md mx-4">
             <CardHeader>
