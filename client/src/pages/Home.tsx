@@ -771,25 +771,30 @@ export default function Home() {
       return;
     }
     
-    const newMeasurement = {
-      id: `measurement-${Date.now()}`,
-      name: newMeasurementName.trim(),
-      date: new Date().toISOString(),
-      positions: JSON.parse(JSON.stringify(selectedAreaForNewMeasurement.positions)), // Deep copy
-    };
-    
-    const updatedArea = {
-      ...selectedAreaForNewMeasurement,
-      measurements: [...(selectedAreaForNewMeasurement.measurements || []), newMeasurement],
-    };
-    
-    await updateArea(updatedArea);
-    
-    setShowNewMeasurementDialog(false);
-    setNewMeasurementName("");
-    setSelectedAreaForNewMeasurement(null);
-    
-    alert(`¡Medición "${newMeasurement.name}" creada exitosamente!`);
+    try {
+      const newMeasurement = {
+        id: `measurement-${Date.now()}`,
+        name: newMeasurementName.trim(),
+        date: new Date().toISOString(),
+        positions: JSON.parse(JSON.stringify(selectedAreaForNewMeasurement.positions)), // Deep copy
+      };
+      
+      const updatedArea = {
+        ...selectedAreaForNewMeasurement,
+        measurements: [...(selectedAreaForNewMeasurement.measurements || []), newMeasurement],
+      };
+      
+      await saveAreaToFirestore(updatedArea);
+      
+      setShowNewMeasurementDialog(false);
+      setNewMeasurementName("");
+      setSelectedAreaForNewMeasurement(null);
+      
+      alert(`¡Medición "${newMeasurement.name}" creada exitosamente!`);
+    } catch (error) {
+      console.error('Error al crear medición:', error);
+      alert('Error al crear la medición. Por favor intenta de nuevo.');
+    }
   };
 
   const exportArea = (area: InterviewData) => {

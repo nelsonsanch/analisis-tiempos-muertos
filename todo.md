@@ -281,3 +281,9 @@
 - [x] Crear diálogo para ingresar nombre de la nueva medición
 - [x] Implementar función para crear snapshot del estado actual
 - [x] Mostrar ambos botones: "Nueva Medición" y "Ver Mediciones (X)"
+
+## Corrección Botón Crear Medición
+- [x] Diagnosticar por qué el botón "Crear Medición" no responde
+- [x] Verificar función createNewMeasurement
+- [x] Corregir manejo del diálogo y estado (cambiar updateArea por saveAreaToFirestore)
+- [ ] Probar creación de mediciones
