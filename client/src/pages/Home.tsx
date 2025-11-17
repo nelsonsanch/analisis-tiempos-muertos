@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
-import { useLocation } from "wouter";
-import { useAuth } from "@/contexts/AuthContext";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useFirestore } from "@/hooks/useFirestore";
+import html2canvas from "html2canvas";
+import { useAuth } from "@/contexts/AuthContext";
 import { generateTurtleSuggestions, type TurtleSuggestions } from "@/lib/aiService";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +19,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { 
   Clock, 
   Plus, 
@@ -152,9 +160,12 @@ export default function Home() {
   const [, setLocation] = useLocation();
   const { user, signOut } = useAuth();
 
-  const [view, setView] = useState<"list" | "form" | "process-map" | "sipoc">("list");
+  const [view, setView] = useState<"list" | "form" | "process-map" | "sipoc" | "measurements">("list");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showMigrateDialog, setShowMigrateDialog] = useState(false);
+  const [showNewMeasurementDialog, setShowNewMeasurementDialog] = useState(false);
+  const [selectedAreaForMeasurement, setSelectedAreaForMeasurement] = useState<InterviewData | null>(null);
+  const [newMeasurementName, setNewMeasurementName] = useState("");
   
   // Hook de Firestore para sincronización en la nube
   const { 
@@ -213,6 +224,48 @@ export default function Home() {
 
   // Función auxiliar: Obtener todas las actividades del área actual
   const currentActivities = useMemo(() => getAllActivities(interviewData), [interviewData]);
+
+  // Estados para vista comparativa de mediciones
+  const [selectedAreaForComparison, setSelectedAreaForComparison] = useState<InterviewData | null>(null);
+  const [baseMeasurementId, setBaseMeasurementId] = useState<string | null>(null);
+  const [currentMeasurementId, setCurrentMeasurementId] = useState<string | null>(null);
+  const comparisonTableRef = useRef<HTMLDivElement>(null);
+  
+  // Función para copiar tabla como imagen
+  const copyTableAsImage = async () => {
+    if (!comparisonTableRef.current) return;
+    
+    try {
+      const canvas = await html2canvas(comparisonTableRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2, // Mayor calidad
+      });
+      
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': blob })
+          ]);
+          alert('¡Tabla copiada al portapapeles! Puedes pegarla en tu informe.');
+        } catch (err) {
+          console.error('Error al copiar:', err);
+          // Fallback: descargar imagen
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `comparativa-${new Date().toISOString().split('T')[0]}.png`;
+          link.click();
+          URL.revokeObjectURL(url);
+          alert('La imagen se ha descargado. Puedes insertarla en tu informe.');
+        }
+      });
+    } catch (error) {
+      console.error('Error al generar imagen:', error);
+      alert('Error al generar la imagen');
+    }
+  };
 
   // Estados para Tortuga
   const [newTurtleItem, setNewTurtleItem] = useState("");
@@ -698,6 +751,52 @@ export default function Home() {
     setView("form");
   };
 
+  // Función para crear nueva medición
+  const createNewMeasurement = async () => {
+    if (!selectedAreaForMeasurement || !newMeasurementName.trim()) {
+      return;
+    }
+
+    try {
+      // Crear nueva medición copiando la estructura actual
+      const newMeasurement = {
+        id: `measurement_${Date.now()}`,
+        name: newMeasurementName.trim(),
+        date: new Date().toISOString(),
+        positions: JSON.parse(JSON.stringify(selectedAreaForMeasurement.positions)), // Deep copy
+      };
+
+      // Actualizar el área con la nueva medición
+      const updatedArea: InterviewData = {
+        ...selectedAreaForMeasurement,
+        measurements: [
+          ...(selectedAreaForMeasurement.measurements || []),
+          newMeasurement
+        ],
+      };
+
+      await saveAreaToFirestore(updatedArea);
+      
+      alert(`¡Medición "${newMeasurementName}" creada exitosamente! Ahora puedes editar los tiempos de las actividades.`);
+      
+      // Abrir el área para editar la nueva medición
+      setInterviewData({
+        ...updatedArea,
+        turtleProcess: updatedArea.turtleProcess || {
+          inputs: [], outputs: [], resources: [], methods: [], indicators: [], competencies: []
+        }
+      });
+      setEditingId(updatedArea.id || null);
+      setView("form");
+      
+      setShowNewMeasurementDialog(false);
+      setNewMeasurementName("");
+      setSelectedAreaForMeasurement(null);
+    } catch (error) {
+      alert("Error al crear la medición: " + (error instanceof Error ? error.message : "Error desconocido"));
+    }
+  };
+
   const deleteArea = async (id: string | undefined) => {
     if (!id) {
       alert("Error: No se puede eliminar un área sin ID");
@@ -1126,8 +1225,8 @@ export default function Home() {
                               </div>
                               <Button
                                 onClick={() => {
-                                  // TODO: Implementar nueva medición
-                                  alert('Función de nueva medición en desarrollo');
+                                  setSelectedAreaForMeasurement(area);
+                                  setShowNewMeasurementDialog(true);
                                 }}
                                 variant="default"
                                 size="sm"
@@ -1137,9 +1236,20 @@ export default function Home() {
                                 Nueva Medición
                               </Button>
                               {area.measurements && area.measurements.length > 0 && (
-                                <div className="text-xs text-slate-600 text-center">
-                                  {area.measurements.length} medición(es) registrada(s)
-                                </div>
+                                <>
+                                  <Button
+                                    onClick={() => {
+                                      setSelectedAreaForComparison(area);
+                                      setView("measurements");
+                                    }}
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full"
+                                  >
+                                    <TrendingUp className="mr-1 h-3 w-3" />
+                                    Ver Mediciones ({area.measurements.length})
+                                  </Button>
+                                </>
                               )}
                             </div>
                           </CardContent>
@@ -2793,6 +2903,233 @@ export default function Home() {
           </Card>
         </div>
       )}
+
+      {/* Vista: Comparativa de Mediciones */}
+      {view === "measurements" && selectedAreaForComparison && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Mediciones del Área: {selectedAreaForComparison.areaName}</CardTitle>
+                  <CardDescription>
+                    Compara diferentes períodos de medición para identificar mejoras y oportunidades
+                  </CardDescription>
+                </div>
+                <Button
+                  onClick={() => {
+                    setView("list");
+                    setSelectedAreaForComparison(null);
+                    setBaseMeasurementId(null);
+                    setCurrentMeasurementId(null);
+                  }}
+                  variant="outline"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Volver
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Selector de Mediciones */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Medición Base</Label>
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={baseMeasurementId || "current"}
+                    onChange={(e) => setBaseMeasurementId(e.target.value === "current" ? null : e.target.value)}
+                  >
+                    <option value="current">Estado Actual</option>
+                    {selectedAreaForComparison.measurements?.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} - {new Date(m.date).toLocaleDateString()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Medición a Comparar</Label>
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={currentMeasurementId || "current"}
+                    onChange={(e) => setCurrentMeasurementId(e.target.value === "current" ? null : e.target.value)}
+                  >
+                    <option value="current">Estado Actual</option>
+                    {selectedAreaForComparison.measurements?.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} - {new Date(m.date).toLocaleDateString()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Tabla Comparativa */}
+              {baseMeasurementId && currentMeasurementId && baseMeasurementId !== currentMeasurementId && (
+                <>
+                  <Separator />
+                  <div ref={comparisonTableRef} className="p-6 bg-white rounded-lg">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold">Comparativa por Actividad</h3>
+                      <Button
+                        onClick={copyTableAsImage}
+                        variant="outline"
+                        size="sm"
+                      >
+                        <Download className="mr-2 h-4 w-4" />
+                        Copiar como Imagen
+                      </Button>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="bg-slate-100">
+                            <th className="border border-slate-300 px-4 py-3 text-left">Cargo</th>
+                            <th className="border border-slate-300 px-4 py-3 text-left">Actividad</th>
+                            <th className="border border-slate-300 px-4 py-3 text-right">Base (min)</th>
+                            <th className="border border-slate-300 px-4 py-3 text-right">Actual (min)</th>
+                            <th className="border border-slate-300 px-4 py-3 text-right">Δ</th>
+                            <th className="border border-slate-300 px-4 py-3 text-right">% Cambio</th>
+                            <th className="border border-slate-300 px-4 py-3 text-center">Estado</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(() => {
+                            const baseMeasurement = selectedAreaForComparison.measurements?.find(m => m.id === baseMeasurementId);
+                            const currentMeasurement = selectedAreaForComparison.measurements?.find(m => m.id === currentMeasurementId);
+                            
+                            if (!baseMeasurement || !currentMeasurement) return null;
+                            
+                            const comparisons: Array<{
+                              positionName: string;
+                              activityName: string;
+                              baseTime: number;
+                              currentTime: number;
+                              delta: number;
+                              percentChange: number;
+                            }> = [];
+                            
+                            baseMeasurement.positions.forEach((basePos) => {
+                              const currentPos = currentMeasurement.positions.find(p => p.id === basePos.id);
+                              if (!currentPos) return;
+                              
+                              basePos.activities.forEach((baseActivity) => {
+                                const currentActivity = currentPos.activities.find(a => a.id === baseActivity.id);
+                                if (!currentActivity) return;
+                                
+                                const baseTime = baseActivity.timeMinutes * baseActivity.frequency;
+                                const currentTime = currentActivity.timeMinutes * currentActivity.frequency;
+                                const delta = currentTime - baseTime;
+                                const percentChange = baseTime > 0 ? ((delta / baseTime) * 100) : 0;
+                                
+                                comparisons.push({
+                                  positionName: basePos.name,
+                                  activityName: baseActivity.name,
+                                  baseTime,
+                                  currentTime,
+                                  delta,
+                                  percentChange,
+                                });
+                              });
+                            });
+                            
+                            return comparisons.map((comp, idx) => (
+                              <tr key={idx} className="hover:bg-slate-50">
+                                <td className="border border-slate-300 px-4 py-3">{comp.positionName}</td>
+                                <td className="border border-slate-300 px-4 py-3">{comp.activityName}</td>
+                                <td className="border border-slate-300 px-4 py-3 text-right">{comp.baseTime}</td>
+                                <td className="border border-slate-300 px-4 py-3 text-right">{comp.currentTime}</td>
+                                <td className={`border border-slate-300 px-4 py-3 text-right font-semibold ${
+                                  comp.delta < 0 ? 'text-green-600' : comp.delta > 0 ? 'text-red-600' : 'text-slate-600'
+                                }`}>
+                                  {comp.delta > 0 ? '+' : ''}{comp.delta}
+                                </td>
+                                <td className={`border border-slate-300 px-4 py-3 text-right font-semibold ${
+                                  comp.percentChange < 0 ? 'text-green-600' : comp.percentChange > 0 ? 'text-red-600' : 'text-slate-600'
+                                }`}>
+                                  {comp.percentChange > 0 ? '+' : ''}{comp.percentChange.toFixed(1)}%
+                                </td>
+                                <td className="border border-slate-300 px-4 py-3 text-center">
+                                  {comp.delta < -5 ? '✅' : comp.delta > 5 ? '❌' : '⚠️'}
+                                </td>
+                              </tr>
+                            ));
+                          })()}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Mensaje cuando no hay selección válida */}
+              {(!baseMeasurementId || !currentMeasurementId || baseMeasurementId === currentMeasurementId) && (
+                <div className="text-center py-12 text-slate-500">
+                  <TrendingUp className="h-16 w-16 mx-auto mb-4 text-slate-300" />
+                  <p className="font-medium">Selecciona dos mediciones diferentes para comparar</p>
+                  <p className="text-sm mt-2">Elige una medición base y otra para comparar en los selectores de arriba</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Diálogo: Nueva Medición */}
+      <Dialog open={showNewMeasurementDialog} onOpenChange={setShowNewMeasurementDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nueva Medición de Tiempo</DialogTitle>
+            <DialogDescription>
+              Crear una nueva medición para el área "{selectedAreaForMeasurement?.areaName}" y comparar con mediciones anteriores.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="measurement-name">Nombre del Período</Label>
+              <Input
+                id="measurement-name"
+                placeholder="Ej: Marzo 2025, Q1 2025, Después de capacitación"
+                value={newMeasurementName}
+                onChange={(e) => setNewMeasurementName(e.target.value)}
+              />
+              <p className="text-xs text-slate-500">
+                Este nombre te ayudará a identificar y comparar diferentes períodos de medición.
+              </p>
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-blue-800">
+                💡 <strong>Cómo funciona:</strong>
+              </p>
+              <ul className="text-xs text-blue-700 mt-2 space-y-1 list-disc list-inside">
+                <li>Se copiarán todos los cargos y actividades actuales como plantilla</li>
+                <li>Podrás editar los tiempos con los nuevos valores medidos</li>
+                <li>El sistema calculará automáticamente las diferencias y mejoras</li>
+                <li>Verás qué actividades se optimizaron y cuáles necesitan atención</li>
+              </ul>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowNewMeasurementDialog(false);
+                setNewMeasurementName("");
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={createNewMeasurement}
+              disabled={!newMeasurementName.trim()}
+            >
+              <Clock className="mr-2 h-4 w-4" />
+              Crear Medición
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

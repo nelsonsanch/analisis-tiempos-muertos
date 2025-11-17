@@ -304,3 +304,20 @@
 
 - [x] Eliminar botones "Mapa de Procesos", "Matriz SIPOC" y "Exportar" que quedaron fuera del menú
 - [x] Verificar que solo queden dentro del menú desplegable
+
+
+## Implementación de Sistema de Mediciones Comparativas
+
+- [x] Crear estado para controlar diálogo de nueva medición
+- [x] Implementar diálogo con formulario para nombre del período
+- [x] Función para copiar estructura del área como plantilla
+- [x] Función para guardar nueva medición en el área
+- [x] Agregar botón "Ver Mediciones" en tarjetas de área
+- [x] Crear vista de lista de mediciones con fechas
+- [x] Implementar selector de medición base y medición actual
+- [x] Crear tabla comparativa con columnas: Cargo | Actividad | Base | Actual | Δ | % Mejora
+- [x] Agregar indicadores visuales (✅ verde, ⚠️ amarillo, ❌ rojo)
+- [ ] Implementar gráficos de barras horizontales por actividad
+- [x] Agregar botón para copiar gráficos como imagen
+- [x] Implementar funcionalidad de exportar gráfico a clipboard
+- [ ] Implementar filtros por cargo y tipo de actividad
