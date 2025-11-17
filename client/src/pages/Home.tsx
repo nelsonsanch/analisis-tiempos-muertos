@@ -141,6 +141,11 @@ export default function Home() {
   const comparisonTableRef = useRef<HTMLDivElement>(null);
   const comparisonChartsRef = useRef<HTMLDivElement>(null);
   
+  // Estados para crear nueva medición
+  const [selectedAreaForNewMeasurement, setSelectedAreaForNewMeasurement] = useState<InterviewData | null>(null);
+  const [showNewMeasurementDialog, setShowNewMeasurementDialog] = useState(false);
+  const [newMeasurementName, setNewMeasurementName] = useState("");
+  
   // Hook de Firestore para sincronización en la nube
   const { 
     areas: savedAreas, 
@@ -758,6 +763,34 @@ export default function Home() {
     if (!comparisonChartsRef.current) return;
     await copyElementAsImage(comparisonChartsRef.current, 'graficos-comparativos');
   };
+  
+  // Función para crear nueva medición
+  const createNewMeasurement = async () => {
+    if (!selectedAreaForNewMeasurement || !newMeasurementName.trim()) {
+      alert('Por favor ingresa un nombre para la medición');
+      return;
+    }
+    
+    const newMeasurement = {
+      id: `measurement-${Date.now()}`,
+      name: newMeasurementName.trim(),
+      date: new Date().toISOString(),
+      positions: JSON.parse(JSON.stringify(selectedAreaForNewMeasurement.positions)), // Deep copy
+    };
+    
+    const updatedArea = {
+      ...selectedAreaForNewMeasurement,
+      measurements: [...(selectedAreaForNewMeasurement.measurements || []), newMeasurement],
+    };
+    
+    await updateArea(updatedArea);
+    
+    setShowNewMeasurementDialog(false);
+    setNewMeasurementName("");
+    setSelectedAreaForNewMeasurement(null);
+    
+    alert(`¡Medición "${newMeasurement.name}" creada exitosamente!`);
+  };
 
   const exportArea = (area: InterviewData) => {
     const totals = calculateTotals(area);
@@ -1114,17 +1147,33 @@ export default function Home() {
                                   <Trash2 className="h-3 w-3 text-red-500" />
                                 </Button>
                               </div>
-                              {area.measurements && area.measurements.length > 0 && (
+                              
+                              {/* Botones de Mediciones */}
+                              <div className="grid grid-cols-2 gap-2">
                                 <Button
-                                  onClick={() => setSelectedAreaForComparison(area)}
-                                  variant="default"
+                                  onClick={() => {
+                                    setSelectedAreaForNewMeasurement(area);
+                                    setShowNewMeasurementDialog(true);
+                                  }}
+                                  variant="outline"
                                   size="sm"
                                   className="w-full"
                                 >
-                                  <TrendingUp className="mr-2 h-4 w-4" />
-                                  Ver Mediciones ({area.measurements.length})
+                                  <Plus className="mr-2 h-4 w-4" />
+                                  Nueva Medición
                                 </Button>
-                              )}
+                                {area.measurements && area.measurements.length > 0 && (
+                                  <Button
+                                    onClick={() => setSelectedAreaForComparison(area)}
+                                    variant="default"
+                                    size="sm"
+                                    className="w-full"
+                                  >
+                                    <TrendingUp className="mr-2 h-4 w-4" />
+                                    Ver Mediciones ({area.measurements.length})
+                                  </Button>
+                                )}
+                              </div>
                             </div>                       </CardContent>
                         </Card>
                       );
@@ -3109,6 +3158,59 @@ export default function Home() {
                   className="flex-1"
                 >
                   Cerrar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+      
+      {/* Diálogo de Nueva Medición */}
+      {showNewMeasurementDialog && selectedAreaForNewMeasurement && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader>
+              <CardTitle>Nueva Medición</CardTitle>
+              <CardDescription>
+                Crea un snapshot del estado actual del área "{selectedAreaForNewMeasurement.areaName}" para comparar en el futuro
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="measurement-name">Nombre de la Medición</Label>
+                <Input
+                  id="measurement-name"
+                  value={newMeasurementName}
+                  onChange={(e) => setNewMeasurementName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      createNewMeasurement();
+                    } else if (e.key === "Escape") {
+                      setShowNewMeasurementDialog(false);
+                      setNewMeasurementName("");
+                    }
+                  }}
+                  placeholder="Ej: Medición Marzo 2025, Después de capacitación"
+                  autoFocus
+                />
+                <p className="text-xs text-slate-500 mt-2">
+                  Se guardará una copia de todos los cargos y actividades actuales con sus tiempos
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={createNewMeasurement} className="flex-1">
+                  <Check className="mr-2 h-4 w-4" />
+                  Crear Medición
+                </Button>
+                <Button 
+                  onClick={() => {
+                    setShowNewMeasurementDialog(false);
+                    setNewMeasurementName("");
+                  }} 
+                  variant="outline" 
+                  className="flex-1"
+                >
+                  Cancelar
                 </Button>
               </div>
             </CardContent>

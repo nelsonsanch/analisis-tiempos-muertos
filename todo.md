@@ -275,3 +275,9 @@
 - [x] Agregar gráficos de barras horizontales
 - [x] Implementar botón copiar tabla como imagen
 - [x] Implementar botón copiar gráficos como imagen
+
+## Botón Nueva Medición
+- [x] Agregar botón "Nueva Medición" en tarjetas de área (siempre visible)
+- [x] Crear diálogo para ingresar nombre de la nueva medición
+- [x] Implementar función para crear snapshot del estado actual
+- [x] Mostrar ambos botones: "Nueva Medición" y "Ver Mediciones (X)"
