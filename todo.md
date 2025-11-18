@@ -185,7 +185,7 @@
 - [x] Verificar que no haya warnings de React en consola (warning residual puede venir de librerías externas)
 
 
-## Supresi\u00f## Supresión de Warning de Keys Duplicadas
+## Supresión de Warning de Keys Duplicadas
 
 - [x] Agregar configuración para suprimir warning específico de keys en desarrollo
 - [x] Verificar que el warning no aparezca en consola
@@ -289,7 +289,7 @@
 - [ ] Probar creación de mediciones
 
 ## Sistema de Mediciones Globales (Opción B - CONFIRMADA)
-- [x] Confirmar diseón propuesto con el usuario
+- [x] Confirmar diseño propuesto con el usuario
 - [x] Rediseñar estructura de datos para mediciones globales (snapshot de todas las áreas)
 - [x] Crear botón "Crear Medición Global" en header principal
 - [x] Implementar diálogo para nombrar medición global
@@ -307,3 +307,24 @@
 - [x] Limpiar botones "Nueva Medición" y "Ver Mediciones" de las tarjetas
 - [x] Comentar estados y funciones del sistema antiguo
 - [x] Probar flujo completo: Crear Medición Global → Ver Dashboard → Comparar
+
+## FASE 7: Corrección de Permisos Firestore para Mediciones Globales
+- [x] Revisar reglas de seguridad actuales en Firestore
+- [x] Agregar reglas para colección 'globalMeasurements'
+- [x] Actualizar archivo CONFIGURACION_FIREBASE.md con nuevas reglas
+- [ ] Usuario debe aplicar reglas en Firebase Console
+- [ ] Probar creación y lectura de mediciones globales
+
+## FASE 8: Diagnóstico de Error Persistente de Permisos
+- [x] Verificar que reglas se publicaron correctamente en Firebase Console
+- [x] Revisar código de firestoreService.ts para identificar problema
+- [x] Verificar nombre exacto de colección en código vs reglas (ENCONTRADO: timeAnalysisAreas != areas)
+- [x] Actualizar CONFIGURACION_FIREBASE.md con reglas corregidas
+- [ ] Usuario debe aplicar reglas corregidas en Firebase Console
+- [ ] Verificar funcionamiento completo
+
+## Actualización de GitHub
+- [ ] Verificar estado de Git
+- [ ] Hacer commit de cambios recientes
+- [ ] Push a repositorio remoto
+- [ ] Verificar que el código se subió correctamente

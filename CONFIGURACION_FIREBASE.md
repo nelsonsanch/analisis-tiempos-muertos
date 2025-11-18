@@ -2,13 +2,13 @@
 
 ## ⚠️ Problema Actual
 
-La aplicación muestra "Error de conexión" porque las reglas de seguridad de Firestore no están configuradas.
+La aplicación muestra errores de permisos porque las reglas de seguridad de Firestore no coinciden con los nombres de las colecciones en el código.
 
 **Error en consola:** `Missing or insufficient permissions`
 
 ---
 
-## 📋 Solución: Configurar Reglas de Firestore
+## 📋 Solución: Actualizar Reglas de Firestore
 
 ### **Paso 1: Ir a la Consola de Firebase**
 
@@ -29,21 +29,23 @@ La aplicación muestra "Error de conexión" porque las reglas de seguridad de Fi
 
 ---
 
-### **Paso 3: Configurar Reglas de Seguridad**
+### **Paso 3: Actualizar Reglas de Seguridad (CORREGIDAS)**
 
 1. En Firestore Database, haz clic en la pestaña **"Reglas"** (Rules)
-2. **Reemplaza** todo el contenido con estas reglas:
+2. **Reemplaza** todo el contenido con estas reglas corregidas:
 
 ```javascript
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Permitir lectura y escritura en la colección 'areas'
-    // Solo para usuarios autenticados (puedes ajustar según necesites)
-    match /areas/{areaId} {
-      // Por ahora, permitir acceso público para pruebas
-      // IMPORTANTE: Cambia esto en producción
+    // Permitir lectura y escritura en la colección 'timeAnalysisAreas'
+    match /timeAnalysisAreas/{areaId} {
+      allow read, write: if true;
+    }
+    
+    // Permitir lectura y escritura en la colección 'globalMeasurements'
+    match /globalMeasurements/{measurementId} {
       allow read, write: if true;
     }
   }
@@ -51,6 +53,16 @@ service cloud.firestore {
 ```
 
 3. Haz clic en **"Publicar"** (Publish)
+
+---
+
+## ✅ ¿Por qué fallaban las reglas anteriores?
+
+El código de la aplicación usa:
+- `timeAnalysisAreas` para guardar las áreas
+- `globalMeasurements` para guardar las mediciones globales
+
+Pero las reglas anteriores solo permitían acceso a `areas` (sin el prefijo `timeAnalysis`), por eso Firebase bloqueaba las operaciones.
 
 ---
 
@@ -69,7 +81,14 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /areas/{areaId} {
+    match /timeAnalysisAreas/{areaId} {
+      // Solo el dueño puede leer/escribir
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+      // Permitir crear si está autenticado
+      allow create: if request.auth != null;
+    }
+    
+    match /globalMeasurements/{measurementId} {
       // Solo el dueño puede leer/escribir
       allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
       // Permitir crear si está autenticado
@@ -90,7 +109,12 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /areas/{areaId} {
+    match /timeAnalysisAreas/{areaId} {
+      // Solo permitir si el usuario está autenticado
+      allow read, write: if request.auth != null;
+    }
+    
+    match /globalMeasurements/{measurementId} {
       // Solo permitir si el usuario está autenticado
       allow read, write: if request.auth != null;
     }
@@ -109,7 +133,11 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /areas/{areaId} {
+    match /timeAnalysisAreas/{areaId} {
+      allow read, write: if true;
+    }
+    
+    match /globalMeasurements/{measurementId} {
       allow read, write: if true;
     }
   }
@@ -124,8 +152,8 @@ Después de configurar las reglas:
 
 1. **Recarga** la aplicación en el navegador (F5)
 2. El badge de "Error de conexión" debería cambiar a **"☁️ Sincronizado"**
-3. Intenta crear una nueva área
-4. Verifica que se guarde correctamente
+3. Intenta crear una nueva medición global haciendo clic en **"📸 Crear Medición Global"**
+4. Verifica que se guarde correctamente y aparezca en el Dashboard de Mediciones
 
 ---
 
