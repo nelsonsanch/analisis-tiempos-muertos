@@ -2,10 +2,15 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Permitir acceso público a la colección 'timeAnalysisAreas'
-    // NOTA: En producción, considera usar autenticación
+    // Solo usuarios autenticados pueden acceder a las áreas
     match /timeAnalysisAreas/{areaId} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
+    }
+    
+    // Colección de usuarios autorizados (solo lectura para autenticados)
+    match /authorized_users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }
