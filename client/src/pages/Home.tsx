@@ -9,7 +9,7 @@ import {
   deleteGlobalMeasurement,
   type GlobalMeasurement 
 } from "@/lib/firestoreService";
-import { generateTurtleSuggestions, type TurtleSuggestions, analyzeAreaWithAI, type AreaAnalysis, compareAreasWithAI, type ComparativeAnalysis, analyzeProcessFlowWithAI, type ProcessFlowAnalysis, generateExecutiveReportWithAI, type ExecutiveReport } from "@/lib/aiService";
+import { generateTurtleSuggestions, type TurtleSuggestions, type AreaAnalysis, type ComparativeAnalysis, type ProcessFlowAnalysis, type ExecutiveReport } from "@/lib/aiService";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -688,162 +688,187 @@ export default function Home() {
     alert('¡Sugerencias aplicadas! Puedes editarlas según necesites.');
   };
   
-  // Función para analizar área con IA
-  const handleAnalyzeArea = async (area: InterviewData) => {
-    setIsAnalyzingArea(true);
-    try {
-      const totals = calculateTotals(area);
-      const analysis = await analyzeAreaWithAI({
-        areaName: area.areaName,
-        managerName: area.managerName,
-        productivePercentage: totals.productivePercentage,
-        supportPercentage: totals.supportPercentage,
-        deadTimePercentage: totals.deadTimePercentage,
-        productiveTime: totals.productiveTime,
-        supportTime: totals.supportTime,
-        deadTime: totals.deadTime,
-        workdayMinutes: area.workdayMinutes,
-        positions: area.positions,
-        observations: area.observations,
-      });
-      
-      setAreaAnalysis(analysis);
-      setShowAreaAnalysis(true);
-    } catch (error) {
+  // Mutation para analizar área con IA
+  const analyzeAreaMutation = trpc.ai.analyzeArea.useMutation({
+    onSuccess: (data: any) => {
+      if (data.success && data.analysis) {
+        setAreaAnalysis(data.analysis);
+        setShowAreaAnalysis(true);
+      }
+      setIsAnalyzingArea(false);
+    },
+    onError: (error: any) => {
       console.error('Error al analizar área:', error);
       alert('No se pudo generar el análisis. Por favor, intenta de nuevo.');
-    } finally {
       setIsAnalyzingArea(false);
-    }
+    },
+  });
+  
+  // Función para analizar área con IA
+  const handleAnalyzeArea = (area: InterviewData) => {
+    setIsAnalyzingArea(true);
+    const totals = calculateTotals(area);
+    analyzeAreaMutation.mutate({
+      areaName: area.areaName,
+      managerName: area.managerName,
+      productivePercentage: totals.productivePercentage,
+      supportPercentage: totals.supportPercentage,
+      deadTimePercentage: totals.deadTimePercentage,
+      productiveTime: totals.productiveTime,
+      supportTime: totals.supportTime,
+      deadTime: totals.deadTime,
+      workdayMinutes: area.workdayMinutes,
+      positions: area.positions,
+      observations: area.observations,
+    });
   };
   
+  // Mutation para comparar áreas con IA
+  const compareAreasMutation = trpc.ai.compareAreas.useMutation({
+    onSuccess: (data: any) => {
+      if (data.success && data.analysis) {
+        setComparativeAnalysis(data.analysis);
+        setShowComparativeAnalysis(true);
+      }
+      setIsComparingAreas(false);
+    },
+    onError: (error: any) => {
+      console.error('Error al comparar áreas:', error);
+      alert('No se pudo generar el análisis comparativo. Por favor, intenta de nuevo.');
+      setIsComparingAreas(false);
+    },
+  });
+  
   // Función para comparar todas las áreas con IA
-  const handleCompareAreas = async () => {
+  const handleCompareAreas = () => {
     if (savedAreas.length < 2) {
       alert('Necesitas al menos 2 áreas para realizar un análisis comparativo.');
       return;
     }
     
     setIsComparingAreas(true);
-    try {
-      const areasData = savedAreas.map((area) => {
-        const totals = calculateTotals(area);
-        return {
-          areaName: area.areaName,
-          managerName: area.managerName,
-          productivePercentage: totals.productivePercentage,
-          supportPercentage: totals.supportPercentage,
-          deadTimePercentage: totals.deadTimePercentage,
-          totalActivities: getAllActivities(area).length,
-        };
-      });
-      
-      const analysis = await compareAreasWithAI(areasData);
-      setComparativeAnalysis(analysis);
-      setShowComparativeAnalysis(true);
-    } catch (error) {
-      console.error('Error al comparar áreas:', error);
-      alert('No se pudo generar el análisis comparativo. Por favor, intenta de nuevo.');
-    } finally {
-      setIsComparingAreas(false);
-    }
+    const areasData = savedAreas.map((area) => {
+      const totals = calculateTotals(area);
+      return {
+        areaName: area.areaName,
+        managerName: area.managerName,
+        productivePercentage: totals.productivePercentage,
+        supportPercentage: totals.supportPercentage,
+        deadTimePercentage: totals.deadTimePercentage,
+        totalActivities: getAllActivities(area).length,
+      };
+    });
+    
+    compareAreasMutation.mutate({ areas: areasData });
   };
   
+  // Mutation para analizar flujo de procesos con IA
+  const analyzeProcessesMutation = trpc.ai.analyzeProcessFlow.useMutation({
+    onSuccess: (data: any) => {
+      if (data.success && data.analysis) {
+        setProcessAnalysis(data.analysis);
+        setShowProcessAnalysis(true);
+      }
+      setIsAnalyzingProcesses(false);
+    },
+    onError: (error: any) => {
+      console.error('Error al analizar procesos:', error);
+      alert('No se pudo generar el análisis de procesos. Por favor, intenta de nuevo.');
+      setIsAnalyzingProcesses(false);
+    },
+  });
+  
   // Función para analizar flujo de procesos con IA
-  const handleAnalyzeProcesses = async () => {
+  const handleAnalyzeProcesses = () => {
     if (savedAreas.length < 2) {
       alert('Necesitas al menos 2 áreas con procesos Tortuga para analizar el flujo.');
       return;
     }
     
     setIsAnalyzingProcesses(true);
-    try {
-      const interactions = detectInteractions();
-      
-      const sipocData = savedAreas.map((area) => {
-        const suppliers = savedAreas
-          .filter(otherArea => 
-            otherArea.id !== area.id && 
-            otherArea.turtleProcess &&
-            otherArea.turtleProcess.outputs.some(output =>
-              area.turtleProcess?.inputs.includes(output)
-            )
+    const interactions = detectInteractions();
+    
+    const sipocData = savedAreas.map((area) => {
+      const suppliers = savedAreas
+        .filter(otherArea => 
+          otherArea.id !== area.id && 
+          otherArea.turtleProcess &&
+          otherArea.turtleProcess.outputs.some(output =>
+            area.turtleProcess?.inputs.includes(output)
           )
-          .map(a => a.areaName);
-        
-        const customers = savedAreas
-          .filter(otherArea => 
-            otherArea.id !== area.id && 
-            otherArea.turtleProcess &&
-            otherArea.turtleProcess.inputs.some(input =>
-              area.turtleProcess?.outputs.includes(input)
-            )
+        )
+        .map(a => a.areaName);
+      
+      const customers = savedAreas
+        .filter(otherArea => 
+          otherArea.id !== area.id && 
+          otherArea.turtleProcess &&
+          otherArea.turtleProcess.inputs.some(input =>
+            area.turtleProcess?.outputs.includes(input)
           )
-          .map(a => a.areaName);
-        
-        return {
-          areaName: area.areaName,
-          suppliers,
-          inputs: area.turtleProcess?.inputs || [],
-          outputs: area.turtleProcess?.outputs || [],
-          customers,
-        };
-      });
+        )
+        .map(a => a.areaName);
       
-      const analysis = await analyzeProcessFlowWithAI({
-        totalAreas: savedAreas.length,
-        interactions,
-        sipocData,
-      });
-      
-      setProcessAnalysis(analysis);
-      setShowProcessAnalysis(true);
-    } catch (error) {
-      console.error('Error al analizar procesos:', error);
-      alert('No se pudo generar el análisis de procesos. Por favor, intenta de nuevo.');
-    } finally {
-      setIsAnalyzingProcesses(false);
-    }
+      return {
+        areaName: area.areaName,
+        suppliers,
+        inputs: area.turtleProcess?.inputs || [],
+        outputs: area.turtleProcess?.outputs || [],
+        customers,
+      };
+    });
+    
+    analyzeProcessesMutation.mutate({
+      totalAreas: savedAreas.length,
+      interactions,
+      sipocData,
+    });
   };
   
+  // Mutation para generar reporte ejecutivo con IA
+  const generateReportMutation = trpc.ai.generateExecutiveReport.useMutation({
+    onSuccess: (data: any) => {
+      if (data.success && data.report) {
+        setExecutiveReport(data.report);
+        setShowExecutiveReport(true);
+      }
+      setIsGeneratingReport(false);
+    },
+    onError: (error: any) => {
+      console.error('Error al generar reporte ejecutivo:', error);
+      alert('No se pudo generar el reporte ejecutivo. Por favor, intenta de nuevo.');
+      setIsGeneratingReport(false);
+    },
+  });
+  
   // Función para generar reporte ejecutivo con IA
-  const handleGenerateExecutiveReport = async () => {
+  const handleGenerateExecutiveReport = () => {
     if (savedAreas.length === 0) {
       alert('Necesitas al menos un área para generar el reporte ejecutivo.');
       return;
     }
     
     setIsGeneratingReport(true);
-    try {
-      const areasData = savedAreas.map((area) => {
-        const totals = calculateTotals(area);
-        return {
-          areaName: area.areaName,
-          productivePercentage: totals.productivePercentage,
-          deadTimePercentage: totals.deadTimePercentage,
-        };
-      });
-      
-      const averageProductivity = areasData.reduce((sum, a) => sum + a.productivePercentage, 0) / areasData.length;
-      const averageDeadTime = areasData.reduce((sum, a) => sum + a.deadTimePercentage, 0) / areasData.length;
-      const interactions = detectInteractions();
-      
-      const report = await generateExecutiveReportWithAI({
-        totalAreas: savedAreas.length,
-        areasData,
-        totalInteractions: interactions.length,
-        averageProductivity,
-        averageDeadTime,
-      });
-      
-      setExecutiveReport(report);
-      setShowExecutiveReport(true);
-    } catch (error) {
-      console.error('Error al generar reporte ejecutivo:', error);
-      alert('No se pudo generar el reporte ejecutivo. Por favor, intenta de nuevo.');
-    } finally {
-      setIsGeneratingReport(false);
-    }
+    const areasData = savedAreas.map((area) => {
+      const totals = calculateTotals(area);
+      return {
+        areaName: area.areaName,
+        productivePercentage: totals.productivePercentage,
+        deadTimePercentage: totals.deadTimePercentage,
+      };
+    });
+    
+    const averageProductivity = areasData.reduce((sum, a) => sum + a.productivePercentage, 0) / areasData.length;
+    const averageDeadTime = areasData.reduce((sum, a) => sum + a.deadTimePercentage, 0) / areasData.length;
+    const interactions = detectInteractions();
+    
+    generateReportMutation.mutate({
+      totalAreas: savedAreas.length,
+      areasData,
+      totalInteractions: interactions.length,
+      averageProductivity,
+      averageDeadTime,
+    });
   };
 
   // Funciones de Área
