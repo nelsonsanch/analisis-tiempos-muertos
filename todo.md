@@ -328,3 +328,10 @@
 - [x] Hacer commit de cambios recientes
 - [x] Push a repositorio remoto
 - [x] Verificar que el código se subió correctamente
+
+## Corrección de Error de Build en Netlify
+- [x] Diagnosticar error de html2canvas en build
+- [x] Verificar que html2canvas esté en package.json
+- [x] Agregar html2canvas a dependencias (faltaba)
+- [ ] Subir corrección a GitHub
+- [ ] Verificar que build funcione en Netlify
