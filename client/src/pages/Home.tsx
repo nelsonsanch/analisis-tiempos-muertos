@@ -1,8 +1,15 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+// // import { useAuth } from "@/hooks/useAuth"; // Comentado temporalmente // Comentado temporalmente - auth no implementado aún
 import { useFirestore } from "@/hooks/useFirestore";
-import html2canvas from "html2canvas";
-import { useAuth } from "@/contexts/AuthContext";
-import { generateTurtleSuggestions, type TurtleSuggestions } from "@/lib/aiService";
+import { 
+  saveGlobalMeasurement, 
+  subscribeToGlobalMeasurements, 
+  deleteGlobalMeasurement,
+  type GlobalMeasurement 
+} from "@/lib/firestoreService";
+import { generateTurtleSuggestions, type TurtleSuggestions, type AreaAnalysis, type ComparativeAnalysis, type ProcessFlowAnalysis, type ExecutiveReport } from "@/lib/aiService";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,21 +19,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { 
   Clock, 
   Plus, 
@@ -47,11 +39,7 @@ import {
   CheckCircle2,
   Check,
   ChevronsUpDown,
-  Loader2,
-  Shield,
-  LogOut,
-  MoreVertical,
-  FileText as FileTextIcon
+  Loader2
 } from "lucide-react";
 import {
   BarChart,
@@ -110,29 +98,17 @@ interface TurtleProcess {
   competencies: string[]; // Competencias
 }
 
-interface Measurement {
-  id: string;
-  periodName: string; // Nombre del período (ej: "Enero 2025", "Q1 2025")
-  date: string; // Fecha de la medición
-  workdayMinutes: number;
-  fixedBreaksMinutes: number;
-  positions: Position[]; // Cargos y actividades en este período
-  observations: string;
-  createdAt: string;
-}
-
 interface InterviewData {
   id?: string;
   areaName: string;
   managerName: string;
-  date: string; // Fecha de creación del área
+  date: string;
   workdayMinutes: number;
   fixedBreaksMinutes: number;
-  positions: Position[]; // Cargos dentro del área (medición inicial)
+  positions: Position[]; // Cargos dentro del área
   observations: string;
   savedAt?: string;
   turtleProcess?: TurtleProcess;
-  measurements?: Measurement[]; // Mediciones adicionales por períodos
 }
 
 const COLORS = {
@@ -157,15 +133,33 @@ const TURTLE_FIELDS = [
 ];
 
 export default function Home() {
-  const [, setLocation] = useLocation();
-  const { user, signOut } = useAuth();
+  // The userAuth hooks provides authentication state
+  // To implement login/logout functionality, simply call logout() or redirect to getLoginUrl()
+  // let { user, loading, error, isAuthenticated, logout } = useAuth(); // Comentado - auth opcional por ahora
 
-  const [view, setView] = useState<"list" | "form" | "process-map" | "sipoc" | "measurements">("list");
+  const [view, setView] = useState<"list" | "form" | "compare" | "process-map" | "sipoc" | "measurements" | "measurement-detail" | "measurement-compare">("list");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showMigrateDialog, setShowMigrateDialog] = useState(false);
-  const [showNewMeasurementDialog, setShowNewMeasurementDialog] = useState(false);
-  const [selectedAreaForMeasurement, setSelectedAreaForMeasurement] = useState<InterviewData | null>(null);
-  const [newMeasurementName, setNewMeasurementName] = useState("");
+  
+  // Estados para vista comparativa de mediciones (SISTEMA ANTIGUO - ELIMINADO)
+  // const [selectedAreaForComparison, setSelectedAreaForComparison] = useState<InterviewData | null>(null);
+  // const [baseMeasurementId, setBaseMeasurementId] = useState<string | null>(null);
+  // const [currentMeasurementId, setCurrentMeasurementId] = useState<string | null>(null);
+  // const comparisonTableRef = useRef<HTMLDivElement>(null);
+  // const comparisonChartsRef = useRef<HTMLDivElement>(null);
+  
+  // Estados para crear nueva medición (SISTEMA ANTIGUO - ELIMINADO)
+  // const [selectedAreaForNewMeasurement, setSelectedAreaForNewMeasurement] = useState<InterviewData | null>(null);
+  // const [showNewMeasurementDialog, setShowNewMeasurementDialog] = useState(false);
+  // const [newMeasurementName, setNewMeasurementName] = useState("");
+  
+  // Estados para Mediciones Globales (NUEVO SISTEMA)
+  const [showGlobalMeasurementDialog, setShowGlobalMeasurementDialog] = useState(false);
+  const [globalMeasurementName, setGlobalMeasurementName] = useState("");
+  const [globalMeasurements, setGlobalMeasurements] = useState<GlobalMeasurement[]>([]);
+  const [selectedMeasurement, setSelectedMeasurement] = useState<GlobalMeasurement | null>(null);
+  const [measurementToCompare1, setMeasurementToCompare1] = useState<GlobalMeasurement | null>(null);
+  const [measurementToCompare2, setMeasurementToCompare2] = useState<GlobalMeasurement | null>(null);
   
   // Hook de Firestore para sincronización en la nube
   const { 
@@ -187,7 +181,6 @@ export default function Home() {
     fixedBreaksMinutes: 60,
     positions: [], // Cargos del área
     observations: "",
-    measurements: [], // Mediciones por períodos
     turtleProcess: {
       inputs: [],
       outputs: [],
@@ -225,48 +218,6 @@ export default function Home() {
   // Función auxiliar: Obtener todas las actividades del área actual
   const currentActivities = useMemo(() => getAllActivities(interviewData), [interviewData]);
 
-  // Estados para vista comparativa de mediciones
-  const [selectedAreaForComparison, setSelectedAreaForComparison] = useState<InterviewData | null>(null);
-  const [baseMeasurementId, setBaseMeasurementId] = useState<string | null>(null);
-  const [currentMeasurementId, setCurrentMeasurementId] = useState<string | null>(null);
-  const comparisonTableRef = useRef<HTMLDivElement>(null);
-  
-  // Función para copiar tabla como imagen
-  const copyTableAsImage = async () => {
-    if (!comparisonTableRef.current) return;
-    
-    try {
-      const canvas = await html2canvas(comparisonTableRef.current, {
-        backgroundColor: '#ffffff',
-        scale: 2, // Mayor calidad
-      });
-      
-      canvas.toBlob(async (blob) => {
-        if (!blob) return;
-        
-        try {
-          await navigator.clipboard.write([
-            new ClipboardItem({ 'image/png': blob })
-          ]);
-          alert('¡Tabla copiada al portapapeles! Puedes pegarla en tu informe.');
-        } catch (err) {
-          console.error('Error al copiar:', err);
-          // Fallback: descargar imagen
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = `comparativa-${new Date().toISOString().split('T')[0]}.png`;
-          link.click();
-          URL.revokeObjectURL(url);
-          alert('La imagen se ha descargado. Puedes insertarla en tu informe.');
-        }
-      });
-    } catch (error) {
-      console.error('Error al generar imagen:', error);
-      alert('Error al generar la imagen');
-    }
-  };
-
   // Estados para Tortuga
   const [newTurtleItem, setNewTurtleItem] = useState("");
   const [currentTurtleField, setCurrentTurtleField] = useState<keyof TurtleProcess | null>(null);
@@ -278,6 +229,26 @@ export default function Home() {
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<TurtleSuggestions | null>(null);
   const [showAISuggestions, setShowAISuggestions] = useState(false);
+  
+  // Estados para Análisis IA de Área
+  const [isAnalyzingArea, setIsAnalyzingArea] = useState(false);
+  const [areaAnalysis, setAreaAnalysis] = useState<any>(null);
+  const [showAreaAnalysis, setShowAreaAnalysis] = useState(false);
+  
+  // Estados para Análisis Comparativo IA
+  const [isComparingAreas, setIsComparingAreas] = useState(false);
+  const [comparativeAnalysis, setComparativeAnalysis] = useState<ComparativeAnalysis | null>(null);
+  const [showComparativeAnalysis, setShowComparativeAnalysis] = useState(false);
+  
+  // Estados para Análisis de Procesos IA
+  const [isAnalyzingProcesses, setIsAnalyzingProcesses] = useState(false);
+  const [processAnalysis, setProcessAnalysis] = useState<ProcessFlowAnalysis | null>(null);
+  const [showProcessAnalysis, setShowProcessAnalysis] = useState(false);
+  
+  // Estados para Reporte Ejecutivo IA
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [executiveReport, setExecutiveReport] = useState<ExecutiveReport | null>(null);
+  const [showExecutiveReport, setShowExecutiveReport] = useState(false);
 
   // Verificar si hay datos en localStorage para migrar
   useEffect(() => {
@@ -289,6 +260,20 @@ export default function Home() {
       }
     }
   }, [isMigrated]);
+  
+  // Suscribirse a mediciones globales en tiempo real
+  useEffect(() => {
+    const unsubscribe = subscribeToGlobalMeasurements(
+      (measurements) => {
+        setGlobalMeasurements(measurements);
+      },
+      (error) => {
+        console.error('Error al cargar mediciones globales:', error);
+      }
+    );
+    
+    return () => unsubscribe();
+  }, []);
 
   // Generar lista global de items únicos por campo
   const globalTurtleItems = useMemo(() => {
@@ -702,6 +687,189 @@ export default function Home() {
     setShowAISuggestions(false);
     alert('¡Sugerencias aplicadas! Puedes editarlas según necesites.');
   };
+  
+  // Mutation para analizar área con IA
+  const analyzeAreaMutation = trpc.ai.analyzeArea.useMutation({
+    onSuccess: (data: any) => {
+      if (data.success && data.analysis) {
+        setAreaAnalysis(data.analysis);
+        setShowAreaAnalysis(true);
+      }
+      setIsAnalyzingArea(false);
+    },
+    onError: (error: any) => {
+      console.error('Error al analizar área:', error);
+      alert('No se pudo generar el análisis. Por favor, intenta de nuevo.');
+      setIsAnalyzingArea(false);
+    },
+  });
+  
+  // Función para analizar área con IA
+  const handleAnalyzeArea = (area: InterviewData) => {
+    setIsAnalyzingArea(true);
+    const totals = calculateTotals(area);
+    analyzeAreaMutation.mutate({
+      areaName: area.areaName,
+      managerName: area.managerName,
+      productivePercentage: totals.productivePercentage,
+      supportPercentage: totals.supportPercentage,
+      deadTimePercentage: totals.deadTimePercentage,
+      productiveTime: totals.productiveTime,
+      supportTime: totals.supportTime,
+      deadTime: totals.deadTime,
+      workdayMinutes: area.workdayMinutes,
+      positions: area.positions,
+      observations: area.observations,
+    });
+  };
+  
+  // Mutation para comparar áreas con IA
+  const compareAreasMutation = trpc.ai.compareAreas.useMutation({
+    onSuccess: (data: any) => {
+      if (data.success && data.analysis) {
+        setComparativeAnalysis(data.analysis);
+        setShowComparativeAnalysis(true);
+      }
+      setIsComparingAreas(false);
+    },
+    onError: (error: any) => {
+      console.error('Error al comparar áreas:', error);
+      alert('No se pudo generar el análisis comparativo. Por favor, intenta de nuevo.');
+      setIsComparingAreas(false);
+    },
+  });
+  
+  // Función para comparar todas las áreas con IA
+  const handleCompareAreas = () => {
+    if (savedAreas.length < 2) {
+      alert('Necesitas al menos 2 áreas para realizar un análisis comparativo.');
+      return;
+    }
+    
+    setIsComparingAreas(true);
+    const areasData = savedAreas.map((area) => {
+      const totals = calculateTotals(area);
+      return {
+        areaName: area.areaName,
+        managerName: area.managerName,
+        productivePercentage: totals.productivePercentage,
+        supportPercentage: totals.supportPercentage,
+        deadTimePercentage: totals.deadTimePercentage,
+        totalActivities: getAllActivities(area).length,
+      };
+    });
+    
+    compareAreasMutation.mutate({ areas: areasData });
+  };
+  
+  // Mutation para analizar flujo de procesos con IA
+  const analyzeProcessesMutation = trpc.ai.analyzeProcessFlow.useMutation({
+    onSuccess: (data: any) => {
+      if (data.success && data.analysis) {
+        setProcessAnalysis(data.analysis);
+        setShowProcessAnalysis(true);
+      }
+      setIsAnalyzingProcesses(false);
+    },
+    onError: (error: any) => {
+      console.error('Error al analizar procesos:', error);
+      alert('No se pudo generar el análisis de procesos. Por favor, intenta de nuevo.');
+      setIsAnalyzingProcesses(false);
+    },
+  });
+  
+  // Función para analizar flujo de procesos con IA
+  const handleAnalyzeProcesses = () => {
+    if (savedAreas.length < 2) {
+      alert('Necesitas al menos 2 áreas con procesos Tortuga para analizar el flujo.');
+      return;
+    }
+    
+    setIsAnalyzingProcesses(true);
+    const interactions = detectInteractions();
+    
+    const sipocData = savedAreas.map((area) => {
+      const suppliers = savedAreas
+        .filter(otherArea => 
+          otherArea.id !== area.id && 
+          otherArea.turtleProcess &&
+          otherArea.turtleProcess.outputs.some(output =>
+            area.turtleProcess?.inputs.includes(output)
+          )
+        )
+        .map(a => a.areaName);
+      
+      const customers = savedAreas
+        .filter(otherArea => 
+          otherArea.id !== area.id && 
+          otherArea.turtleProcess &&
+          otherArea.turtleProcess.inputs.some(input =>
+            area.turtleProcess?.outputs.includes(input)
+          )
+        )
+        .map(a => a.areaName);
+      
+      return {
+        areaName: area.areaName,
+        suppliers,
+        inputs: area.turtleProcess?.inputs || [],
+        outputs: area.turtleProcess?.outputs || [],
+        customers,
+      };
+    });
+    
+    analyzeProcessesMutation.mutate({
+      totalAreas: savedAreas.length,
+      interactions,
+      sipocData,
+    });
+  };
+  
+  // Mutation para generar reporte ejecutivo con IA
+  const generateReportMutation = trpc.ai.generateExecutiveReport.useMutation({
+    onSuccess: (data: any) => {
+      if (data.success && data.report) {
+        setExecutiveReport(data.report);
+        setShowExecutiveReport(true);
+      }
+      setIsGeneratingReport(false);
+    },
+    onError: (error: any) => {
+      console.error('Error al generar reporte ejecutivo:', error);
+      alert('No se pudo generar el reporte ejecutivo. Por favor, intenta de nuevo.');
+      setIsGeneratingReport(false);
+    },
+  });
+  
+  // Función para generar reporte ejecutivo con IA
+  const handleGenerateExecutiveReport = () => {
+    if (savedAreas.length === 0) {
+      alert('Necesitas al menos un área para generar el reporte ejecutivo.');
+      return;
+    }
+    
+    setIsGeneratingReport(true);
+    const areasData = savedAreas.map((area) => {
+      const totals = calculateTotals(area);
+      return {
+        areaName: area.areaName,
+        productivePercentage: totals.productivePercentage,
+        deadTimePercentage: totals.deadTimePercentage,
+      };
+    });
+    
+    const averageProductivity = areasData.reduce((sum, a) => sum + a.productivePercentage, 0) / areasData.length;
+    const averageDeadTime = areasData.reduce((sum, a) => sum + a.deadTimePercentage, 0) / areasData.length;
+    const interactions = detectInteractions();
+    
+    generateReportMutation.mutate({
+      totalAreas: savedAreas.length,
+      areasData,
+      totalInteractions: interactions.length,
+      averageProductivity,
+      averageDeadTime,
+    });
+  };
 
   // Funciones de Área
   const saveArea = async () => {
@@ -751,52 +919,6 @@ export default function Home() {
     setView("form");
   };
 
-  // Función para crear nueva medición
-  const createNewMeasurement = async () => {
-    if (!selectedAreaForMeasurement || !newMeasurementName.trim()) {
-      return;
-    }
-
-    try {
-      // Crear nueva medición copiando la estructura actual
-      const newMeasurement = {
-        id: `measurement_${Date.now()}`,
-        name: newMeasurementName.trim(),
-        date: new Date().toISOString(),
-        positions: JSON.parse(JSON.stringify(selectedAreaForMeasurement.positions)), // Deep copy
-      };
-
-      // Actualizar el área con la nueva medición
-      const updatedArea: InterviewData = {
-        ...selectedAreaForMeasurement,
-        measurements: [
-          ...(selectedAreaForMeasurement.measurements || []),
-          newMeasurement
-        ],
-      };
-
-      await saveAreaToFirestore(updatedArea);
-      
-      alert(`¡Medición "${newMeasurementName}" creada exitosamente! Ahora puedes editar los tiempos de las actividades.`);
-      
-      // Abrir el área para editar la nueva medición
-      setInterviewData({
-        ...updatedArea,
-        turtleProcess: updatedArea.turtleProcess || {
-          inputs: [], outputs: [], resources: [], methods: [], indicators: [], competencies: []
-        }
-      });
-      setEditingId(updatedArea.id || null);
-      setView("form");
-      
-      setShowNewMeasurementDialog(false);
-      setNewMeasurementName("");
-      setSelectedAreaForMeasurement(null);
-    } catch (error) {
-      alert("Error al crear la medición: " + (error instanceof Error ? error.message : "Error desconocido"));
-    }
-  };
-
   const deleteArea = async (id: string | undefined) => {
     if (!id) {
       alert("Error: No se puede eliminar un área sin ID");
@@ -832,15 +954,168 @@ export default function Home() {
     setView("form");
   };
 
+  // Funciones para copiar como imagen
+  const copyElementAsImage = async (element: HTMLElement, filename: string) => {
+    try {
+      const canvas = await html2canvas(element, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+      });
+      
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': blob })
+          ]);
+          alert('¡Imagen copiada al portapapeles! Puedes pegarla en tu informe.');
+        } catch (err) {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `${filename}-${new Date().toISOString().split('T')[0]}.png`;
+          link.click();
+          URL.revokeObjectURL(url);
+          alert('La imagen se ha descargado. Puedes insertarla en tu informe.');
+        }
+      });
+    } catch (error) {
+      console.error('Error al generar imagen:', error);
+      alert('Error al generar la imagen');
+    }
+  };
+  
+  const copyTableAsImage = async () => {
+    if (!comparisonTableRef.current) return;
+    await copyElementAsImage(comparisonTableRef.current, 'tabla-comparativa');
+  };
+  
+  const copyChartsAsImage = async () => {
+    if (!comparisonChartsRef.current) return;
+    await copyElementAsImage(comparisonChartsRef.current, 'graficos-comparativos');
+  };
+  
+  // Función para crear nueva medición (SISTEMA ANTIGUO - ELIMINADO)
+  // const createNewMeasurement = async () => {
+  //   if (!selectedAreaForNewMeasurement || !newMeasurementName.trim()) {
+  //     alert('Por favor ingresa un nombre para la medición');
+  //     return;
+  //   }
+  //   
+  //   try {
+  //     const newMeasurement = {
+  //       id: `measurement-${Date.now()}`,
+  //       name: newMeasurementName.trim(),
+  //       date: new Date().toISOString(),
+  //       positions: JSON.parse(JSON.stringify(selectedAreaForNewMeasurement.positions)), // Deep copy
+  //     };
+  //     
+  //     const updatedArea = {
+  //       ...selectedAreaForNewMeasurement,
+  //       measurements: [...(selectedAreaForNewMeasurement.measurements || []), newMeasurement],
+  //     };
+  //     
+  //     await saveAreaToFirestore(updatedArea);
+  //     
+  //     setShowNewMeasurementDialog(false);
+  //     setNewMeasurementName("");
+  //     setSelectedAreaForNewMeasurement(null);
+  //     
+  //     alert(`¡Medición "${newMeasurement.name}" creada exitosamente!`);
+  //   } catch (error) {
+  //     console.error('Error al crear medición:', error);
+  //     alert('Error al crear la medición. Por favor intenta de nuevo.');
+  //   }
+  // };
+
+  // Función para crear medición global (snapshot de todas las áreas)
+  const createGlobalMeasurement = async () => {
+    if (!globalMeasurementName.trim()) {
+      alert('Por favor ingresa un nombre para la medición global');
+      return;
+    }
+    
+    if (savedAreas.length === 0) {
+      alert('No hay áreas registradas para crear una medición');
+      return;
+    }
+    
+    try {
+      // Crear snapshot de todas las áreas actuales
+      const areasSnapshot: InterviewData[] = JSON.parse(JSON.stringify(savedAreas));
+      
+      const newGlobalMeasurement: GlobalMeasurement = {
+        name: globalMeasurementName.trim(),
+        date: new Date().toISOString(),
+        areas: areasSnapshot,
+        createdAt: new Date().toISOString(),
+      };
+      
+      await saveGlobalMeasurement(newGlobalMeasurement);
+      
+      setShowGlobalMeasurementDialog(false);
+      setGlobalMeasurementName("");
+      
+      alert(`¡Medición Global "${newGlobalMeasurement.name}" creada exitosamente!\n\nÁreas capturadas: ${areasSnapshot.length}`);
+    } catch (error) {
+      console.error('Error al crear medición global:', error);
+      alert('Error al crear la medición global. Por favor intenta de nuevo.');
+    }
+  };
+
   const exportArea = (area: InterviewData) => {
     const totals = calculateTotals(area);
-    const dataStr = JSON.stringify({ ...area, totals }, null, 2);
-    const dataBlob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `analisis-${area.areaName}-${area.date}.json`;
-    link.click();
+    const pdf = new jsPDF();
+    
+    // Título
+    pdf.setFontSize(18);
+    pdf.text(`Análisis: ${area.areaName}`, 20, 20);
+    
+    // Información general
+    pdf.setFontSize(12);
+    pdf.text(`Responsable: ${area.managerName}`, 20, 35);
+    pdf.text(`Fecha: ${area.date}`, 20, 42);
+    
+    // Resultados
+    pdf.setFontSize(14);
+    pdf.text('Resultados del Análisis', 20, 55);
+    pdf.setFontSize(11);
+    pdf.text(`Tiempo Productivo: ${totals.productivePercentage.toFixed(1)}%`, 25, 65);
+    pdf.text(`Tiempo de Soporte: ${totals.supportPercentage.toFixed(1)}%`, 25, 72);
+    pdf.text(`Tiempo Muerto: ${totals.deadTimePercentage.toFixed(1)}%`, 25, 79);
+    
+    // Actividades por tipo
+    let yPos = 95;
+    pdf.setFontSize(14);
+    pdf.text('Actividades Registradas', 20, yPos);
+    yPos += 10;
+    
+    area.positions.forEach((position) => {
+      if (yPos > 270) {
+        pdf.addPage();
+        yPos = 20;
+      }
+      pdf.setFontSize(12);
+      pdf.text(`Cargo: ${position.name}`, 25, yPos);
+      yPos += 7;
+      
+      position.activities.forEach((activity) => {
+        if (yPos > 270) {
+          pdf.addPage();
+          yPos = 20;
+        }
+        pdf.setFontSize(10);
+        const typeLabel = activity.type === 'productive' ? 'Productiva' : 
+                         activity.type === 'support' ? 'Soporte' : 'Tiempo Muerto';
+        pdf.text(`- ${activity.name} (${typeLabel}): ${activity.timeMinutes} min`, 30, yPos);
+        yPos += 6;
+      });
+      yPos += 3;
+    });
+    
+    // Guardar PDF
+    pdf.save(`analisis-${area.areaName}-${area.date}.pdf`);
   };
 
   const exportComparative = () => {
@@ -855,6 +1130,241 @@ export default function Home() {
     link.href = url;
     link.download = `comparativa-areas-${new Date().toISOString().split("T")[0]}.json`;
     link.click();
+  };
+
+  // Exportar historial completo en PDF
+  const exportAllAreasPDF = () => {
+    const pdf = new jsPDF();
+    let yPos = 20;
+    
+    // PORTADA
+    pdf.setFontSize(22);
+    pdf.setFont(undefined, 'bold');
+    pdf.text('Historial Completo', 105, yPos, { align: 'center' });
+    yPos += 10;
+    pdf.setFontSize(18);
+    pdf.text('Análisis de Tiempos Muertos', 105, yPos, { align: 'center' });
+    yPos += 15;
+    pdf.setFontSize(12);
+    pdf.setFont(undefined, 'normal');
+    pdf.text(`Fecha del reporte: ${new Date().toLocaleDateString('es-CO')}`, 105, yPos, { align: 'center' });
+    yPos += 8;
+    pdf.text(`Total de áreas analizadas: ${savedAreas.length}`, 105, yPos, { align: 'center' });
+    
+    // TABLA RESUMEN
+    pdf.addPage();
+    yPos = 20;
+    pdf.setFontSize(16);
+    pdf.setFont(undefined, 'bold');
+    pdf.text('Resumen Ejecutivo', 20, yPos);
+    yPos += 10;
+    
+    pdf.setFontSize(10);
+    pdf.setFont(undefined, 'bold');
+    pdf.text('Área', 20, yPos);
+    pdf.text('Responsable', 70, yPos);
+    pdf.text('Productivo', 120, yPos);
+    pdf.text('Soporte', 145, yPos);
+    pdf.text('Muerto', 170, yPos);
+    yPos += 7;
+    
+    pdf.setFont(undefined, 'normal');
+    savedAreas.forEach((area) => {
+      if (yPos > 270) {
+        pdf.addPage();
+        yPos = 20;
+      }
+      const totals = calculateTotals(area);
+      pdf.text(area.areaName.substring(0, 25), 20, yPos);
+      pdf.text(area.managerName.substring(0, 25), 70, yPos);
+      pdf.text(`${totals.productivePercentage.toFixed(1)}%`, 120, yPos);
+      pdf.text(`${totals.supportPercentage.toFixed(1)}%`, 145, yPos);
+      pdf.text(`${totals.deadTimePercentage.toFixed(1)}%`, 170, yPos);
+      yPos += 6;
+    });
+    
+    // DETALLE POR ÁREA
+    savedAreas.forEach((area) => {
+      pdf.addPage();
+      yPos = 20;
+      const totals = calculateTotals(area);
+      
+      // Título del área
+      pdf.setFontSize(16);
+      pdf.setFont(undefined, 'bold');
+      pdf.text(`Área: ${area.areaName}`, 20, yPos);
+      yPos += 10;
+      
+      // Información general
+      pdf.setFontSize(11);
+      pdf.setFont(undefined, 'normal');
+      pdf.text(`Responsable: ${area.managerName}`, 20, yPos);
+      yPos += 6;
+      pdf.text(`Fecha de análisis: ${area.date}`, 20, yPos);
+      yPos += 6;
+      pdf.text(`Jornada laboral: ${area.workdayMinutes} min (${(area.workdayMinutes/60).toFixed(1)} hrs)`, 20, yPos);
+      yPos += 6;
+      pdf.text(`Pausas fijas: ${area.fixedBreaksMinutes} min`, 20, yPos);
+      yPos += 10;
+      
+      // Resultados
+      pdf.setFontSize(14);
+      pdf.setFont(undefined, 'bold');
+      pdf.text('Resultados del Análisis', 20, yPos);
+      yPos += 8;
+      
+      pdf.setFontSize(11);
+      pdf.setFont(undefined, 'normal');
+      pdf.setTextColor(34, 197, 94); // Verde
+      pdf.text(`Tiempo Productivo: ${totals.productivePercentage.toFixed(1)}% (${totals.productiveTime} min)`, 25, yPos);
+      yPos += 6;
+      pdf.setTextColor(59, 130, 246); // Azul
+      pdf.text(`Tiempo de Soporte: ${totals.supportPercentage.toFixed(1)}% (${totals.supportTime} min)`, 25, yPos);
+      yPos += 6;
+      pdf.setTextColor(239, 68, 68); // Rojo
+      pdf.text(`Tiempo Muerto: ${totals.deadTimePercentage.toFixed(1)}% (${totals.deadTime} min)`, 25, yPos);
+      yPos += 10;
+      pdf.setTextColor(0, 0, 0); // Negro
+      
+      // Cargos y actividades
+      pdf.setFontSize(14);
+      pdf.setFont(undefined, 'bold');
+      pdf.text('Cargos y Actividades', 20, yPos);
+      yPos += 8;
+      
+      area.positions.forEach((position) => {
+        if (yPos > 260) {
+          pdf.addPage();
+          yPos = 20;
+        }
+        
+        pdf.setFontSize(12);
+        pdf.setFont(undefined, 'bold');
+        pdf.text(`Cargo: ${position.name} (${position.peopleCount} persona${position.peopleCount > 1 ? 's' : ''})`, 25, yPos);
+        yPos += 7;
+        
+        pdf.setFontSize(10);
+        pdf.setFont(undefined, 'normal');
+        position.activities.forEach((activity) => {
+          if (yPos > 270) {
+            pdf.addPage();
+            yPos = 20;
+          }
+          const typeLabel = activity.type === 'productive' ? 'Productiva' : 
+                           activity.type === 'support' ? 'Soporte' : 'Tiempo Muerto';
+          pdf.text(`- ${activity.name} (${typeLabel})`, 30, yPos);
+          yPos += 5;
+          pdf.text(`  ${activity.timeMinutes} min × ${activity.frequency} veces = ${activity.timeMinutes * activity.frequency} min/día`, 32, yPos);
+          yPos += 6;
+        });
+        yPos += 3;
+      });
+      
+      // Observaciones
+      if (area.observations) {
+        if (yPos > 240) {
+          pdf.addPage();
+          yPos = 20;
+        }
+        pdf.setFontSize(12);
+        pdf.setFont(undefined, 'bold');
+        pdf.text('Observaciones:', 20, yPos);
+        yPos += 7;
+        pdf.setFontSize(10);
+        pdf.setFont(undefined, 'normal');
+        const lines = pdf.splitTextToSize(area.observations, 170);
+        lines.forEach((line: string) => {
+          if (yPos > 280) {
+            pdf.addPage();
+            yPos = 20;
+          }
+          pdf.text(line, 25, yPos);
+          yPos += 5;
+        });
+      }
+    });
+    
+    // MAPA DE PROCESOS
+    const interactions = detectInteractions();
+    if (interactions.length > 0) {
+      pdf.addPage();
+      yPos = 20;
+      pdf.setFontSize(16);
+      pdf.setFont(undefined, 'bold');
+      pdf.text('Mapa de Interacciones entre Áreas', 20, yPos);
+      yPos += 10;
+      
+      pdf.setFontSize(11);
+      pdf.setFont(undefined, 'normal');
+      interactions.forEach((interaction) => {
+        if (yPos > 260) {
+          pdf.addPage();
+          yPos = 20;
+        }
+        pdf.setFont(undefined, 'bold');
+        pdf.text(`${interaction.source} → ${interaction.target}`, 25, yPos);
+        yPos += 6;
+        pdf.setFont(undefined, 'normal');
+        pdf.text(`Elementos transferidos: ${interaction.items.join(', ')}`, 30, yPos);
+        yPos += 8;
+      });
+    }
+    
+    // MATRIZ SIPOC
+    pdf.addPage();
+    yPos = 20;
+    pdf.setFontSize(16);
+    pdf.setFont(undefined, 'bold');
+    pdf.text('Matriz SIPOC Consolidada', 20, yPos);
+    yPos += 10;
+    
+    pdf.setFontSize(9);
+    savedAreas.forEach((area) => {
+      if (!area.turtleProcess) return;
+      
+      if (yPos > 250) {
+        pdf.addPage();
+        yPos = 20;
+      }
+      
+      // Detectar proveedores y clientes
+      const suppliers = savedAreas
+        .filter(otherArea => 
+          otherArea.id !== area.id && 
+          otherArea.turtleProcess &&
+          otherArea.turtleProcess.outputs.some(output =>
+            area.turtleProcess!.inputs.includes(output)
+          )
+        )
+        .map(a => a.areaName);
+      
+      const customers = savedAreas
+        .filter(otherArea => 
+          otherArea.id !== area.id && 
+          otherArea.turtleProcess &&
+          otherArea.turtleProcess.inputs.some(input =>
+            area.turtleProcess!.outputs.includes(input)
+          )
+        )
+        .map(a => a.areaName);
+      
+      pdf.setFont(undefined, 'bold');
+      pdf.text(`Proceso: ${area.areaName}`, 20, yPos);
+      yPos += 6;
+      pdf.setFont(undefined, 'normal');
+      pdf.text(`Proveedores: ${suppliers.length > 0 ? suppliers.join(', ') : 'N/A'}`, 25, yPos);
+      yPos += 5;
+      pdf.text(`Entradas: ${area.turtleProcess.inputs.join(', ') || 'N/A'}`, 25, yPos);
+      yPos += 5;
+      pdf.text(`Salidas: ${area.turtleProcess.outputs.join(', ') || 'N/A'}`, 25, yPos);
+      yPos += 5;
+      pdf.text(`Clientes: ${customers.length > 0 ? customers.join(', ') : 'N/A'}`, 25, yPos);
+      yPos += 8;
+    });
+    
+    // Guardar PDF
+    pdf.save(`historial-completo-${new Date().toISOString().split('T')[0]}.pdf`);
+    alert('✅ Historial completo exportado exitosamente');
   };
 
   // Detectar interacciones entre áreas (coincidencia exacta)
@@ -924,100 +1434,50 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Header */}
-      <header className="bg-white border-b shadow-sm">
-        <div className="container mx-auto py-6">
-          <div className="flex items-center justify-between">
+      <header className="bg-white border-b shadow-sm sticky top-0 z-40">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-600 rounded-lg">
-                <Clock className="h-8 w-8 text-white" />
+                <Clock className="h-6 w-6 md:h-8 md:w-8 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+                <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight text-slate-900">
                   Análisis de Tiempos Muertos
                 </h1>
                 <div className="flex items-center gap-2 mt-1">
-                  <p className="text-slate-600">
-                    Gestión de áreas y mapas de procesos - Metodología Tortuga
+                  <p className="text-xs md:text-sm text-slate-600 hidden sm:block">
+                    Metodología Tortuga
                   </p>
                   {syncStatus === 'syncing' && (
-                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                      🔄 Sincronizando...
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
+                      🔄 Sincronizando
                     </Badge>
                   )}
                   {syncStatus === 'synced' && (
-                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
                       ☁️ Sincronizado
                     </Badge>
                   )}
                   {syncStatus === 'error' && (
-                    <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-                      ⚠️ Error de conexión
+                    <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs">
+                      ⚠️ Error
                     </Badge>
                   )}
                 </div>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
+            {/* Botones de Acción */}
+            <div className="flex flex-wrap items-center gap-3">
               {view === "list" && (
                 <>
-                  <Button onClick={newArea} size="lg">
+                  {/* Acción Primaria */}
+                  <Button onClick={newArea} size="lg" className="shadow-sm">
                     <Plus className="mr-2 h-4 w-4" />
-                    Nueva Área
+                    <span className="hidden sm:inline">Nueva Área</span>
+                    <span className="sm:hidden">Área</span>
                   </Button>
                   
-                  {savedAreas.length > 0 && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="lg">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-56">
-                        <DropdownMenuItem onClick={() => setLocation("/dashboard")}>
-                          <BarChart3 className="mr-2 h-4 w-4" />
-                          Dashboard
-                        </DropdownMenuItem>
-                        {user?.email === 'hsesupergas@gmail.com' && (
-                          <DropdownMenuItem onClick={() => setLocation("/admin/users")}>
-                            <Shield className="mr-2 h-4 w-4" />
-                            Usuarios
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem onClick={() => setView("process-map")}>
-                          <Network className="mr-2 h-4 w-4" />
-                          Mapa de Procesos
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setView("sipoc")}>
-                          <FileTextIcon className="mr-2 h-4 w-4" />
-                          Matriz SIPOC
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => {
-                          const dataStr = JSON.stringify(savedAreas, null, 2);
-                          const dataBlob = new Blob([dataStr], { type: 'application/json' });
-                          const url = URL.createObjectURL(dataBlob);
-                          const link = document.createElement('a');
-                          link.href = url;
-                          link.download = `analisis-tiempos-muertos-${new Date().toISOString().split('T')[0]}.json`;
-                          link.click();
-                          URL.revokeObjectURL(url);
-                        }}>
-                          <Download className="mr-2 h-4 w-4" />
-                          Exportar
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                          onClick={async () => {
-                            await signOut();
-                            setLocation('/login');
-                          }}
-                          className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                        >
-                          <LogOut className="mr-2 h-4 w-4" />
-                          Cerrar Sesión
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
                   {savedAreas.length === 0 && (
                     <Button 
                       onClick={async () => {
@@ -1091,7 +1551,85 @@ export default function Home() {
                       🎯 Cargar Ejemplo
                     </Button>
                   )}
-
+                  {savedAreas.length > 0 && (
+                    <>
+                      {/* Separador Visual */}
+                      <div className="hidden md:block h-8 w-px bg-slate-300"></div>
+                      
+                      {/* Grupo: Herramientas */}
+                      <div className="flex flex-wrap gap-2">
+                        <Button 
+                          onClick={() => setShowGlobalMeasurementDialog(true)} 
+                          variant="outline" 
+                          size="lg"
+                          className="shadow-sm"
+                        >
+                          <Plus className="mr-2 h-4 w-4" />
+                          <span className="hidden md:inline">Crear Medición</span>
+                          <span className="md:hidden">📸</span>
+                        </Button>
+                        <Button 
+                          onClick={exportAllAreasPDF} 
+                          variant="outline" 
+                          size="lg"
+                          className="shadow-sm"
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          <span className="hidden md:inline">Exportar PDF</span>
+                          <span className="md:hidden">📄</span>
+                        </Button>
+                      </div>
+                      
+                      {/* Separador Visual */}
+                      <div className="hidden lg:block h-8 w-px bg-slate-300"></div>
+                      
+                      {/* Grupo: Análisis IA */}
+                      <div className="flex flex-wrap gap-2">
+                        {savedAreas.length >= 2 && (
+                          <Button 
+                            onClick={handleCompareAreas} 
+                            variant="default" 
+                            size="lg" 
+                            className="shadow-md bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700"
+                            disabled={isComparingAreas}
+                          >
+                            {isComparingAreas ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                <span className="hidden md:inline">Analizando...</span>
+                                <span className="md:hidden">...</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="hidden md:inline">🤖 Comparar Áreas</span>
+                                <span className="md:hidden">🤖</span>
+                              </>
+                            )}
+                          </Button>
+                        )}
+                        <Button 
+                          onClick={handleGenerateExecutiveReport} 
+                          variant="default" 
+                          size="lg" 
+                          className="shadow-md bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                          disabled={isGeneratingReport}
+                        >
+                          {isGeneratingReport ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              <span className="hidden md:inline">Generando...</span>
+                              <span className="md:hidden">...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="hidden md:inline">🤖 Informe Ejecutivo</span>
+                              <span className="md:hidden">📊</span>
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </>
+                  )}
                 </>
               )}
               {view === "form" && (
@@ -1106,7 +1644,7 @@ export default function Home() {
                   </Button>
                 </>
               )}
-              {(view === "process-map" || view === "sipoc") && (
+              {(view === "compare" || view === "process-map" || view === "sipoc" || view === "measurements" || view === "measurement-detail" || view === "measurement-compare") && (
                 <Button onClick={() => setView("list")} variant="outline" size="lg">
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Volver
@@ -1117,7 +1655,41 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="container mx-auto py-8">
+      {/* Sistema de Pestañas */}
+      {view === "list" && savedAreas.length > 0 && (
+        <div className="bg-white border-b">
+          <div className="container mx-auto px-4">
+            <div className="flex overflow-x-auto">
+              <button
+                onClick={() => setView("list")}
+                className="px-4 py-3 text-sm font-medium border-b-2 border-blue-600 text-blue-600 whitespace-nowrap"
+              >
+                🏢 Áreas
+              </button>
+              <button
+                onClick={() => setView("measurements")}
+                className="px-4 py-3 text-sm font-medium border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300 whitespace-nowrap"
+              >
+                📊 Mediciones ({globalMeasurements.length})
+              </button>
+              <button
+                onClick={() => setView("process-map")}
+                className="px-4 py-3 text-sm font-medium border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300 whitespace-nowrap"
+              >
+                🗺️ Mapa de Procesos
+              </button>
+              <button
+                onClick={() => setView("sipoc")}
+                className="px-4 py-3 text-sm font-medium border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300 whitespace-nowrap"
+              >
+                📋 Matriz SIPOC
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <main className="container mx-auto px-4 py-6 md:py-8">
         {/* Vista: Lista de Áreas */}
         {view === "list" && (
           <div className="space-y-6">
@@ -1193,66 +1765,62 @@ export default function Home() {
                             <Separator />
                             <div className="text-sm text-slate-600">
                               <strong>{getAllActivities(area).length}</strong> actividades registradas
-                            </div>
-                            <div className="space-y-2">
-                              <div className="flex gap-2">
+                            </div>                            {/* Botones de Acción */}
+                            <div className="space-y-2 mt-4">
+                              {/* Grupo: Acciones Principales */}
+                              <div className="grid grid-cols-2 gap-2">
                                 <Button
                                   onClick={() => editArea(area)}
-                                  variant="outline"
+                                  variant="default"
                                   size="sm"
-                                  className="flex-1"
+                                  className="w-full"
                                 >
-                                  <Edit className="mr-1 h-3 w-3" />
-                                  Ver/Editar
+                                  <Edit className="mr-1.5 h-3.5 w-3.5" />
+                                  <span>Ver/Editar</span>
                                 </Button>
                                 <Button
                                   onClick={() => exportArea(area)}
                                   variant="outline"
                                   size="sm"
-                                  className="flex-1"
+                                  className="w-full"
                                 >
-                                  <Download className="mr-1 h-3 w-3" />
-                                  Exportar
-                                </Button>
-                                <Button
-                                  onClick={() => deleteArea(area.id)}
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={!area.id}
-                                >
-                                  <Trash2 className="h-3 w-3 text-red-500" />
+                                  <Download className="mr-1.5 h-3.5 w-3.5" />
+                                  <span>Exportar</span>
                                 </Button>
                               </div>
+                              
+                              {/* Análisis IA */}
                               <Button
-                                onClick={() => {
-                                  setSelectedAreaForMeasurement(area);
-                                  setShowNewMeasurementDialog(true);
-                                }}
+                                onClick={() => handleAnalyzeArea(area)}
                                 variant="default"
                                 size="sm"
-                                className="w-full"
+                                className="w-full shadow-sm bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                                disabled={isAnalyzingArea}
                               >
-                                <Clock className="mr-1 h-3 w-3" />
-                                Nueva Medición
+                                {isAnalyzingArea ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                                    Analizando...
+                                  </>
+                                ) : (
+                                  <>
+                                    🤖 Análisis IA
+                                  </>
+                                )}
                               </Button>
-                              {area.measurements && area.measurements.length > 0 && (
-                                <>
-                                  <Button
-                                    onClick={() => {
-                                      setSelectedAreaForComparison(area);
-                                      setView("measurements");
-                                    }}
-                                    variant="outline"
-                                    size="sm"
-                                    className="w-full"
-                                  >
-                                    <TrendingUp className="mr-1 h-3 w-3" />
-                                    Ver Mediciones ({area.measurements.length})
-                                  </Button>
-                                </>
-                              )}
-                            </div>
-                          </CardContent>
+                              
+                              {/* Botón Eliminar */}
+                              <Button
+                                onClick={() => deleteArea(area.id)}
+                                variant="ghost"
+                                size="sm"
+                                disabled={!area.id}
+                                className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                                Eliminar área
+                              </Button>
+                            </div>                       </CardContent>
                         </Card>
                       );
                     })}
@@ -1261,6 +1829,270 @@ export default function Home() {
               </CardContent>
             </Card>
           </div>
+        )}
+
+        {/* Vista: Comparativa de Mediciones (ELIMINADA - Ahora se usa el sistema de Mediciones Globales) */}
+        {false && selectedAreaForComparison && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Mediciones del Área: {selectedAreaForComparison.areaName}</CardTitle>
+                  <CardDescription>
+                    Compara diferentes períodos de medición para identificar mejoras y oportunidades
+                  </CardDescription>
+                </div>
+                <Button
+                  onClick={() => {
+                    setSelectedAreaForComparison(null);
+                    setBaseMeasurementId(null);
+                    setCurrentMeasurementId(null);
+                  }}
+                  variant="outline"
+                  size="sm"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Volver
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Selectores de Mediciones */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Medición Base</Label>
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={baseMeasurementId || "current"}
+                    onChange={(e) => setBaseMeasurementId(e.target.value === "current" ? null : e.target.value)}
+                  >
+                    <option value="current">Estado Actual</option>
+                    {selectedAreaForComparison.measurements?.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} - {new Date(m.date).toLocaleDateString()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Medición a Comparar</Label>
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={currentMeasurementId || "current"}
+                    onChange={(e) => setCurrentMeasurementId(e.target.value === "current" ? null : e.target.value)}
+                  >
+                    <option value="current">Estado Actual</option>
+                    {selectedAreaForComparison.measurements?.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} - {new Date(m.date).toLocaleDateString()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Contenido de la comparación */}
+              {(() => {
+                const isValidComparison = baseMeasurementId !== currentMeasurementId && 
+                  (baseMeasurementId || currentMeasurementId);
+                
+                if (!isValidComparison) {
+                  return (
+                    <div className="text-center py-12 text-slate-500">
+                      <TrendingUp className="h-16 w-16 mx-auto mb-4 text-slate-300" />
+                      <p className="font-medium">Selecciona dos mediciones diferentes para comparar</p>
+                      <p className="text-sm mt-2">Elige una medición base y otra para comparar en los selectores de arriba</p>
+                    </div>
+                  );
+                }
+
+                // Obtener las mediciones a comparar
+                const baseMeas = baseMeasurementId === null 
+                  ? selectedAreaForComparison 
+                  : selectedAreaForComparison.measurements?.find(m => m.id === baseMeasurementId);
+                  
+                const currentMeas = currentMeasurementId === null
+                  ? selectedAreaForComparison
+                  : selectedAreaForComparison.measurements?.find(m => m.id === currentMeasurementId);
+                
+                if (!baseMeas || !currentMeas) {
+                  return <div className="text-center py-12 text-red-500">Error: No se encontraron las mediciones seleccionadas</div>;
+                }
+                
+                // Calcular comparaciones
+                const comparisons: Array<{
+                  positionName: string;
+                  activityName: string;
+                  baseTime: number;
+                  currentTime: number;
+                  delta: number;
+                  percentChange: number;
+                }> = [];
+                
+                baseMeas.positions.forEach((basePos) => {
+                  const currentPos = currentMeas.positions.find(p => p.id === basePos.id);
+                  if (!currentPos) return;
+                  
+                  basePos.activities.forEach((baseActivity) => {
+                    const currentActivity = currentPos.activities.find(a => a.id === baseActivity.id);
+                    if (!currentActivity) return;
+                    
+                    const baseTime = baseActivity.timeMinutes * baseActivity.frequency;
+                    const currentTime = currentActivity.timeMinutes * currentActivity.frequency;
+                    const delta = currentTime - baseTime;
+                    const percentChange = baseTime > 0 ? ((delta / baseTime) * 100) : 0;
+                    
+                    comparisons.push({
+                      positionName: basePos.name,
+                      activityName: baseActivity.name,
+                      baseTime,
+                      currentTime,
+                      delta,
+                      percentChange,
+                    });
+                  });
+                });
+                
+                return (
+                  <>
+                    <Separator />
+                    {/* Tabla Comparativa */}
+                    <div ref={comparisonTableRef} className="p-6 bg-white rounded-lg">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold">Comparativa por Actividad</h3>
+                        <Button
+                          onClick={copyTableAsImage}
+                          variant="outline"
+                          size="sm"
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          Copiar como Imagen
+                        </Button>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full border-collapse">
+                          <thead>
+                            <tr className="bg-slate-100">
+                              <th className="border border-slate-300 px-4 py-3 text-left">Cargo</th>
+                              <th className="border border-slate-300 px-4 py-3 text-left">Actividad</th>
+                              <th className="border border-slate-300 px-4 py-3 text-right">Base (min)</th>
+                              <th className="border border-slate-300 px-4 py-3 text-right">Actual (min)</th>
+                              <th className="border border-slate-300 px-4 py-3 text-right">Δ</th>
+                              <th className="border border-slate-300 px-4 py-3 text-right">% Cambio</th>
+                              <th className="border border-slate-300 px-4 py-3 text-center">Estado</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {comparisons.map((comp, idx) => (
+                              <tr key={idx} className="hover:bg-slate-50">
+                                <td className="border border-slate-300 px-4 py-3">{comp.positionName}</td>
+                                <td className="border border-slate-300 px-4 py-3">{comp.activityName}</td>
+                                <td className="border border-slate-300 px-4 py-3 text-right">{comp.baseTime}</td>
+                                <td className="border border-slate-300 px-4 py-3 text-right">{comp.currentTime}</td>
+                                <td className={`border border-slate-300 px-4 py-3 text-right font-semibold ${
+                                  comp.delta < 0 ? 'text-green-600' : comp.delta > 0 ? 'text-red-600' : 'text-slate-600'
+                                }`}>
+                                  {comp.delta > 0 ? '+' : ''}{comp.delta}
+                                </td>
+                                <td className={`border border-slate-300 px-4 py-3 text-right font-semibold ${
+                                  comp.percentChange < 0 ? 'text-green-600' : comp.percentChange > 0 ? 'text-red-600' : 'text-slate-600'
+                                }`}>
+                                  {comp.percentChange > 0 ? '+' : ''}{comp.percentChange.toFixed(1)}%
+                                </td>
+                                <td className="border border-slate-300 px-4 py-3 text-center">
+                                  {comp.delta < -5 ? '✅' : comp.delta > 5 ? '❌' : '⚠️'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    
+                    <Separator />
+                    {/* Gráficos de Barras Horizontales */}
+                    <div ref={comparisonChartsRef} className="p-6 bg-white rounded-lg">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold">Evolución Visual por Actividad</h3>
+                        <Button
+                          onClick={copyChartsAsImage}
+                          variant="outline"
+                          size="sm"
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          Copiar Gráficos como Imagen
+                        </Button>
+                      </div>
+                      <div className="space-y-6">
+                        {comparisons.map((comp, idx) => {
+                          const maxTime = Math.max(comp.baseTime, comp.currentTime);
+                          const baseWidth = maxTime > 0 ? (comp.baseTime / maxTime) * 100 : 0;
+                          const currentWidth = maxTime > 0 ? (comp.currentTime / maxTime) * 100 : 0;
+                          
+                          return (
+                            <div key={idx} className="border border-slate-200 rounded-lg p-4 bg-slate-50">
+                              <div className="mb-3">
+                                <h4 className="font-semibold text-sm">{comp.activityName}</h4>
+                                <p className="text-xs text-slate-600">{comp.positionName}</p>
+                              </div>
+                              
+                              {/* Barra Base */}
+                              <div className="mb-2">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-xs text-slate-600">Base</span>
+                                  <span className="text-xs font-semibold">{comp.baseTime} min</span>
+                                </div>
+                                <div className="w-full bg-slate-200 rounded-full h-6">
+                                  <div 
+                                    className="bg-blue-500 h-6 rounded-full flex items-center justify-end pr-2"
+                                    style={{ width: `${baseWidth}%`, minWidth: comp.baseTime > 0 ? '2rem' : '0' }}
+                                  >
+                                    {comp.baseTime > 0 && (
+                                      <span className="text-xs text-white font-medium">{comp.baseTime}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* Barra Actual */}
+                              <div>
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-xs text-slate-600">Actual</span>
+                                  <span className="text-xs font-semibold">{comp.currentTime} min</span>
+                                </div>
+                                <div className="w-full bg-slate-200 rounded-full h-6">
+                                  <div 
+                                    className={`h-6 rounded-full flex items-center justify-end pr-2 ${
+                                      comp.delta < 0 ? 'bg-green-500' : comp.delta > 0 ? 'bg-red-500' : 'bg-slate-500'
+                                    }`}
+                                    style={{ width: `${currentWidth}%`, minWidth: comp.currentTime > 0 ? '2rem' : '0' }}
+                                  >
+                                    {comp.currentTime > 0 && (
+                                      <span className="text-xs text-white font-medium">{comp.currentTime}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* Indicador de cambio */}
+                              <div className="mt-2 text-center">
+                                <span className={`text-xs font-semibold ${
+                                  comp.delta < 0 ? 'text-green-600' : comp.delta > 0 ? 'text-red-600' : 'text-slate-600'
+                                }`}>
+                                  {comp.delta < 0 ? '✅ Mejoró ' : comp.delta > 0 ? '❌ Empeoró ' : '⚠️ Sin cambio '}
+                                  ({comp.delta > 0 ? '+' : ''}{comp.delta} min)
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </CardContent>
+          </Card>
         )}
 
         {/* Vista: Formulario de Área */}
@@ -1450,9 +2282,9 @@ export default function Home() {
                         }
                       }}
                     />
-                    <Button onClick={addPosition}>
+                    <Button onClick={addPosition} size="lg" className="shadow-sm whitespace-nowrap">
                       <Plus className="mr-2 h-4 w-4" />
-                      Agregar Cargo
+                      Agregar
                     </Button>
                   </div>
 
@@ -1553,16 +2385,16 @@ export default function Home() {
                       <Label>&nbsp;</Label>
                       {editingActivity ? (
                         <div className="flex gap-2">
-                          <Button onClick={updateActivity} className="flex-1">
+                          <Button onClick={updateActivity} size="lg" className="flex-1 shadow-sm">
                             <Pencil className="mr-2 h-4 w-4" />
                             Actualizar
                           </Button>
-                          <Button onClick={cancelEdit} variant="outline" className="flex-1">
+                          <Button onClick={cancelEdit} variant="outline" size="lg" className="flex-1">
                             Cancelar
                           </Button>
                         </div>
                       ) : (
-                        <Button onClick={addActivity} className="w-full">
+                        <Button onClick={addActivity} size="lg" className="w-full shadow-sm">
                           <Plus className="mr-2 h-4 w-4" />
                           Agregar
                         </Button>
@@ -2237,15 +3069,595 @@ export default function Home() {
           </Tabs>
         )}
 
+        {/* Vista: Dashboard de Mediciones Globales */}
+        {view === "measurements" && (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>📊 Dashboard de Mediciones Globales</CardTitle>
+                <CardDescription>
+                  {globalMeasurements.length === 0 
+                    ? "No hay mediciones globales creadas aún. Crea tu primera medición para comenzar a hacer seguimiento."
+                    : `Tienes ${globalMeasurements.length} medición${globalMeasurements.length > 1 ? 'es' : ''} global${globalMeasurements.length > 1 ? 'es' : ''} guardada${globalMeasurements.length > 1 ? 's' : ''}`
+                  }
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {globalMeasurements.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="text-6xl mb-4">📸</div>
+                    <h3 className="text-xl font-semibold mb-2">No hay mediciones globales</h3>
+                    <p className="text-slate-600 mb-6">
+                      Crea tu primera medición global para capturar el estado actual de todas las áreas
+                    </p>
+                    <Button onClick={() => setShowGlobalMeasurementDialog(true)} size="lg">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Crear Primera Medición Global
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left p-3">Nombre</th>
+                          <th className="text-left p-3">Fecha</th>
+                          <th className="text-center p-3"># Áreas</th>
+                          <th className="text-right p-3">Promedio Productivo</th>
+                          <th className="text-right p-3">Promedio Soporte</th>
+                          <th className="text-right p-3">Promedio Muerto</th>
+                          <th className="text-center p-3">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {globalMeasurements.map((measurement) => {
+                          // Calcular promedios de todas las áreas
+                          const avgProductivo = measurement.areas.reduce((sum, area) => {
+                            const totals = calculateTotals(area);
+                            return sum + totals.productivePercentage;
+                          }, 0) / measurement.areas.length;
+                          
+                          const avgSoporte = measurement.areas.reduce((sum, area) => {
+                            const totals = calculateTotals(area);
+                            return sum + totals.supportPercentage;
+                          }, 0) / measurement.areas.length;
+                          
+                          const avgMuerto = measurement.areas.reduce((sum, area) => {
+                            const totals = calculateTotals(area);
+                            return sum + totals.deadTimePercentage;
+                          }, 0) / measurement.areas.length;
+                          
+                          return (
+                            <tr key={measurement.id} className="border-b hover:bg-slate-50">
+                              <td className="p-3 font-medium">{measurement.name}</td>
+                              <td className="p-3 text-slate-600">
+                                {new Date(measurement.date).toLocaleDateString('es-ES', {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric'
+                                })}
+                              </td>
+                              <td className="p-3 text-center">
+                                <Badge variant="outline">{measurement.areas.length}</Badge>
+                              </td>
+                              <td className="p-3 text-right">
+                                <span className="font-semibold text-green-600">
+                                  {avgProductivo.toFixed(1)}%
+                                </span>
+                              </td>
+                              <td className="p-3 text-right">
+                                <span className="font-semibold text-blue-600">
+                                  {avgSoporte.toFixed(1)}%
+                                </span>
+                              </td>
+                              <td className="p-3 text-right">
+                                <span className="font-semibold text-red-600">
+                                  {avgMuerto.toFixed(1)}%
+                                </span>
+                              </td>
+                              <td className="p-3">
+                                <div className="flex gap-1.5 justify-center">
+                                  <Button 
+                                    onClick={() => {
+                                      setSelectedMeasurement(measurement);
+                                      setView("measurement-detail");
+                                    }}
+                                    variant="default" 
+                                    size="sm"
+                                  >
+                                    <FileText className="mr-1.5 h-3.5 w-3.5" />
+                                    Ver
+                                  </Button>
+                                  <Button 
+                                    onClick={async () => {
+                                      if (confirm(`¿Estás seguro de eliminar la medición "${measurement.name}"?`)) {
+                                        try {
+                                          await deleteGlobalMeasurement(measurement.id!);
+                                          alert('Medición eliminada exitosamente');
+                                        } catch (error) {
+                                          alert('Error al eliminar la medición');
+                                        }
+                                      }
+                                    }}
+                                    variant="ghost" 
+                                    size="sm"
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                
+                {globalMeasurements.length >= 2 && (
+                  <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <h4 className="font-semibold text-blue-900 mb-2">🔍 Comparar Mediciones</h4>
+                    <p className="text-sm text-blue-700 mb-3">
+                      Selecciona dos mediciones para ver su evolución y diferencias
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <Label className="text-xs text-blue-900">Medición Base</Label>
+                        <select 
+                          className="w-full mt-1 p-2 border rounded"
+                          value={measurementToCompare1?.id || ""}
+                          onChange={(e) => {
+                            const m = globalMeasurements.find(m => m.id === e.target.value);
+                            setMeasurementToCompare1(m || null);
+                          }}
+                        >
+                          <option value="">Seleccionar...</option>
+                          {globalMeasurements.map(m => (
+                            <option key={m.id} value={m.id}>{m.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-blue-900">Medición Actual</Label>
+                        <select 
+                          className="w-full mt-1 p-2 border rounded"
+                          value={measurementToCompare2?.id || ""}
+                          onChange={(e) => {
+                            const m = globalMeasurements.find(m => m.id === e.target.value);
+                            setMeasurementToCompare2(m || null);
+                          }}
+                        >
+                          <option value="">Seleccionar...</option>
+                          {globalMeasurements.map(m => (
+                            <option key={m.id} value={m.id}>{m.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex items-end">
+                        <Button 
+                          onClick={() => {
+                            if (measurementToCompare1 && measurementToCompare2) {
+                              setView("measurement-compare");
+                            } else {
+                              alert('Por favor selecciona dos mediciones para comparar');
+                            }
+                          }}
+                          disabled={!measurementToCompare1 || !measurementToCompare2}
+                          size="lg"
+                          className="w-full shadow-sm"
+                        >
+                          <TrendingUp className="mr-2 h-4 w-4" />
+                          Comparar Mediciones
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+        
+        {/* Vista: Detalle de Medición Global */}
+        {view === "measurement-detail" && selectedMeasurement && (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>📊 Detalle de Medición: {selectedMeasurement.name}</CardTitle>
+                <CardDescription>
+                  Creada el {new Date(selectedMeasurement.date).toLocaleDateString('es-ES', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })} • {selectedMeasurement.areas.length} áreas capturadas
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-3">Área</th>
+                        <th className="text-left p-3">Responsable</th>
+                        <th className="text-center p-3"># Cargos</th>
+                        <th className="text-center p-3"># Actividades</th>
+                        <th className="text-right p-3">Productivo</th>
+                        <th className="text-right p-3">Soporte</th>
+                        <th className="text-right p-3">Muerto</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedMeasurement.areas.map((area, index) => {
+                        const totals = calculateTotals(area);
+                        const allActivities = getAllActivities(area);
+                        
+                        return (
+                          <tr key={index} className="border-b hover:bg-slate-50">
+                            <td className="p-3 font-medium">{area.areaName}</td>
+                            <td className="p-3 text-slate-600">{area.managerName}</td>
+                            <td className="p-3 text-center">
+                              <Badge variant="outline">{area.positions.length}</Badge>
+                            </td>
+                            <td className="p-3 text-center">
+                              <Badge variant="outline">{allActivities.length}</Badge>
+                            </td>
+                            <td className="p-3 text-right">
+                              <span className="font-semibold text-green-600">
+                                {totals.productivePercentage.toFixed(1)}%
+                              </span>
+                            </td>
+                            <td className="p-3 text-right">
+                              <span className="font-semibold text-blue-600">
+                                {totals.supportPercentage.toFixed(1)}%
+                              </span>
+                            </td>
+                            <td className="p-3 text-right">
+                              <span className="font-semibold text-red-600">
+                                {totals.deadTimePercentage.toFixed(1)}%
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                
+                {/* Gráfico de barras */}
+                <div className="mt-6">
+                  <h3 className="font-semibold mb-4">Distribución por Área</h3>
+                  <ResponsiveContainer width="100%" height={400}>
+                    <BarChart data={selectedMeasurement.areas.map(area => {
+                      const totals = calculateTotals(area);
+                      return {
+                        area: area.areaName,
+                        Productivo: totals.productivePercentage,
+                        Soporte: totals.supportPercentage,
+                        "Tiempo Muerto": totals.deadTimePercentage
+                      };
+                    })}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="area" angle={-45} textAnchor="end" height={100} />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="Productivo" fill={COLORS.productive} />
+                      <Bar dataKey="Soporte" fill={COLORS.support} />
+                      <Bar dataKey="Tiempo Muerto" fill={COLORS.dead_time} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+        
+        {/* Vista: Comparación entre Dos Mediciones Globales */}
+        {view === "measurement-compare" && measurementToCompare1 && measurementToCompare2 && (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>🔍 Comparación de Mediciones</CardTitle>
+                <CardDescription>
+                  {measurementToCompare1.name} vs {measurementToCompare2.name}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-3">Área</th>
+                        <th className="text-right p-3" colSpan={2}>
+                          <div className="text-sm font-normal text-slate-600">{measurementToCompare1.name}</div>
+                        </th>
+                        <th className="text-right p-3" colSpan={2}>
+                          <div className="text-sm font-normal text-slate-600">{measurementToCompare2.name}</div>
+                        </th>
+                        <th className="text-center p-3">Evolución</th>
+                      </tr>
+                      <tr className="border-b bg-slate-50">
+                        <th className="text-left p-3"></th>
+                        <th className="text-right p-3 text-xs">Prod.</th>
+                        <th className="text-right p-3 text-xs">Muerto</th>
+                        <th className="text-right p-3 text-xs">Prod.</th>
+                        <th className="text-right p-3 text-xs">Muerto</th>
+                        <th className="text-center p-3 text-xs">Cambio</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {measurementToCompare1.areas.map((area1, index) => {
+                        // Buscar el área correspondiente en la segunda medición
+                        const area2 = measurementToCompare2.areas.find(a => a.areaName === area1.areaName);
+                        
+                        if (!area2) return null; // Área no existe en la segunda medición
+                        
+                        const totals1 = calculateTotals(area1);
+                        const totals2 = calculateTotals(area2);
+                        
+                        const diffProductivo = totals2.productivePercentage - totals1.productivePercentage;
+                        const diffMuerto = totals2.deadTimePercentage - totals1.deadTimePercentage;
+                        
+                        // Determinar si mejoró o empeoró
+                        const improved = diffProductivo > 0 || diffMuerto < 0;
+                        const worsened = diffProductivo < 0 || diffMuerto > 0;
+                        
+                        return (
+                          <tr key={index} className="border-b hover:bg-slate-50">
+                            <td className="p-3 font-medium">{area1.areaName}</td>
+                            <td className="p-3 text-right text-green-600">
+                              {totals1.productivePercentage.toFixed(1)}%
+                            </td>
+                            <td className="p-3 text-right text-red-600">
+                              {totals1.deadTimePercentage.toFixed(1)}%
+                            </td>
+                            <td className="p-3 text-right text-green-600 font-semibold">
+                              {totals2.productivePercentage.toFixed(1)}%
+                            </td>
+                            <td className="p-3 text-right text-red-600 font-semibold">
+                              {totals2.deadTimePercentage.toFixed(1)}%
+                            </td>
+                            <td className="p-3 text-center">
+                              {improved && !worsened && (
+                                <Badge className="bg-green-100 text-green-800 border-green-300">
+                                  ↑ Mejoró
+                                </Badge>
+                              )}
+                              {worsened && !improved && (
+                                <Badge className="bg-red-100 text-red-800 border-red-300">
+                                  ↓ Empeoró
+                                </Badge>
+                              )}
+                              {!improved && !worsened && (
+                                <Badge variant="outline">
+                                  → Igual
+                                </Badge>
+                              )}
+                              {improved && worsened && (
+                                <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                                  ∼ Mixto
+                                </Badge>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                
+                {/* Gráficos de comparación */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                  <div>
+                    <h3 className="font-semibold mb-4">Tiempo Productivo - Comparación</h3>
+                    <ResponsiveContainer width="100%" height={400}>
+                      <BarChart data={measurementToCompare1.areas.map(area1 => {
+                        const area2 = measurementToCompare2.areas.find(a => a.areaName === area1.areaName);
+                        if (!area2) return null;
+                        
+                        const totals1 = calculateTotals(area1);
+                        const totals2 = calculateTotals(area2);
+                        
+                        return {
+                          area: area1.areaName,
+                          [measurementToCompare1.name]: totals1.productivePercentage,
+                          [measurementToCompare2.name]: totals2.productivePercentage
+                        };
+                      }).filter(Boolean)}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="area" angle={-45} textAnchor="end" height={100} />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey={measurementToCompare1.name} fill="#94a3b8" />
+                        <Bar dataKey={measurementToCompare2.name} fill={COLORS.productive} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  
+                  <div>
+                    <h3 className="font-semibold mb-4">Tiempo Muerto - Comparación</h3>
+                    <ResponsiveContainer width="100%" height={400}>
+                      <BarChart data={measurementToCompare1.areas.map(area1 => {
+                        const area2 = measurementToCompare2.areas.find(a => a.areaName === area1.areaName);
+                        if (!area2) return null;
+                        
+                        const totals1 = calculateTotals(area1);
+                        const totals2 = calculateTotals(area2);
+                        
+                        return {
+                          area: area1.areaName,
+                          [measurementToCompare1.name]: totals1.deadTimePercentage,
+                          [measurementToCompare2.name]: totals2.deadTimePercentage
+                        };
+                      }).filter(Boolean)}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="area" angle={-45} textAnchor="end" height={100} />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey={measurementToCompare1.name} fill="#fca5a5" />
+                        <Bar dataKey={measurementToCompare2.name} fill={COLORS.dead_time} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+        
+        {/* Vista: Comparativa */}
+        {view === "compare" && savedAreas.length > 0 && (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Comparativa entre Áreas</CardTitle>
+                <CardDescription>
+                  Análisis de {savedAreas.length} áreas
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div>
+                    <h3 className="font-semibold mb-4">Distribución (%)</h3>
+                    <ResponsiveContainer width="100%" height={400}>
+                      <BarChart data={comparativeData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="area" angle={-45} textAnchor="end" height={100} />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="Productivo" fill={COLORS.productive} />
+                        <Bar dataKey="Soporte" fill={COLORS.support} />
+                        <Bar dataKey="Tiempo Muerto" fill={COLORS.dead_time} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  <div>
+                    <h3 className="font-semibold mb-4">Vista Radar</h3>
+                    <ResponsiveContainer width="100%" height={400}>
+                      <RadarChart data={radarData}>
+                        <PolarGrid />
+                        <PolarAngleAxis dataKey="area" />
+                        <PolarRadiusAxis angle={90} domain={[0, 100]} />
+                        <Radar
+                          name="Productivo"
+                          dataKey="productivo"
+                          stroke={COLORS.productive}
+                          fill={COLORS.productive}
+                          fillOpacity={0.6}
+                        />
+                        <Radar
+                          name="Tiempo Muerto"
+                          dataKey="muerto"
+                          stroke={COLORS.dead_time}
+                          fill={COLORS.dead_time}
+                          fillOpacity={0.6}
+                        />
+                        <Legend />
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Tabla Comparativa</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-3">Área</th>
+                        <th className="text-left p-3">Jefe</th>
+                        <th className="text-right p-3">Productivo</th>
+                        <th className="text-right p-3">Soporte</th>
+                        <th className="text-right p-3">Muerto</th>
+                        <th className="text-center p-3">Tortuga</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {savedAreas.map((area) => {
+                        const totals = calculateTotals(area);
+                        const hasTurtle = area.turtleProcess && 
+                          Object.values(area.turtleProcess).some(arr => arr.length > 0);
+                        
+                        return (
+                          <tr key={area.id} className="border-b hover:bg-slate-50">
+                            <td className="p-3 font-medium">{area.areaName}</td>
+                            <td className="p-3 text-slate-600">{area.managerName}</td>
+                            <td className="p-3 text-right">
+                              <span className="font-semibold text-green-600">
+                                {totals.productivePercentage.toFixed(1)}%
+                              </span>
+                            </td>
+                            <td className="p-3 text-right">
+                              <span className="font-semibold text-blue-600">
+                                {totals.supportPercentage.toFixed(1)}%
+                              </span>
+                            </td>
+                            <td className="p-3 text-right">
+                              <span className="font-semibold text-red-600">
+                                {totals.deadTimePercentage.toFixed(1)}%
+                              </span>
+                            </td>
+                            <td className="p-3 text-center">
+                              {hasTurtle ? (
+                                <CheckCircle2 className="h-5 w-5 text-green-600 mx-auto" />
+                              ) : (
+                                <span className="text-slate-300">-</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* Vista: Mapa de Procesos */}
         {view === "process-map" && savedAreas.length > 0 && (
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Mapa de Interacciones entre Áreas</CardTitle>
-                <CardDescription>
-                  Visualización de flujos basados en coincidencias exactas (Entradas ↔ Salidas)
-                </CardDescription>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <CardTitle>Mapa de Interacciones entre Áreas</CardTitle>
+                    <CardDescription>
+                      Visualización de flujos basados en coincidencias exactas (Entradas ↔ Salidas)
+                    </CardDescription>
+                  </div>
+                  <Button 
+                    onClick={handleAnalyzeProcesses}
+                    variant="default"
+                    size="lg"
+                    className="shadow-md bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700"
+                    disabled={isAnalyzingProcesses}
+                  >
+                    {isAnalyzingProcesses ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Analizando flujo...
+                      </>
+                    ) : (
+                      <>
+                        🤖 Analizar Flujo IA
+                      </>
+                    )}
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {interactions.length > 0 ? (
@@ -2862,6 +4274,125 @@ export default function Home() {
         </div>
       )}
       
+      {/* Diálogo de Medición Global */}
+      {showGlobalMeasurementDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader>
+              <CardTitle>📸 Crear Medición Global</CardTitle>
+              <CardDescription>
+                Toma una fotografía de TODAS las áreas actuales ({savedAreas.length} áreas) para comparar en el futuro
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="global-measurement-name">Nombre de la Medición Global</Label>
+                <Input
+                  id="global-measurement-name"
+                  value={globalMeasurementName}
+                  onChange={(e) => setGlobalMeasurementName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      createGlobalMeasurement();
+                    } else if (e.key === "Escape") {
+                      setShowGlobalMeasurementDialog(false);
+                      setGlobalMeasurementName("");
+                    }
+                  }}
+                  placeholder="Ej: Estado Inicial, Medición Enero 2025, Después de Mejoras"
+                  autoFocus
+                />
+                <p className="text-xs text-slate-500 mt-2">
+                  Se guardará una copia completa de todas las áreas con sus cargos, actividades y tiempos actuales
+                </p>
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-900 font-medium">
+                  Áreas que se capturarán:
+                </p>
+                <ul className="text-xs text-blue-700 mt-2 space-y-1">
+                  {savedAreas.slice(0, 5).map(area => (
+                    <li key={area.id}>• {area.areaName}</li>
+                  ))}
+                  {savedAreas.length > 5 && (
+                    <li className="text-blue-600 italic">... y {savedAreas.length - 5} áreas más</li>
+                  )}
+                </ul>
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={createGlobalMeasurement} className="flex-1">
+                  <Check className="mr-2 h-4 w-4" />
+                  Crear Medición Global
+                </Button>
+                <Button 
+                  onClick={() => {
+                    setShowGlobalMeasurementDialog(false);
+                    setGlobalMeasurementName("");
+                  }} 
+                  variant="outline" 
+                  className="flex-1"
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+      
+      {/* Diálogo de Nueva Medición (ELIMINADO - Ahora se usa el sistema de Mediciones Globales) */}
+      {false && showNewMeasurementDialog && selectedAreaForNewMeasurement && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader>
+              <CardTitle>Nueva Medición</CardTitle>
+              <CardDescription>
+                Crea un snapshot del estado actual del área "{selectedAreaForNewMeasurement.areaName}" para comparar en el futuro
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="measurement-name">Nombre de la Medición</Label>
+                <Input
+                  id="measurement-name"
+                  value={newMeasurementName}
+                  onChange={(e) => setNewMeasurementName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      createNewMeasurement();
+                    } else if (e.key === "Escape") {
+                      setShowNewMeasurementDialog(false);
+                      setNewMeasurementName("");
+                    }
+                  }}
+                  placeholder="Ej: Medición Marzo 2025, Después de capacitación"
+                  autoFocus
+                />
+                <p className="text-xs text-slate-500 mt-2">
+                  Se guardará una copia de todos los cargos y actividades actuales con sus tiempos
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={createNewMeasurement} className="flex-1">
+                  <Check className="mr-2 h-4 w-4" />
+                  Crear Medición
+                </Button>
+                <Button 
+                  onClick={() => {
+                    setShowNewMeasurementDialog(false);
+                    setNewMeasurementName("");
+                  }} 
+                  variant="outline" 
+                  className="flex-1"
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+      
       {/* Diálogo de Edición de Nombre de Cargo */}
       {editingPosition && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -2903,233 +4434,426 @@ export default function Home() {
           </Card>
         </div>
       )}
-
-      {/* Vista: Comparativa de Mediciones */}
-      {view === "measurements" && selectedAreaForComparison && (
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Mediciones del Área: {selectedAreaForComparison.areaName}</CardTitle>
-                  <CardDescription>
-                    Compara diferentes períodos de medición para identificar mejoras y oportunidades
-                  </CardDescription>
-                </div>
+      {/* Diálogo de Análisis de Procesos IA */}
+      {showProcessAnalysis && processAnalysis && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <CardHeader className="bg-gradient-to-r from-teal-600 to-cyan-600 text-white">
+              <CardTitle className="text-2xl">🤖 Análisis de Flujo de Procesos</CardTitle>
+              <CardDescription className="text-teal-100">
+                Análisis inteligente del mapa de procesos y matriz SIPOC
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6 mt-6">
+              {/* Cuellos de Botella */}
+              <div>
+                <h3 className="text-lg font-bold text-red-600 mb-3 flex items-center gap-2">
+                  ⛔ CUELLOS DE BOTELLA
+                </h3>
+                <ul className="space-y-2">
+                  {processAnalysis.cuellosDeBottella.map((cuello: string, index: number) => (
+                    <li key={index} className="flex gap-3">
+                      <span className="text-red-600 font-bold">•</span>
+                      <span className="text-slate-700">{cuello}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              
+              <Separator />
+              
+              {/* Oportunidades de Optimización */}
+              <div>
+                <h3 className="text-lg font-bold text-green-600 mb-3 flex items-center gap-2">
+                  🚀 OPORTUNIDADES DE OPTIMIZACIÓN
+                </h3>
+                <ul className="space-y-2">
+                  {processAnalysis.oportunidadesOptimizacion.map((oportunidad: string, index: number) => (
+                    <li key={index} className="flex gap-3">
+                      <span className="text-green-600 font-bold">{index + 1}.</span>
+                      <span className="text-slate-700">{oportunidad}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              
+              <Separator />
+              
+              {/* Riesgos Identificados */}
+              <div>
+                <h3 className="text-lg font-bold text-orange-600 mb-3 flex items-center gap-2">
+                  ⚠️ RIESGOS IDENTIFICADOS
+                </h3>
+                <ul className="space-y-2">
+                  {processAnalysis.riesgosIdentificados.map((riesgo: string, index: number) => (
+                    <li key={index} className="flex gap-3">
+                      <span className="text-orange-600 font-bold">▶</span>
+                      <span className="text-slate-700">{riesgo}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              
+              <Separator />
+              
+              {/* Análisis Detallado */}
+              <div>
+                <h3 className="text-lg font-bold text-purple-600 mb-3 flex items-center gap-2">
+                  📊 ANÁLISIS DETALLADO
+                </h3>
+                <p className="text-slate-700 leading-relaxed">
+                  {processAnalysis.analisisDetallado}
+                </p>
+              </div>
+              
+              {/* Botones */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
                 <Button
                   onClick={() => {
-                    setView("list");
-                    setSelectedAreaForComparison(null);
-                    setBaseMeasurementId(null);
-                    setCurrentMeasurementId(null);
+                    const text = `ANÁLISIS DE FLUJO DE PROCESOS - IA\n\n` +
+                      `CUELLOS DE BOTELLA:\n${processAnalysis.cuellosDeBottella.map((c: string, i: number) => `${i+1}. ${c}`).join('\n')}\n\n` +
+                      `OPORTUNIDADES DE OPTIMIZACIÓN:\n${processAnalysis.oportunidadesOptimizacion.map((o: string, i: number) => `${i+1}. ${o}`).join('\n')}\n\n` +
+                      `RIESGOS IDENTIFICADOS:\n${processAnalysis.riesgosIdentificados.map((r: string, i: number) => `${i+1}. ${r}`).join('\n')}\n\n` +
+                      `ANÁLISIS DETALLADO:\n${processAnalysis.analisisDetallado}`;
+                    navigator.clipboard.writeText(text);
+                    alert('✅ Análisis de procesos copiado al portapapeles');
                   }}
                   variant="outline"
+                  className="flex-1"
                 >
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Volver
+                  📋 Copiar al Portapapeles
+                </Button>
+                <Button
+                  onClick={() => setShowProcessAnalysis(false)}
+                  variant="default"
+                  className="flex-1"
+                >
+                  Cerrar
                 </Button>
               </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Selector de Mediciones */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Medición Base</Label>
-                  <select
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={baseMeasurementId || "current"}
-                    onChange={(e) => setBaseMeasurementId(e.target.value === "current" ? null : e.target.value)}
-                  >
-                    <option value="current">Estado Actual</option>
-                    {selectedAreaForComparison.measurements?.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name} - {new Date(m.date).toLocaleDateString()}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Medición a Comparar</Label>
-                  <select
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={currentMeasurementId || "current"}
-                    onChange={(e) => setCurrentMeasurementId(e.target.value === "current" ? null : e.target.value)}
-                  >
-                    <option value="current">Estado Actual</option>
-                    {selectedAreaForComparison.measurements?.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name} - {new Date(m.date).toLocaleDateString()}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Tabla Comparativa */}
-              {baseMeasurementId && currentMeasurementId && baseMeasurementId !== currentMeasurementId && (
-                <>
-                  <Separator />
-                  <div ref={comparisonTableRef} className="p-6 bg-white rounded-lg">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-semibold">Comparativa por Actividad</h3>
-                      <Button
-                        onClick={copyTableAsImage}
-                        variant="outline"
-                        size="sm"
-                      >
-                        <Download className="mr-2 h-4 w-4" />
-                        Copiar como Imagen
-                      </Button>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full border-collapse">
-                        <thead>
-                          <tr className="bg-slate-100">
-                            <th className="border border-slate-300 px-4 py-3 text-left">Cargo</th>
-                            <th className="border border-slate-300 px-4 py-3 text-left">Actividad</th>
-                            <th className="border border-slate-300 px-4 py-3 text-right">Base (min)</th>
-                            <th className="border border-slate-300 px-4 py-3 text-right">Actual (min)</th>
-                            <th className="border border-slate-300 px-4 py-3 text-right">Δ</th>
-                            <th className="border border-slate-300 px-4 py-3 text-right">% Cambio</th>
-                            <th className="border border-slate-300 px-4 py-3 text-center">Estado</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(() => {
-                            const baseMeasurement = selectedAreaForComparison.measurements?.find(m => m.id === baseMeasurementId);
-                            const currentMeasurement = selectedAreaForComparison.measurements?.find(m => m.id === currentMeasurementId);
-                            
-                            if (!baseMeasurement || !currentMeasurement) return null;
-                            
-                            const comparisons: Array<{
-                              positionName: string;
-                              activityName: string;
-                              baseTime: number;
-                              currentTime: number;
-                              delta: number;
-                              percentChange: number;
-                            }> = [];
-                            
-                            baseMeasurement.positions.forEach((basePos) => {
-                              const currentPos = currentMeasurement.positions.find(p => p.id === basePos.id);
-                              if (!currentPos) return;
-                              
-                              basePos.activities.forEach((baseActivity) => {
-                                const currentActivity = currentPos.activities.find(a => a.id === baseActivity.id);
-                                if (!currentActivity) return;
-                                
-                                const baseTime = baseActivity.timeMinutes * baseActivity.frequency;
-                                const currentTime = currentActivity.timeMinutes * currentActivity.frequency;
-                                const delta = currentTime - baseTime;
-                                const percentChange = baseTime > 0 ? ((delta / baseTime) * 100) : 0;
-                                
-                                comparisons.push({
-                                  positionName: basePos.name,
-                                  activityName: baseActivity.name,
-                                  baseTime,
-                                  currentTime,
-                                  delta,
-                                  percentChange,
-                                });
-                              });
-                            });
-                            
-                            return comparisons.map((comp, idx) => (
-                              <tr key={idx} className="hover:bg-slate-50">
-                                <td className="border border-slate-300 px-4 py-3">{comp.positionName}</td>
-                                <td className="border border-slate-300 px-4 py-3">{comp.activityName}</td>
-                                <td className="border border-slate-300 px-4 py-3 text-right">{comp.baseTime}</td>
-                                <td className="border border-slate-300 px-4 py-3 text-right">{comp.currentTime}</td>
-                                <td className={`border border-slate-300 px-4 py-3 text-right font-semibold ${
-                                  comp.delta < 0 ? 'text-green-600' : comp.delta > 0 ? 'text-red-600' : 'text-slate-600'
-                                }`}>
-                                  {comp.delta > 0 ? '+' : ''}{comp.delta}
-                                </td>
-                                <td className={`border border-slate-300 px-4 py-3 text-right font-semibold ${
-                                  comp.percentChange < 0 ? 'text-green-600' : comp.percentChange > 0 ? 'text-red-600' : 'text-slate-600'
-                                }`}>
-                                  {comp.percentChange > 0 ? '+' : ''}{comp.percentChange.toFixed(1)}%
-                                </td>
-                                <td className="border border-slate-300 px-4 py-3 text-center">
-                                  {comp.delta < -5 ? '✅' : comp.delta > 5 ? '❌' : '⚠️'}
-                                </td>
-                              </tr>
-                            ));
-                          })()}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* Mensaje cuando no hay selección válida */}
-              {(!baseMeasurementId || !currentMeasurementId || baseMeasurementId === currentMeasurementId) && (
-                <div className="text-center py-12 text-slate-500">
-                  <TrendingUp className="h-16 w-16 mx-auto mb-4 text-slate-300" />
-                  <p className="font-medium">Selecciona dos mediciones diferentes para comparar</p>
-                  <p className="text-sm mt-2">Elige una medición base y otra para comparar en los selectores de arriba</p>
-                </div>
-              )}
             </CardContent>
           </Card>
         </div>
       )}
-
-      {/* Diálogo: Nueva Medición */}
-      <Dialog open={showNewMeasurementDialog} onOpenChange={setShowNewMeasurementDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Nueva Medición de Tiempo</DialogTitle>
-            <DialogDescription>
-              Crear una nueva medición para el área "{selectedAreaForMeasurement?.areaName}" y comparar con mediciones anteriores.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="measurement-name">Nombre del Período</Label>
-              <Input
-                id="measurement-name"
-                placeholder="Ej: Marzo 2025, Q1 2025, Después de capacitación"
-                value={newMeasurementName}
-                onChange={(e) => setNewMeasurementName(e.target.value)}
-              />
-              <p className="text-xs text-slate-500">
-                Este nombre te ayudará a identificar y comparar diferentes períodos de medición.
-              </p>
-            </div>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-800">
-                💡 <strong>Cómo funciona:</strong>
-              </p>
-              <ul className="text-xs text-blue-700 mt-2 space-y-1 list-disc list-inside">
-                <li>Se copiarán todos los cargos y actividades actuales como plantilla</li>
-                <li>Podrás editar los tiempos con los nuevos valores medidos</li>
-                <li>El sistema calculará automáticamente las diferencias y mejoras</li>
-                <li>Verás qué actividades se optimizaron y cuáles necesitan atención</li>
-              </ul>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowNewMeasurementDialog(false);
-                setNewMeasurementName("");
-              }}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={createNewMeasurement}
-              disabled={!newMeasurementName.trim()}
-            >
-              <Clock className="mr-2 h-4 w-4" />
-              Crear Medición
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      
+      {/* Diálogo de Reporte Ejecutivo IA */}
+      {showExecutiveReport && executiveReport && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+            <CardHeader className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
+              <CardTitle className="text-2xl">📊 Informe Ejecutivo Inteligente</CardTitle>
+              <CardDescription className="text-indigo-100">
+                Reporte estratégico completo generado por IA
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6 mt-6">
+              {/* Resumen Ejecutivo */}
+              <div>
+                <h3 className="text-lg font-bold text-indigo-600 mb-3 flex items-center gap-2">
+                  🎯 RESUMEN EJECUTIVO
+                </h3>
+                <p className="text-slate-700 leading-relaxed bg-indigo-50 p-4 rounded-lg">
+                  {executiveReport.resumenEjecutivo}
+                </p>
+              </div>
+              
+              <Separator />
+              
+              {/* Hallazgos Principales */}
+              <div>
+                <h3 className="text-lg font-bold text-blue-600 mb-3 flex items-center gap-2">
+                  🔍 HALLAZGOS PRINCIPALES
+                </h3>
+                <ul className="space-y-2">
+                  {executiveReport.hallazgosPrincipales.map((hallazgo: string, index: number) => (
+                    <li key={index} className="flex gap-3">
+                      <span className="text-blue-600 font-bold">{index + 1}.</span>
+                      <span className="text-slate-700">{hallazgo}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              
+              <Separator />
+              
+              {/* Recomendaciones Estratégicas */}
+              <div>
+                <h3 className="text-lg font-bold text-purple-600 mb-3 flex items-center gap-2">
+                  💡 RECOMENDACIONES ESTRATÉGICAS
+                </h3>
+                <ul className="space-y-2">
+                  {executiveReport.recomendacionesEstrategicas.map((recomendacion: string, index: number) => (
+                    <li key={index} className="flex gap-3">
+                      <span className="text-purple-600 font-bold">✓</span>
+                      <span className="text-slate-700">{recomendacion}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              
+              <Separator />
+              
+              {/* Plan de Acción */}
+              <div>
+                <h3 className="text-lg font-bold text-green-600 mb-3 flex items-center gap-2">
+                  ✅ PLAN DE ACCIÓN
+                </h3>
+                <ul className="space-y-2">
+                  {executiveReport.planDeAccion.map((accion: string, index: number) => (
+                    <li key={index} className="flex gap-3">
+                      <span className="text-green-600 font-bold">{index + 1}.</span>
+                      <span className="text-slate-700">{accion}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              
+              <Separator />
+              
+              {/* ROI Estimado */}
+              <div>
+                <h3 className="text-lg font-bold text-orange-600 mb-3 flex items-center gap-2">
+                  💰 ROI ESTIMADO
+                </h3>
+                <p className="text-slate-700 leading-relaxed bg-orange-50 p-4 rounded-lg">
+                  {executiveReport.roi}
+                </p>
+              </div>
+              
+              {/* Botones */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <Button
+                  onClick={() => {
+                    const text = `INFORME EJECUTIVO - IA\n\n` +
+                      `RESUMEN EJECUTIVO:\n${executiveReport.resumenEjecutivo}\n\n` +
+                      `HALLAZGOS PRINCIPALES:\n${executiveReport.hallazgosPrincipales.map((h: string, i: number) => `${i+1}. ${h}`).join('\n')}\n\n` +
+                      `RECOMENDACIONES ESTRATÉGICAS:\n${executiveReport.recomendacionesEstrategicas.map((r: string, i: number) => `${i+1}. ${r}`).join('\n')}\n\n` +
+                      `PLAN DE ACCIÓN:\n${executiveReport.planDeAccion.map((a: string, i: number) => `${i+1}. ${a}`).join('\n')}\n\n` +
+                      `ROI ESTIMADO:\n${executiveReport.roi}`;
+                    navigator.clipboard.writeText(text);
+                    alert('✅ Informe ejecutivo copiado al portapapeles');
+                  }}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  📋 Copiar al Portapapeles
+                </Button>
+                <Button
+                  onClick={() => setShowExecutiveReport(false)}
+                  variant="default"
+                  className="flex-1"
+                >
+                  Cerrar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+      
+      {/* Diálogo de Análisis Comparativo IA */}
+      {showComparativeAnalysis && comparativeAnalysis && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <CardHeader className="bg-gradient-to-r from-orange-600 to-pink-600 text-white">
+              <CardTitle className="text-2xl">🤖 Análisis Comparativo Inteligente</CardTitle>
+              <CardDescription className="text-orange-100">
+                Benchmarking interno y mejores prácticas entre {savedAreas.length} áreas
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6 mt-6">
+              {/* Mejores Prácticas */}
+              <div>
+                <h3 className="text-lg font-bold text-green-600 mb-3 flex items-center gap-2">
+                  🏆 MEJORES PRÁCTICAS IDENTIFICADAS
+                </h3>
+                <ul className="space-y-2">
+                  {comparativeAnalysis.mejoresPracticas.map((practica: string, index: number) => (
+                    <li key={index} className="flex gap-3">
+                      <span className="text-green-600 font-bold">✓</span>
+                      <span className="text-slate-700">{practica}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              
+              <Separator />
+              
+              {/* Áreas de Oportunidad */}
+              <div>
+                <h3 className="text-lg font-bold text-orange-600 mb-3 flex items-center gap-2">
+                  ⚠️ ÁREAS DE OPORTUNIDAD
+                </h3>
+                <ul className="space-y-2">
+                  {comparativeAnalysis.areasDeOportunidad.map((oportunidad: string, index: number) => (
+                    <li key={index} className="flex gap-3">
+                      <span className="text-orange-600 font-bold">{index + 1}.</span>
+                      <span className="text-slate-700">{oportunidad}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              
+              <Separator />
+              
+              {/* Oportunidades de Mejora Cruzada */}
+              <div>
+                <h3 className="text-lg font-bold text-blue-600 mb-3 flex items-center gap-2">
+                  🔄 OPORTUNIDADES DE MEJORA CRUZADA
+                </h3>
+                <ul className="space-y-2">
+                  {comparativeAnalysis.oportunidadesMejoraCruzada.map((mejora: string, index: number) => (
+                    <li key={index} className="flex gap-3">
+                      <span className="text-blue-600 font-bold">•</span>
+                      <span className="text-slate-700">{mejora}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              
+              <Separator />
+              
+              {/* Benchmarking Interno */}
+              <div>
+                <h3 className="text-lg font-bold text-purple-600 mb-3 flex items-center gap-2">
+                  📊 BENCHMARKING INTERNO
+                </h3>
+                <p className="text-slate-700 leading-relaxed">
+                  {comparativeAnalysis.benchmarkingInterno}
+                </p>
+              </div>
+              
+              {/* Botones */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <Button
+                  onClick={() => {
+                    const text = `ANÁLISIS COMPARATIVO - IA\n\n` +
+                      `MEJORES PRÁCTICAS:\n${comparativeAnalysis.mejoresPracticas.map((p: string, i: number) => `${i+1}. ${p}`).join('\n')}\n\n` +
+                      `ÁREAS DE OPORTUNIDAD:\n${comparativeAnalysis.areasDeOportunidad.map((o: string, i: number) => `${i+1}. ${o}`).join('\n')}\n\n` +
+                      `OPORTUNIDADES DE MEJORA CRUZADA:\n${comparativeAnalysis.oportunidadesMejoraCruzada.map((m: string, i: number) => `${i+1}. ${m}`).join('\n')}\n\n` +
+                      `BENCHMARKING INTERNO:\n${comparativeAnalysis.benchmarkingInterno}`;
+                    navigator.clipboard.writeText(text);
+                    alert('✅ Análisis comparativo copiado al portapapeles');
+                  }}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  📋 Copiar al Portapapeles
+                </Button>
+                <Button
+                  onClick={() => setShowComparativeAnalysis(false)}
+                  variant="default"
+                  className="flex-1"
+                >
+                  Cerrar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+      
+      {/* Diálogo de Análisis IA */}
+      {showAreaAnalysis && areaAnalysis && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <CardHeader className="bg-gradient-to-r from-purple-600 to-blue-600 text-white">
+              <CardTitle className="text-2xl">🤖 Análisis Inteligente con IA</CardTitle>
+              <CardDescription className="text-purple-100">
+                Recomendaciones y hallazgos generados por inteligencia artificial
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6 mt-6">
+              {/* Hallazgos Críticos */}
+              <div>
+                <h3 className="text-lg font-bold text-red-600 mb-3 flex items-center gap-2">
+                  🔴 HALLAZGOS CRÍTICOS
+                </h3>
+                <ul className="space-y-2">
+                  {areaAnalysis.hallazgosCriticos.map((hallazgo: string, index: number) => (
+                    <li key={index} className="flex gap-3">
+                      <span className="text-red-600 font-bold">•</span>
+                      <span className="text-slate-700">{hallazgo}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              
+              <Separator />
+              
+              {/* Recomendaciones Prioritarias */}
+              <div>
+                <h3 className="text-lg font-bold text-blue-600 mb-3 flex items-center gap-2">
+                  ✅ RECOMENDACIONES PRIORITARIAS
+                </h3>
+                <ul className="space-y-2">
+                  {areaAnalysis.recomendacionesPrioritarias.map((recomendacion: string, index: number) => (
+                    <li key={index} className="flex gap-3">
+                      <span className="text-blue-600 font-bold">{index + 1}.</span>
+                      <span className="text-slate-700">{recomendacion}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              
+              <Separator />
+              
+              {/* Quick Wins */}
+              <div>
+                <h3 className="text-lg font-bold text-green-600 mb-3 flex items-center gap-2">
+                  💡 QUICK WINS (Impacto Inmediato)
+                </h3>
+                <ul className="space-y-2">
+                  {areaAnalysis.quickWins.map((quickWin: string, index: number) => (
+                    <li key={index} className="flex gap-3">
+                      <span className="text-green-600 font-bold">✓</span>
+                      <span className="text-slate-700">{quickWin}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              
+              <Separator />
+              
+              {/* Análisis Detallado */}
+              <div>
+                <h3 className="text-lg font-bold text-purple-600 mb-3 flex items-center gap-2">
+                  📊 ANÁLISIS DETALLADO
+                </h3>
+                <p className="text-slate-700 leading-relaxed">
+                  {areaAnalysis.analisisDetallado}
+                </p>
+              </div>
+              
+              {/* Botones */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <Button
+                  onClick={() => {
+                    const text = `ANÁLISIS INTELIGENTE - IA\n\n` +
+                      `HALLAZGOS CRÍTICOS:\n${areaAnalysis.hallazgosCriticos.map((h: string, i: number) => `${i+1}. ${h}`).join('\n')}\n\n` +
+                      `RECOMENDACIONES PRIORITARIAS:\n${areaAnalysis.recomendacionesPrioritarias.map((r: string, i: number) => `${i+1}. ${r}`).join('\n')}\n\n` +
+                      `QUICK WINS:\n${areaAnalysis.quickWins.map((q: string, i: number) => `${i+1}. ${q}`).join('\n')}\n\n` +
+                      `ANÁLISIS DETALLADO:\n${areaAnalysis.analisisDetallado}`;
+                    navigator.clipboard.writeText(text);
+                    alert('✅ Análisis copiado al portapapeles');
+                  }}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  📋 Copiar al Portapapeles
+                </Button>
+                <Button
+                  onClick={() => setShowAreaAnalysis(false)}
+                  variant="default"
+                  className="flex-1"
+                >
+                  Cerrar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

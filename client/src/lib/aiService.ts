@@ -1,15 +1,38 @@
-/**
- * Servicio de IA para el Asistente Tortuga
- * Usa el endpoint de backend que llama a la API de Manus Forge
- */
-
 export interface TurtleSuggestions {
   entradas: string[];
   salidas: string[];
   recursos: string[];
-  metodos: string[];
   indicadores: string[];
   competencias: string[];
+}
+
+export interface AreaAnalysis {
+  hallazgosCriticos: string[];
+  recomendacionesPrioritarias: string[];
+  quickWins: string[];
+  analisisDetallado: string;
+}
+
+export interface ComparativeAnalysis {
+  mejoresPracticas: string[];
+  areasDeOportunidad: string[];
+  oportunidadesMejoraCruzada: string[];
+  benchmarkingInterno: string;
+}
+
+export interface ProcessFlowAnalysis {
+  cuellosDeBottella: string[];
+  oportunidadesOptimizacion: string[];
+  riesgosIdentificados: string[];
+  analisisDetallado: string;
+}
+
+export interface ExecutiveReport {
+  resumenEjecutivo: string;
+  hallazgosPrincipales: string[];
+  recomendacionesEstrategicas: string[];
+  planDeAccion: string[];
+  roi: string;
 }
 
 /**
@@ -21,7 +44,6 @@ export async function generateTurtleSuggestions(
   processDescription?: string
 ): Promise<TurtleSuggestions> {
   try {
-    // Llamada directa a la API del backend usando el formato de tRPC
     const response = await fetch('/api/trpc/ai.generateTurtleSuggestions', {
       method: 'POST',
       headers: {
@@ -31,7 +53,7 @@ export async function generateTurtleSuggestions(
         "0": {
           json: {
             areaName,
-            processDescription,
+            processDescription: processDescription || "",
           },
         },
       }),
@@ -48,16 +70,7 @@ export async function generateTurtleSuggestions(
       throw new Error("Respuesta inválida de la IA");
     }
 
-    const suggestions = result.suggestions;
-
-    return {
-      entradas: suggestions.entradas || [],
-      salidas: suggestions.salidas || [],
-      recursos: suggestions.recursos || [],
-      metodos: suggestions.metodos || [],
-      indicadores: suggestions.indicadores || [],
-      competencias: suggestions.competencias || [],
-    };
+    return result.suggestions;
   } catch (error) {
     console.error("Error al generar sugerencias:", error);
     throw new Error("Error al generar sugerencias. Por favor, intenta nuevamente.");

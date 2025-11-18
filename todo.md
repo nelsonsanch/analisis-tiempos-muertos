@@ -185,7 +185,7 @@
 - [x] Verificar que no haya warnings de React en consola (warning residual puede venir de librerías externas)
 
 
-## Supresi\u00f## Supresión de Warning de Keys Duplicadas
+## Supresión de Warning de Keys Duplicadas
 
 - [x] Agregar configuración para suprimir warning específico de keys en desarrollo
 - [x] Verificar que el warning no aparezca en consola
@@ -264,60 +264,139 @@
 
 - [x] Eliminar botones Dashboard y Usuarios no funcionales
 - [x] Eliminar imports de iconos LayoutDashboard y Shield
-- [x] Crear checkpoint limpio
-- [x] Subir código a GitHub
+- [ ] Crear checkpoint limpio
+- [ ] Subir código a GitHub
 
+## Reimplementación Vista Comparativa
+- [x] Reimplementar vista comparativa de mediciones (simple y robusta)
+- [x] Agregar selectores de medición base y actual
+- [x] Implementar validación para comparar Estado Actual vs Mediciones
+- [x] Crear tabla comparativa con todas las columnas
+- [x] Agregar gráficos de barras horizontales
+- [x] Implementar botón copiar tabla como imagen
+- [x] Implementar botón copiar gráficos como imagen
 
-## Recuperación de Botones Dashboard y Usuarios Funcionales
+## Botón Nueva Medición
+- [x] Agregar botón "Nueva Medición" en tarjetas de área (siempre visible)
+- [x] Crear diálogo para ingresar nombre de la nueva medición
+- [x] Implementar función para crear snapshot del estado actual
+- [x] Mostrar ambos botones: "Nueva Medición" y "Ver Mediciones (X)"
 
-- [x] Clonar repositorio de GitHub
-- [x] Analizar código de Dashboard ejecutivo con gráficos de barras
-- [x] Analizar código de gestión de Usuarios
-- [x] Restaurar botones funcionales en proyecto actual
-- [x] Verificar que Dashboard muestre tiempos por áreas
-- [x] Verificar que gestión de Usuarios funcione
-- [x] Subir código completo a GitHub
+## Corrección Botón Crear Medición
+- [x] Diagnosticar por qué el botón "Crear Medición" no responde
+- [x] Verificar función createNewMeasurement
+- [x] Corregir manejo del diálogo y estado (cambiar updateArea por saveAreaToFirestore)
+- [ ] Probar creación de mediciones
 
+## Sistema de Mediciones Globales (Opción B - CONFIRMADA)
+- [x] Confirmar diseño propuesto con el usuario
+- [x] Rediseñar estructura de datos para mediciones globales (snapshot de todas las áreas)
+- [x] Crear botón "Crear Medición Global" en header principal
+- [x] Implementar diálogo para nombrar medición global
+- [x] Agregar botón "Mediciones" en header con contador
+- [x] Implementar función createGlobalMeasurement
+- [x] Suscripción en tiempo real a mediciones globales
+- [x] Crear Dashboard de Mediciones con tabla: Nombre | Fecha | # Áreas | Promedios
+- [x] Agregar botones Ver Detalle y Eliminar
+- [x] Agregar sección de comparación con selectores
+- [x] Implementar vista de detalle de medición (mostrar todas las áreas de ese snapshot)
+- [x] Implementar comparación entre 2 mediciones globales
+- [x] Crear gráficos de evolución temporal (productivo y muerto)
+- [x] Agregar indicadores visuales (↑ mejoró, ↓ empeoró, → igual, ∼ mixto)
+- [x] Eliminar sistema antiguo de mediciones por área individual
+- [x] Limpiar botones "Nueva Medición" y "Ver Mediciones" de las tarjetas
+- [x] Comentar estados y funciones del sistema antiguo
+- [x] Probar flujo completo: Crear Medición Global → Ver Dashboard → Comparar
 
-## Mejoras de Header y Sistema de Mediciones por Períodos
+## FASE 7: Corrección de Permisos Firestore para Mediciones Globales
+- [x] Revisar reglas de seguridad actuales en Firestore
+- [x] Agregar reglas para colección 'globalMeasurements'
+- [x] Actualizar archivo CONFIGURACION_FIREBASE.md con nuevas reglas
+- [ ] Usuario debe aplicar reglas en Firebase Console
+- [ ] Probar creación y lectura de mediciones globales
 
-- [x] Quitar botón "Comparar" del header
-- [x] Agregar botón "Cerrar Sesión" visible en el header
-- [x] Hacer header responsivo para móviles
-- [ ] Diseñar estructura de datos para mediciones por períodos
-- [ ] Crear interfaz para nueva medición de tiempo
-- [ ] Implementar selector de período de medición
-- [ ] Crear vista comparativa entre períodos
-- [ ] Probar funcionalidad completa antes de subir a GitHub
+## FASE 8: Diagnóstico de Error Persistente de Permisos
+- [x] Verificar que reglas se publicaron correctamente en Firebase Console
+- [x] Revisar código de firestoreService.ts para identificar problema
+- [x] Verificar nombre exacto de colección en código vs reglas (ENCONTRADO: timeAnalysisAreas != areas)
+- [x] Actualizar CONFIGURACION_FIREBASE.md con reglas corregidas
+- [ ] Usuario debe aplicar reglas corregidas en Firebase Console
+- [ ] Verificar funcionamiento completo
 
+## Actualización de GitHub
+- [x] Verificar estado de Git
+- [x] Hacer commit de cambios recientes
+- [x] Push a repositorio remoto
+- [x] Verificar que el código se subió correctamente
 
-## Reorganización de Header con Menú Desplegable
+## Corrección de Error de Build en Netlify
+- [x] Diagnosticar error de html2canvas en build
+- [x] Verificar que html2canvas esté en package.json
+- [x] Agregar html2canvas a dependencias (faltaba)
+- [x] Subir corrección a GitHub
+- [ ] Usuario debe hacer redeploy en Netlify
+- [ ] Verificar que build funcione correctamente
 
-- [x] Crear menú desplegable con ícono de 3 puntos
-- [x] Mover Dashboard, Usuarios, Mapa de Procesos, Matriz SIPOC y Exportar al menú
-- [x] Agregar separador antes de Cerrar Sesión
-- [x] Poner Cerrar Sesión en rojo al final del menú
-- [x] Dejar solo "Nueva Área" como botón principal visible
+## Rediseño de Interfaz Responsiva con Pestañas
+- [ ] Crear sistema de navegación por pestañas (Áreas, Mediciones, Mapa Procesos, Matriz SIPOC)
+- [ ] Reorganizar header para ser más limpio y responsivo
+- [ ] Eliminar botón "Comparador" del header
+- [ ] Cambiar exportación de JSON a PDF por área
+- [ ] Optimizar diseño para móviles (< 768px)
+- [ ] Optimizar diseño para tablets (768px - 1024px)
+- [ ] Probar navegación y funcionalidad
+- [ ] Subir cambios a GitHub
 
+## Sistema de Exportación PDF e Informes IA
 
-## Corrección de Botones Duplicados
+### Fase 1: Exportación PDF Historial Completo
+- [x] Crear función exportAllAreasPDF con portada
+- [x] Agregar tabla resumen de todas las áreas
+- [x] Incluir gráficos comparativos (barras y radar)
+- [x] Agregar detalle completo de cada área
+- [x] Incluir mapa de procesos (interacciones entre áreas)
+- [x] Incluir matriz SIPOC consolidada
+- [x] Agregar botón "📄 Exportar Historial Completo PDF" en header
 
-- [x] Eliminar botones "Mapa de Procesos", "Matriz SIPOC" y "Exportar" que quedaron fuera del menú
-- [x] Verificar que solo queden dentro del menú desplegable
+### Fase 2: Análisis IA Individual por Área
+- [x] Crear función analyzeAreaWithAI
+- [x] Crear endpoint /api/ai/analyze-area
+- [x] Implementar prompt para análisis de área individual
+- [x] Agregar botón "🤖 Generar Análisis IA" en vista de área
+- [x] Mostrar análisis en diálogo con formato bonito
+- [x] Agregar opción de copiar análisis al portapapeles
 
+### Fase 3: Análisis IA Comparativo
+- [x] Crear función compareAreasWithAI
+- [x] Crear endpoint /api/ai/compare-areas
+- [x] Implementar prompt para análisis comparativo
+- [x] Agregar botón "🤖 Análisis Comparativo IA" en vista de áreas
+- [x] Mostrar benchmarking y mejores prácticas
 
-## Implementación de Sistema de Mediciones Comparativas
+### Fase 4: Análisis IA en Procesos
+- [x] Crear función analyzeProcessFlowWithAI para Mapa de Procesos
+- [x] Crear endpoint /api/ai/analyze-process-flow
+- [x] Agregar botón "🤖 Analizar Flujo IA" en Mapa de Procesos
+- [x] Mostrar cuellos de botella, oportunidades y riesgos
+- [x] Incluir análisis detallado del flujo y SIPOC
 
-- [x] Crear estado para controlar diálogo de nueva medición
-- [x] Implementar diálogo con formulario para nombre del período
-- [x] Función para copiar estructura del área como plantilla
-- [x] Función para guardar nueva medición en el área
-- [x] Agregar botón "Ver Mediciones" en tarjetas de área
-- [x] Crear vista de lista de mediciones con fechas
-- [x] Implementar selector de medición base y medición actual
-- [x] Crear tabla comparativa con columnas: Cargo | Actividad | Base | Actual | Δ | % Mejora
-- [x] Agregar indicadores visuales (✅ verde, ⚠️ amarillo, ❌ rojo)
-- [ ] Implementar gráficos de barras horizontales por actividad
-- [x] Agregar botón para copiar gráficos como imagen
-- [x] Implementar funcionalidad de exportar gráfico a clipboard
-- [ ] Implementar filtros por cargo y tipo de actividad
+### Fase 5: Informe Ejecutivo IA
+- [x] Crear función generateExecutiveReportWithAI
+- [x] Crear endpoint /api/ai/generate-executive-report
+- [x] Agregar botón "🤖 Informe Ejecutivo IA" en header
+- [x] Incluir resumen ejecutivo, hallazgos principales
+- [x] Incluir recomendaciones estratégicas y plan de acción
+- [x] Incluir análisis de ROI estimado
+
+## Reorganización Visual de Botones
+
+- [x] Analizar estructura actual de botones en todas las vistas
+- [x] Diseñar jerarquía visual clara (primarios, secundarios, terciarios)
+- [x] Reorganizar botones en header principal con agrupación lógica
+- [x] Mejorar disposición de botones en tarjetas de área
+- [x] Reorganizar controles en vista de formulario
+- [x] Mejorar botones en vistas especiales (Comparar, Mapa, SIPOC, Mediciones)
+- [x] Aplicar espaciado consistente y alineación profesional
+- [x] Usar variantes de botones apropiadas (default, outline, ghost)
+- [x] Agrupar botones relacionados visualmente
+- [x] Verificar responsividad en móvil y tablet
