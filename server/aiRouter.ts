@@ -87,7 +87,7 @@ Responde SOLO con un objeto JSON válido con esta estructura exacta:
         positions: z.array(
           z.object({
             name: z.string(),
-            peopleCount: z.number(),
+            peopleCount: z.number().optional(),
             activities: z.array(
               z.object({
                 name: z.string(),
