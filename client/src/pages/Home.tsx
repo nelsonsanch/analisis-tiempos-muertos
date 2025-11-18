@@ -1467,14 +1467,17 @@ export default function Home() {
                 </div>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
+            {/* Botones de Acción */}
+            <div className="flex flex-wrap items-center gap-3">
               {view === "list" && (
                 <>
-                  <Button onClick={newArea} size="default" className="flex-1 sm:flex-none">
+                  {/* Acción Primaria */}
+                  <Button onClick={newArea} size="lg" className="shadow-sm">
                     <Plus className="mr-2 h-4 w-4" />
                     <span className="hidden sm:inline">Nueva Área</span>
                     <span className="sm:hidden">Área</span>
                   </Button>
+                  
                   {savedAreas.length === 0 && (
                     <Button 
                       onClick={async () => {
@@ -1550,58 +1553,81 @@ export default function Home() {
                   )}
                   {savedAreas.length > 0 && (
                     <>
-                      <Button onClick={() => setShowGlobalMeasurementDialog(true)} variant="default" size="default" className="flex-1 sm:flex-none">
-                        <Plus className="mr-2 h-4 w-4" />
-                        <span className="hidden md:inline">📸 Crear Medición</span>
-                        <span className="md:hidden">📸</span>
-                      </Button>
-                      <Button onClick={exportAllAreasPDF} variant="outline" size="default" className="flex-1 sm:flex-none">
-                        <Download className="mr-2 h-4 w-4" />
-                        <span className="hidden md:inline">📄 Exportar Historial PDF</span>
-                        <span className="md:hidden">📄 PDF</span>
-                      </Button>
-                      {savedAreas.length >= 2 && (
+                      {/* Separador Visual */}
+                      <div className="hidden md:block h-8 w-px bg-slate-300"></div>
+                      
+                      {/* Grupo: Herramientas */}
+                      <div className="flex flex-wrap gap-2">
                         <Button 
-                          onClick={handleCompareAreas} 
-                          variant="default" 
-                          size="default" 
-                          className="flex-1 sm:flex-none bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700"
-                          disabled={isComparingAreas}
+                          onClick={() => setShowGlobalMeasurementDialog(true)} 
+                          variant="outline" 
+                          size="lg"
+                          className="shadow-sm"
                         >
-                          {isComparingAreas ? (
+                          <Plus className="mr-2 h-4 w-4" />
+                          <span className="hidden md:inline">Crear Medición</span>
+                          <span className="md:hidden">📸</span>
+                        </Button>
+                        <Button 
+                          onClick={exportAllAreasPDF} 
+                          variant="outline" 
+                          size="lg"
+                          className="shadow-sm"
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          <span className="hidden md:inline">Exportar PDF</span>
+                          <span className="md:hidden">📄</span>
+                        </Button>
+                      </div>
+                      
+                      {/* Separador Visual */}
+                      <div className="hidden lg:block h-8 w-px bg-slate-300"></div>
+                      
+                      {/* Grupo: Análisis IA */}
+                      <div className="flex flex-wrap gap-2">
+                        {savedAreas.length >= 2 && (
+                          <Button 
+                            onClick={handleCompareAreas} 
+                            variant="default" 
+                            size="lg" 
+                            className="shadow-md bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700"
+                            disabled={isComparingAreas}
+                          >
+                            {isComparingAreas ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                <span className="hidden md:inline">Analizando...</span>
+                                <span className="md:hidden">...</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="hidden md:inline">🤖 Comparar Áreas</span>
+                                <span className="md:hidden">🤖</span>
+                              </>
+                            )}
+                          </Button>
+                        )}
+                        <Button 
+                          onClick={handleGenerateExecutiveReport} 
+                          variant="default" 
+                          size="lg" 
+                          className="shadow-md bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                          disabled={isGeneratingReport}
+                        >
+                          {isGeneratingReport ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              <span className="hidden md:inline">Analizando...</span>
+                              <span className="hidden md:inline">Generando...</span>
                               <span className="md:hidden">...</span>
                             </>
                           ) : (
                             <>
-                              <span className="hidden md:inline">🤖 Análisis Comparativo IA</span>
-                              <span className="md:hidden">🤖</span>
+                              <span className="hidden md:inline">🤖 Informe Ejecutivo</span>
+                              <span className="md:hidden">📊</span>
                             </>
                           )}
                         </Button>
-                      )}
-                      <Button 
-                        onClick={handleGenerateExecutiveReport} 
-                        variant="default" 
-                        size="default" 
-                        className="flex-1 sm:flex-none bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
-                        disabled={isGeneratingReport}
-                      >
-                        {isGeneratingReport ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            <span className="hidden md:inline">Generando...</span>
-                            <span className="md:hidden">...</span>
-                          </>
-                        ) : (
-                          <>
-                            <span className="hidden md:inline">🤖 Informe Ejecutivo IA</span>
-                            <span className="md:hidden">📊</span>
-                          </>
-                        )}
-                      </Button>
+                      </div>
                     </>
                   )}
                 </>
@@ -1739,56 +1765,61 @@ export default function Home() {
                             <Separator />
                             <div className="text-sm text-slate-600">
                               <strong>{getAllActivities(area).length}</strong> actividades registradas
-                            </div>                            <div className="space-y-2 mt-4">
-                              <div className="flex flex-col sm:flex-row gap-2">
+                            </div>                            {/* Botones de Acción */}
+                            <div className="space-y-2 mt-4">
+                              {/* Grupo: Acciones Principales */}
+                              <div className="grid grid-cols-2 gap-2">
                                 <Button
                                   onClick={() => editArea(area)}
-                                  variant="outline"
+                                  variant="default"
                                   size="sm"
-                                  className="flex-1"
+                                  className="w-full"
                                 >
-                                  <Edit className="mr-1 h-3 w-3" />
-                                  <span className="hidden sm:inline">Ver/Editar</span>
-                                  <span className="sm:hidden">Editar</span>
+                                  <Edit className="mr-1.5 h-3.5 w-3.5" />
+                                  <span>Ver/Editar</span>
                                 </Button>
                                 <Button
                                   onClick={() => exportArea(area)}
                                   variant="outline"
                                   size="sm"
-                                  className="flex-1"
+                                  className="w-full"
                                 >
-                                  <Download className="mr-1 h-3 w-3" />
-                                  <span className="hidden sm:inline">Exportar PDF</span>
-                                  <span className="sm:hidden">PDF</span>
-                                </Button>
-                                <Button
-                                  onClick={() => deleteArea(area.id)}
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={!area.id}
-                                >
-                                  <Trash2 className="h-3 w-3 text-red-500" />
+                                  <Download className="mr-1.5 h-3.5 w-3.5" />
+                                  <span>Exportar</span>
                                 </Button>
                               </div>
+                              
+                              {/* Análisis IA */}
                               <Button
                                 onClick={() => handleAnalyzeArea(area)}
                                 variant="default"
                                 size="sm"
-                                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                                className="w-full shadow-sm bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
                                 disabled={isAnalyzingArea}
                               >
                                 {isAnalyzingArea ? (
                                   <>
-                                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
                                     Analizando...
                                   </>
                                 ) : (
                                   <>
-                                    🤖 Generar Análisis IA
+                                    🤖 Análisis IA
                                   </>
                                 )}
                               </Button>
-
+                              
+                              {/* Botón Eliminar */}
+                              <Button
+                                onClick={() => deleteArea(area.id)}
+                                variant="ghost"
+                                size="sm"
+                                disabled={!area.id}
+                                className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                                Eliminar área
+                              </Button>
                             </div>                       </CardContent>
                         </Card>
                       );
@@ -2251,9 +2282,9 @@ export default function Home() {
                         }
                       }}
                     />
-                    <Button onClick={addPosition}>
+                    <Button onClick={addPosition} size="lg" className="shadow-sm whitespace-nowrap">
                       <Plus className="mr-2 h-4 w-4" />
-                      Agregar Cargo
+                      Agregar
                     </Button>
                   </div>
 
@@ -2354,16 +2385,16 @@ export default function Home() {
                       <Label>&nbsp;</Label>
                       {editingActivity ? (
                         <div className="flex gap-2">
-                          <Button onClick={updateActivity} className="flex-1">
+                          <Button onClick={updateActivity} size="lg" className="flex-1 shadow-sm">
                             <Pencil className="mr-2 h-4 w-4" />
                             Actualizar
                           </Button>
-                          <Button onClick={cancelEdit} variant="outline" className="flex-1">
+                          <Button onClick={cancelEdit} variant="outline" size="lg" className="flex-1">
                             Cancelar
                           </Button>
                         </div>
                       ) : (
-                        <Button onClick={addActivity} className="w-full">
+                        <Button onClick={addActivity} size="lg" className="w-full shadow-sm">
                           <Plus className="mr-2 h-4 w-4" />
                           Agregar
                         </Button>
@@ -3125,17 +3156,17 @@ export default function Home() {
                                 </span>
                               </td>
                               <td className="p-3">
-                                <div className="flex gap-2 justify-center">
+                                <div className="flex gap-1.5 justify-center">
                                   <Button 
                                     onClick={() => {
                                       setSelectedMeasurement(measurement);
                                       setView("measurement-detail");
                                     }}
-                                    variant="outline" 
+                                    variant="default" 
                                     size="sm"
                                   >
-                                    <FileText className="mr-1 h-3 w-3" />
-                                    Ver Detalle
+                                    <FileText className="mr-1.5 h-3.5 w-3.5" />
+                                    Ver
                                   </Button>
                                   <Button 
                                     onClick={async () => {
@@ -3148,10 +3179,11 @@ export default function Home() {
                                         }
                                       }
                                     }}
-                                    variant="outline" 
+                                    variant="ghost" 
                                     size="sm"
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
                                   >
-                                    <Trash2 className="h-3 w-3 text-red-600" />
+                                    <Trash2 className="h-3.5 w-3.5" />
                                   </Button>
                                 </div>
                               </td>
@@ -3212,10 +3244,11 @@ export default function Home() {
                             }
                           }}
                           disabled={!measurementToCompare1 || !measurementToCompare2}
-                          className="w-full"
+                          size="lg"
+                          className="w-full shadow-sm"
                         >
                           <TrendingUp className="mr-2 h-4 w-4" />
-                          Comparar
+                          Comparar Mediciones
                         </Button>
                       </div>
                     </div>
@@ -3609,14 +3642,14 @@ export default function Home() {
                   <Button 
                     onClick={handleAnalyzeProcesses}
                     variant="default"
-                    size="sm"
-                    className="bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700"
+                    size="lg"
+                    className="shadow-md bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700"
                     disabled={isAnalyzingProcesses}
                   >
                     {isAnalyzingProcesses ? (
                       <>
-                        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                        Analizando...
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Analizando flujo...
                       </>
                     ) : (
                       <>

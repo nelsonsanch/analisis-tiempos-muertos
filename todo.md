@@ -387,3 +387,16 @@
 - [x] Incluir resumen ejecutivo, hallazgos principales
 - [x] Incluir recomendaciones estratégicas y plan de acción
 - [x] Incluir análisis de ROI estimado
+
+## Reorganización Visual de Botones
+
+- [x] Analizar estructura actual de botones en todas las vistas
+- [x] Diseñar jerarquía visual clara (primarios, secundarios, terciarios)
+- [x] Reorganizar botones en header principal con agrupación lógica
+- [x] Mejorar disposición de botones en tarjetas de área
+- [x] Reorganizar controles en vista de formulario
+- [x] Mejorar botones en vistas especiales (Comparar, Mapa, SIPOC, Mediciones)
+- [x] Aplicar espaciado consistente y alineación profesional
+- [x] Usar variantes de botones apropiadas (default, outline, ghost)
+- [x] Agrupar botones relacionados visualmente
+- [x] Verificar responsividad en móvil y tablet
