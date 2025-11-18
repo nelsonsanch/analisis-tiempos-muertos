@@ -324,7 +324,7 @@
 - [ ] Verificar funcionamiento completo
 
 ## Actualización de GitHub
-- [ ] Verificar estado de Git
-- [ ] Hacer commit de cambios recientes
-- [ ] Push a repositorio remoto
-- [ ] Verificar que el código se subió correctamente
+- [x] Verificar estado de Git
+- [x] Hacer commit de cambios recientes
+- [x] Push a repositorio remoto
+- [x] Verificar que el código se subió correctamente
