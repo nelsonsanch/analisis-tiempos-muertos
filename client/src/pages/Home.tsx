@@ -695,6 +695,18 @@ export default function Home() {
     setIsAnalyzingArea(true);
     try {
       const totals = calculateTotals(area);
+      // Asegurar que todas las posiciones tengan peopleCount
+      const positionsWithCount = area.positions.map(pos => ({
+        name: pos.name,
+        peopleCount: pos.peopleCount || 1, // Valor por defecto si no existe
+        activities: pos.activities.map(act => ({
+          name: act.name,
+          type: act.type,
+          timeMinutes: act.timeMinutes,
+          frequency: act.frequency,
+        })),
+      }));
+      
       const analysis = await analyzeAreaWithAI({
         areaName: area.areaName,
         managerName: area.managerName,
@@ -705,7 +717,7 @@ export default function Home() {
         supportTime: totals.supportTime,
         deadTime: totals.deadTime,
         workdayMinutes: area.workdayMinutes,
-        positions: area.positions,
+        positions: positionsWithCount,
         observations: area.observations,
       });
       

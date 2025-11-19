@@ -429,5 +429,13 @@
 - [x] Analizar estructura real de respuesta JSON de la API (result.data.json)
 - [x] Ajustar validación en compareAreasWithAI
 - [x] Verificar validación en otras funciones de IA (todas corregidas)
-- [ ] Probar con datos reales desde la UI
+- [x] Probar con datos reales desde la UI
+- [x] Crear checkpoint final
+
+## Corrección Error 400 en analyzeArea
+- [x] Revisar schema de validación del endpoint analyzeArea en aiRouter.ts
+- [x] Verificar datos enviados desde handleAnalyzeArea en Home.tsx
+- [x] Identificar discrepancia entre datos enviados y schema esperado (peopleCount faltante)
+- [x] Corregir formato de datos agregando valor por defecto peopleCount: 1
+- [ ] Probar análisis de área con datos reales
 - [ ] Crear checkpoint final
