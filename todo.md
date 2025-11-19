@@ -409,3 +409,13 @@
 - [ ] Configurar variables de entorno en Netlify (acción del usuario)
 - [ ] Autorizar dominio de Netlify en Firebase Console (acción del usuario)
 - [ ] Verificar que la aplicación funcione correctamente en Netlify
+
+## Mejoras de Seguridad y Despliegue
+
+- [x] Crear reglas de seguridad de Firebase más restrictivas
+- [x] Implementar página de error personalizada para fallos de Firebase
+- [x] Crear guía paso a paso para configuración de Netlify
+- [ ] Configurar variables de entorno en Netlify (acción del usuario)
+- [ ] Autorizar dominio de Netlify en Firebase Console (acción del usuario)
+- [ ] Aplicar reglas de seguridad en Firebase Console (acción del usuario)
+- [ ] Verificar funcionamiento completo en Netlify

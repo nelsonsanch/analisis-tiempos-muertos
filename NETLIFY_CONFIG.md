@@ -35,28 +35,49 @@ VITE_APP_LOGO=https://placehold.co/128x128/E1E7EF/1F2937?text=App
 
 ## Pasos para Configurar en Netlify
 
-1. **Accede a tu sitio en Netlify**
-   - Ve a https://app.netlify.com/
-   - Selecciona tu sitio "analisis-tiempos-muertos"
+### Paso 1: Acceder a la configuración del sitio
 
-2. **Navega a Environment Variables**
-   - Haz clic en **Site settings**
-   - En el menú lateral, busca **Environment variables**
-   - Haz clic en **Add a variable**
+1. Abre tu navegador y ve a https://app.netlify.com/
+2. Inicia sesión si es necesario
+3. En el dashboard, busca y haz clic en tu sitio **analisis-tiempos-muertos**
+4. Una vez dentro del sitio, haz clic en **Site settings** (en el menú superior)
 
-3. **Agrega cada variable**
-   - **Key**: Copia el nombre de la variable (ej: `VITE_FIREBASE_API_KEY`)
+### Paso 2: Configurar variables de entorno
+
+1. En el menú lateral izquierdo, busca la sección **Environment variables**
+2. Haz clic en **Add a variable** (botón verde)
+3. Para cada variable de la lista de arriba:
+   - **Key**: Copia exactamente el nombre (ej: `VITE_FIREBASE_API_KEY`)
    - **Value**: Copia el valor correspondiente
-   - **Scopes**: Selecciona "All scopes" o al menos "Production" y "Deploy previews"
+   - **Scopes**: 
+     - Marca **All scopes** (recomendado)
+     - O al menos marca **Production** y **Deploy previews**
    - Haz clic en **Create variable**
+4. Repite el proceso para las **9 variables** listadas arriba
 
-4. **Repite para todas las variables**
-   - Agrega las 9 variables listadas arriba
+### Paso 3: Verificar las variables
 
-5. **Redeploy tu sitio**
-   - Ve a **Deploys**
-   - Haz clic en **Trigger deploy** → **Deploy site**
-   - Espera a que termine el despliegue
+Después de agregar todas las variables, deberías ver una lista como esta:
+
+```
+VITE_FIREBASE_API_KEY
+VITE_FIREBASE_AUTH_DOMAIN
+VITE_FIREBASE_PROJECT_ID
+VITE_FIREBASE_STORAGE_BUCKET
+VITE_FIREBASE_MESSAGING_SENDER_ID
+VITE_FIREBASE_APP_ID
+VITE_FIREBASE_MEASUREMENT_ID
+VITE_APP_TITLE
+VITE_APP_LOGO
+```
+
+### Paso 4: Redesplegar el sitio
+
+1. Ve a la pestaña **Deploys** (en el menú superior)
+2. Haz clic en el botón **Trigger deploy** (esquina superior derecha)
+3. Selecciona **Deploy site**
+4. Espera a que el despliegue termine (aparecerá un check verde cuando esté listo)
+5. Esto puede tomar 2-5 minutos
 
 ## Configuración Adicional en Firebase Console
 
