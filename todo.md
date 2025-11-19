@@ -419,3 +419,12 @@
 - [ ] Autorizar dominio de Netlify en Firebase Console (acción del usuario)
 - [ ] Aplicar reglas de seguridad en Firebase Console (acción del usuario)
 - [ ] Verificar funcionamiento completo en Netlify
+
+## Corrección de Error de API en Netlify
+
+- [ ] Diagnosticar por qué las rutas /api/trpc/* devuelven 404 en Netlify
+- [ ] Verificar configuración de Netlify Functions
+- [ ] Crear archivo netlify.toml con redirects correctos
+- [ ] Verificar que el servidor Express esté configurado correctamente
+- [ ] Subir corrección a GitHub
+- [ ] Verificar que botones de IA funcionen en producción
