@@ -9,7 +9,7 @@ import {
   deleteGlobalMeasurement,
   type GlobalMeasurement 
 } from "@/lib/firestoreService";
-import { generateTurtleSuggestions, type TurtleSuggestions, type AreaAnalysis, type ComparativeAnalysis, type ProcessFlowAnalysis, type ExecutiveReport } from "@/lib/aiService";
+import { generateTurtleSuggestions, type TurtleSuggestions, analyzeAreaWithAI, type AreaAnalysis, compareAreasWithAI, type ComparativeAnalysis, analyzeProcessFlowWithAI, type ProcessFlowAnalysis, generateExecutiveReportWithAI, type ExecutiveReport } from "@/lib/aiService";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -688,187 +688,162 @@ export default function Home() {
     alert('¡Sugerencias aplicadas! Puedes editarlas según necesites.');
   };
   
-  // Mutation para analizar área con IA
-  const analyzeAreaMutation = trpc.ai.analyzeArea.useMutation({
-    onSuccess: (data: any) => {
-      if (data.success && data.analysis) {
-        setAreaAnalysis(data.analysis);
-        setShowAreaAnalysis(true);
-      }
-      setIsAnalyzingArea(false);
-    },
-    onError: (error: any) => {
+  // Función para analizar área con IA
+  const handleAnalyzeArea = async (area: InterviewData) => {
+    setIsAnalyzingArea(true);
+    try {
+      const totals = calculateTotals(area);
+      const analysis = await analyzeAreaWithAI({
+        areaName: area.areaName,
+        managerName: area.managerName,
+        productivePercentage: totals.productivePercentage,
+        supportPercentage: totals.supportPercentage,
+        deadTimePercentage: totals.deadTimePercentage,
+        productiveTime: totals.productiveTime,
+        supportTime: totals.supportTime,
+        deadTime: totals.deadTime,
+        workdayMinutes: area.workdayMinutes,
+        positions: area.positions,
+        observations: area.observations,
+      });
+      
+      setAreaAnalysis(analysis);
+      setShowAreaAnalysis(true);
+    } catch (error) {
       console.error('Error al analizar área:', error);
       alert('No se pudo generar el análisis. Por favor, intenta de nuevo.');
+    } finally {
       setIsAnalyzingArea(false);
-    },
-  });
-  
-  // Función para analizar área con IA
-  const handleAnalyzeArea = (area: InterviewData) => {
-    setIsAnalyzingArea(true);
-    const totals = calculateTotals(area);
-    analyzeAreaMutation.mutate({
-      areaName: area.areaName,
-      managerName: area.managerName,
-      productivePercentage: totals.productivePercentage,
-      supportPercentage: totals.supportPercentage,
-      deadTimePercentage: totals.deadTimePercentage,
-      productiveTime: totals.productiveTime,
-      supportTime: totals.supportTime,
-      deadTime: totals.deadTime,
-      workdayMinutes: area.workdayMinutes,
-      positions: area.positions,
-      observations: area.observations,
-    });
+    }
   };
   
-  // Mutation para comparar áreas con IA
-  const compareAreasMutation = trpc.ai.compareAreas.useMutation({
-    onSuccess: (data: any) => {
-      if (data.success && data.analysis) {
-        setComparativeAnalysis(data.analysis);
-        setShowComparativeAnalysis(true);
-      }
-      setIsComparingAreas(false);
-    },
-    onError: (error: any) => {
-      console.error('Error al comparar áreas:', error);
-      alert('No se pudo generar el análisis comparativo. Por favor, intenta de nuevo.');
-      setIsComparingAreas(false);
-    },
-  });
-  
   // Función para comparar todas las áreas con IA
-  const handleCompareAreas = () => {
+  const handleCompareAreas = async () => {
     if (savedAreas.length < 2) {
       alert('Necesitas al menos 2 áreas para realizar un análisis comparativo.');
       return;
     }
     
     setIsComparingAreas(true);
-    const areasData = savedAreas.map((area) => {
-      const totals = calculateTotals(area);
-      return {
-        areaName: area.areaName,
-        managerName: area.managerName,
-        productivePercentage: totals.productivePercentage,
-        supportPercentage: totals.supportPercentage,
-        deadTimePercentage: totals.deadTimePercentage,
-        totalActivities: getAllActivities(area).length,
-      };
-    });
-    
-    compareAreasMutation.mutate({ areas: areasData });
+    try {
+      const areasData = savedAreas.map((area) => {
+        const totals = calculateTotals(area);
+        return {
+          areaName: area.areaName,
+          managerName: area.managerName,
+          productivePercentage: totals.productivePercentage,
+          supportPercentage: totals.supportPercentage,
+          deadTimePercentage: totals.deadTimePercentage,
+          totalActivities: getAllActivities(area).length,
+        };
+      });
+      
+      const analysis = await compareAreasWithAI(areasData);
+      setComparativeAnalysis(analysis);
+      setShowComparativeAnalysis(true);
+    } catch (error) {
+      console.error('Error al comparar áreas:', error);
+      alert('No se pudo generar el análisis comparativo. Por favor, intenta de nuevo.');
+    } finally {
+      setIsComparingAreas(false);
+    }
   };
   
-  // Mutation para analizar flujo de procesos con IA
-  const analyzeProcessesMutation = trpc.ai.analyzeProcessFlow.useMutation({
-    onSuccess: (data: any) => {
-      if (data.success && data.analysis) {
-        setProcessAnalysis(data.analysis);
-        setShowProcessAnalysis(true);
-      }
-      setIsAnalyzingProcesses(false);
-    },
-    onError: (error: any) => {
-      console.error('Error al analizar procesos:', error);
-      alert('No se pudo generar el análisis de procesos. Por favor, intenta de nuevo.');
-      setIsAnalyzingProcesses(false);
-    },
-  });
-  
   // Función para analizar flujo de procesos con IA
-  const handleAnalyzeProcesses = () => {
+  const handleAnalyzeProcesses = async () => {
     if (savedAreas.length < 2) {
       alert('Necesitas al menos 2 áreas con procesos Tortuga para analizar el flujo.');
       return;
     }
     
     setIsAnalyzingProcesses(true);
-    const interactions = detectInteractions();
-    
-    const sipocData = savedAreas.map((area) => {
-      const suppliers = savedAreas
-        .filter(otherArea => 
-          otherArea.id !== area.id && 
-          otherArea.turtleProcess &&
-          otherArea.turtleProcess.outputs.some(output =>
-            area.turtleProcess?.inputs.includes(output)
-          )
-        )
-        .map(a => a.areaName);
+    try {
+      const interactions = detectInteractions();
       
-      const customers = savedAreas
-        .filter(otherArea => 
-          otherArea.id !== area.id && 
-          otherArea.turtleProcess &&
-          otherArea.turtleProcess.inputs.some(input =>
-            area.turtleProcess?.outputs.includes(input)
+      const sipocData = savedAreas.map((area) => {
+        const suppliers = savedAreas
+          .filter(otherArea => 
+            otherArea.id !== area.id && 
+            otherArea.turtleProcess &&
+            otherArea.turtleProcess.outputs.some(output =>
+              area.turtleProcess?.inputs.includes(output)
+            )
           )
-        )
-        .map(a => a.areaName);
+          .map(a => a.areaName);
+        
+        const customers = savedAreas
+          .filter(otherArea => 
+            otherArea.id !== area.id && 
+            otherArea.turtleProcess &&
+            otherArea.turtleProcess.inputs.some(input =>
+              area.turtleProcess?.outputs.includes(input)
+            )
+          )
+          .map(a => a.areaName);
+        
+        return {
+          areaName: area.areaName,
+          suppliers,
+          inputs: area.turtleProcess?.inputs || [],
+          outputs: area.turtleProcess?.outputs || [],
+          customers,
+        };
+      });
       
-      return {
-        areaName: area.areaName,
-        suppliers,
-        inputs: area.turtleProcess?.inputs || [],
-        outputs: area.turtleProcess?.outputs || [],
-        customers,
-      };
-    });
-    
-    analyzeProcessesMutation.mutate({
-      totalAreas: savedAreas.length,
-      interactions,
-      sipocData,
-    });
+      const analysis = await analyzeProcessFlowWithAI({
+        totalAreas: savedAreas.length,
+        interactions,
+        sipocData,
+      });
+      
+      setProcessAnalysis(analysis);
+      setShowProcessAnalysis(true);
+    } catch (error) {
+      console.error('Error al analizar procesos:', error);
+      alert('No se pudo generar el análisis de procesos. Por favor, intenta de nuevo.');
+    } finally {
+      setIsAnalyzingProcesses(false);
+    }
   };
   
-  // Mutation para generar reporte ejecutivo con IA
-  const generateReportMutation = trpc.ai.generateExecutiveReport.useMutation({
-    onSuccess: (data: any) => {
-      if (data.success && data.report) {
-        setExecutiveReport(data.report);
-        setShowExecutiveReport(true);
-      }
-      setIsGeneratingReport(false);
-    },
-    onError: (error: any) => {
-      console.error('Error al generar reporte ejecutivo:', error);
-      alert('No se pudo generar el reporte ejecutivo. Por favor, intenta de nuevo.');
-      setIsGeneratingReport(false);
-    },
-  });
-  
   // Función para generar reporte ejecutivo con IA
-  const handleGenerateExecutiveReport = () => {
+  const handleGenerateExecutiveReport = async () => {
     if (savedAreas.length === 0) {
       alert('Necesitas al menos un área para generar el reporte ejecutivo.');
       return;
     }
     
     setIsGeneratingReport(true);
-    const areasData = savedAreas.map((area) => {
-      const totals = calculateTotals(area);
-      return {
-        areaName: area.areaName,
-        productivePercentage: totals.productivePercentage,
-        deadTimePercentage: totals.deadTimePercentage,
-      };
-    });
-    
-    const averageProductivity = areasData.reduce((sum, a) => sum + a.productivePercentage, 0) / areasData.length;
-    const averageDeadTime = areasData.reduce((sum, a) => sum + a.deadTimePercentage, 0) / areasData.length;
-    const interactions = detectInteractions();
-    
-    generateReportMutation.mutate({
-      totalAreas: savedAreas.length,
-      areasData,
-      totalInteractions: interactions.length,
-      averageProductivity,
-      averageDeadTime,
-    });
+    try {
+      const areasData = savedAreas.map((area) => {
+        const totals = calculateTotals(area);
+        return {
+          areaName: area.areaName,
+          productivePercentage: totals.productivePercentage,
+          deadTimePercentage: totals.deadTimePercentage,
+        };
+      });
+      
+      const averageProductivity = areasData.reduce((sum, a) => sum + a.productivePercentage, 0) / areasData.length;
+      const averageDeadTime = areasData.reduce((sum, a) => sum + a.deadTimePercentage, 0) / areasData.length;
+      const interactions = detectInteractions();
+      
+      const report = await generateExecutiveReportWithAI({
+        totalAreas: savedAreas.length,
+        areasData,
+        totalInteractions: interactions.length,
+        averageProductivity,
+        averageDeadTime,
+      });
+      
+      setExecutiveReport(report);
+      setShowExecutiveReport(true);
+    } catch (error) {
+      console.error('Error al generar reporte ejecutivo:', error);
+      alert('No se pudo generar el reporte ejecutivo. Por favor, intenta de nuevo.');
+    } finally {
+      setIsGeneratingReport(false);
+    }
   };
 
   // Funciones de Área
@@ -1467,17 +1442,14 @@ export default function Home() {
                 </div>
               </div>
             </div>
-            {/* Botones de Acción */}
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap gap-2">
               {view === "list" && (
                 <>
-                  {/* Acción Primaria */}
-                  <Button onClick={newArea} size="lg" className="shadow-sm">
+                  <Button onClick={newArea} size="default" className="flex-1 sm:flex-none">
                     <Plus className="mr-2 h-4 w-4" />
                     <span className="hidden sm:inline">Nueva Área</span>
                     <span className="sm:hidden">Área</span>
                   </Button>
-                  
                   {savedAreas.length === 0 && (
                     <Button 
                       onClick={async () => {
@@ -1553,34 +1525,58 @@ export default function Home() {
                   )}
                   {savedAreas.length > 0 && (
                     <>
-                      {/* Separador Visual */}
-                      <div className="hidden md:block h-8 w-px bg-slate-300"></div>
-                      
-                      {/* Grupo: Herramientas */}
-                      <div className="flex flex-wrap gap-2">
+                      <Button onClick={() => setShowGlobalMeasurementDialog(true)} variant="default" size="default" className="flex-1 sm:flex-none">
+                        <Plus className="mr-2 h-4 w-4" />
+                        <span className="hidden md:inline">📸 Crear Medición</span>
+                        <span className="md:hidden">📸</span>
+                      </Button>
+                      <Button onClick={exportAllAreasPDF} variant="outline" size="default" className="flex-1 sm:flex-none">
+                        <Download className="mr-2 h-4 w-4" />
+                        <span className="hidden md:inline">📄 Exportar Historial PDF</span>
+                        <span className="md:hidden">📄 PDF</span>
+                      </Button>
+                      {savedAreas.length >= 2 && (
                         <Button 
-                          onClick={() => setShowGlobalMeasurementDialog(true)} 
-                          variant="outline" 
-                          size="lg"
-                          className="shadow-sm"
+                          onClick={handleCompareAreas} 
+                          variant="default" 
+                          size="default" 
+                          className="flex-1 sm:flex-none bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700"
+                          disabled={isComparingAreas}
                         >
-                          <Plus className="mr-2 h-4 w-4" />
-                          <span className="hidden md:inline">Crear Medición</span>
-                          <span className="md:hidden">📸</span>
+                          {isComparingAreas ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              <span className="hidden md:inline">Analizando...</span>
+                              <span className="md:hidden">...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="hidden md:inline">🤖 Análisis Comparativo IA</span>
+                              <span className="md:hidden">🤖</span>
+                            </>
+                          )}
                         </Button>
-                        <Button 
-                          onClick={exportAllAreasPDF} 
-                          variant="outline" 
-                          size="lg"
-                          className="shadow-sm"
-                        >
-                          <Download className="mr-2 h-4 w-4" />
-                          <span className="hidden md:inline">Exportar PDF</span>
-                          <span className="md:hidden">📄</span>
-                        </Button>
-                      </div>
-                      
-
+                      )}
+                      <Button 
+                        onClick={handleGenerateExecutiveReport} 
+                        variant="default" 
+                        size="default" 
+                        className="flex-1 sm:flex-none bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                        disabled={isGeneratingReport}
+                      >
+                        {isGeneratingReport ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            <span className="hidden md:inline">Generando...</span>
+                            <span className="md:hidden">...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="hidden md:inline">🤖 Informe Ejecutivo IA</span>
+                            <span className="md:hidden">📊</span>
+                          </>
+                        )}
+                      </Button>
                     </>
                   )}
                 </>
@@ -1718,41 +1714,56 @@ export default function Home() {
                             <Separator />
                             <div className="text-sm text-slate-600">
                               <strong>{getAllActivities(area).length}</strong> actividades registradas
-                            </div>                            {/* Botones de Acción */}
-                            <div className="space-y-2 mt-4">
-                              {/* Grupo: Acciones Principales */}
-                              <div className="grid grid-cols-2 gap-2">
+                            </div>                            <div className="space-y-2 mt-4">
+                              <div className="flex flex-col sm:flex-row gap-2">
                                 <Button
                                   onClick={() => editArea(area)}
-                                  variant="default"
+                                  variant="outline"
                                   size="sm"
-                                  className="w-full"
+                                  className="flex-1"
                                 >
-                                  <Edit className="mr-1.5 h-3.5 w-3.5" />
-                                  <span>Ver/Editar</span>
+                                  <Edit className="mr-1 h-3 w-3" />
+                                  <span className="hidden sm:inline">Ver/Editar</span>
+                                  <span className="sm:hidden">Editar</span>
                                 </Button>
                                 <Button
                                   onClick={() => exportArea(area)}
                                   variant="outline"
                                   size="sm"
-                                  className="w-full"
+                                  className="flex-1"
                                 >
-                                  <Download className="mr-1.5 h-3.5 w-3.5" />
-                                  <span>Exportar</span>
+                                  <Download className="mr-1 h-3 w-3" />
+                                  <span className="hidden sm:inline">Exportar PDF</span>
+                                  <span className="sm:hidden">PDF</span>
+                                </Button>
+                                <Button
+                                  onClick={() => deleteArea(area.id)}
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={!area.id}
+                                >
+                                  <Trash2 className="h-3 w-3 text-red-500" />
                                 </Button>
                               </div>
-                              
-                              {/* Botón Eliminar */}
                               <Button
-                                onClick={() => deleteArea(area.id)}
-                                variant="ghost"
+                                onClick={() => handleAnalyzeArea(area)}
+                                variant="default"
                                 size="sm"
-                                disabled={!area.id}
-                                className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                                disabled={isAnalyzingArea}
                               >
-                                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                                Eliminar área
+                                {isAnalyzingArea ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                    Analizando...
+                                  </>
+                                ) : (
+                                  <>
+                                    🤖 Generar Análisis IA
+                                  </>
+                                )}
                               </Button>
+
                             </div>                       </CardContent>
                         </Card>
                       );
@@ -2215,9 +2226,9 @@ export default function Home() {
                         }
                       }}
                     />
-                    <Button onClick={addPosition} size="lg" className="shadow-sm whitespace-nowrap">
+                    <Button onClick={addPosition}>
                       <Plus className="mr-2 h-4 w-4" />
-                      Agregar
+                      Agregar Cargo
                     </Button>
                   </div>
 
@@ -2318,16 +2329,16 @@ export default function Home() {
                       <Label>&nbsp;</Label>
                       {editingActivity ? (
                         <div className="flex gap-2">
-                          <Button onClick={updateActivity} size="lg" className="flex-1 shadow-sm">
+                          <Button onClick={updateActivity} className="flex-1">
                             <Pencil className="mr-2 h-4 w-4" />
                             Actualizar
                           </Button>
-                          <Button onClick={cancelEdit} variant="outline" size="lg" className="flex-1">
+                          <Button onClick={cancelEdit} variant="outline" className="flex-1">
                             Cancelar
                           </Button>
                         </div>
                       ) : (
-                        <Button onClick={addActivity} size="lg" className="w-full shadow-sm">
+                        <Button onClick={addActivity} className="w-full">
                           <Plus className="mr-2 h-4 w-4" />
                           Agregar
                         </Button>
@@ -3089,17 +3100,17 @@ export default function Home() {
                                 </span>
                               </td>
                               <td className="p-3">
-                                <div className="flex gap-1.5 justify-center">
+                                <div className="flex gap-2 justify-center">
                                   <Button 
                                     onClick={() => {
                                       setSelectedMeasurement(measurement);
                                       setView("measurement-detail");
                                     }}
-                                    variant="default" 
+                                    variant="outline" 
                                     size="sm"
                                   >
-                                    <FileText className="mr-1.5 h-3.5 w-3.5" />
-                                    Ver
+                                    <FileText className="mr-1 h-3 w-3" />
+                                    Ver Detalle
                                   </Button>
                                   <Button 
                                     onClick={async () => {
@@ -3112,11 +3123,10 @@ export default function Home() {
                                         }
                                       }
                                     }}
-                                    variant="ghost" 
+                                    variant="outline" 
                                     size="sm"
-                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
                                   >
-                                    <Trash2 className="h-3.5 w-3.5" />
+                                    <Trash2 className="h-3 w-3 text-red-600" />
                                   </Button>
                                 </div>
                               </td>
@@ -3177,11 +3187,10 @@ export default function Home() {
                             }
                           }}
                           disabled={!measurementToCompare1 || !measurementToCompare2}
-                          size="lg"
-                          className="w-full shadow-sm"
+                          className="w-full"
                         >
                           <TrendingUp className="mr-2 h-4 w-4" />
-                          Comparar Mediciones
+                          Comparar
                         </Button>
                       </div>
                     </div>
@@ -3575,14 +3584,14 @@ export default function Home() {
                   <Button 
                     onClick={handleAnalyzeProcesses}
                     variant="default"
-                    size="lg"
-                    className="shadow-md bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700"
+                    size="sm"
+                    className="bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700"
                     disabled={isAnalyzingProcesses}
                   >
                     {isAnalyzingProcesses ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Analizando flujo...
+                        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                        Analizando...
                       </>
                     ) : (
                       <>

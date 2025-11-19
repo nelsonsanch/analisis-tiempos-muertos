@@ -29,7 +29,6 @@ export interface InterviewData {
 export interface Position {
   id: string;
   name: string; // Nombre del cargo (ej: "Contador Senior", "Auxiliar Contable")
-  count: number; // Cantidad de personas en este cargo
   activities: Activity[]; // Actividades asignadas a este cargo
 }
 
