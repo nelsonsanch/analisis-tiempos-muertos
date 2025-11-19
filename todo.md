@@ -424,3 +424,10 @@
 - [x] Corregir parseo en generateTurtleSuggestions
 - [x] Probar todos los botones de IA (verificado con curl)
 - [x] Crear checkpoint con corrección
+
+## Corrección Validación de Respuesta de API de IA
+- [x] Analizar estructura real de respuesta JSON de la API (result.data.json)
+- [x] Ajustar validación en compareAreasWithAI
+- [x] Verificar validación en otras funciones de IA (todas corregidas)
+- [ ] Probar con datos reales desde la UI
+- [ ] Crear checkpoint final
