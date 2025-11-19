@@ -422,9 +422,12 @@
 
 ## Corrección de Error de API en Netlify
 
-- [ ] Diagnosticar por qué las rutas /api/trpc/* devuelven 404 en Netlify
-- [ ] Verificar configuración de Netlify Functions
-- [ ] Crear archivo netlify.toml con redirects correctos
-- [ ] Verificar que el servidor Express esté configurado correctamente
-- [ ] Subir corrección a GitHub
+- [x] Diagnosticar por qué las rutas /api/trpc/* devuelven 404 en Netlify
+- [x] Verificar configuración de Netlify Functions
+- [x] Crear archivo netlify.toml con redirects correctos
+- [x] Crear handler serverless para Netlify Functions (netlify/functions/index.ts)
+- [x] Instalar serverless-http
+- [x] Verificar que el servidor Express esté configurado correctamente
+- [x] Subir corrección a GitHub
+- [ ] Usuario debe hacer redeploy en Netlify
 - [ ] Verificar que botones de IA funcionen en producción
