@@ -437,5 +437,5 @@
 - [x] Verificar datos enviados desde handleAnalyzeArea en Home.tsx
 - [x] Identificar discrepancia entre datos enviados y schema esperado (peopleCount faltante)
 - [x] Corregir formato de datos agregando valor por defecto peopleCount: 1
-- [ ] Probar análisis de área con datos reales
-- [ ] Crear checkpoint final
+- [x] Probar análisis de área con datos reales
+- [x] Crear checkpoint final
