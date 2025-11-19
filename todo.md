@@ -400,3 +400,17 @@
 - [x] Crear checkpoint para publicación (checkpoint 67be3ad4 ya existe)
 - [x] Guiar al usuario para publicar desde interfaz de Manus
 - [ ] Verificar que los botones de IA funcionen en producción
+
+## Corrección Error 400 en API de Análisis Comparativo
+- [ ] Diagnosticar causa del error 400 en compareAreasWithAI
+- [ ] Revisar formato de datos enviados a la API
+- [ ] Corregir validación de entrada en el endpoint
+- [ ] Probar análisis comparativo con datos reales
+- [ ] Crear checkpoint con corrección
+
+## Corrección Error 400 en API de Análisis Comparativo
+- [x] Diagnosticar causa del error 400 en compareAreasWithAI
+- [x] Revisar formato de datos enviados a la API
+- [x] Corregir validación de entrada en el endpoint (agregar ?batch=1 a URLs)
+- [ ] Probar análisis comparativo con datos reales
+- [ ] Crear checkpoint con corrección

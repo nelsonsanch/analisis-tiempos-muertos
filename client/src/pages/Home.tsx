@@ -4284,58 +4284,7 @@ export default function Home() {
         </div>
       )}
       
-      {/* Diálogo de Nueva Medición (ELIMINADO - Ahora se usa el sistema de Mediciones Globales) */}
-      {false && showNewMeasurementDialog && selectedAreaForNewMeasurement && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-md mx-4">
-            <CardHeader>
-              <CardTitle>Nueva Medición</CardTitle>
-              <CardDescription>
-                Crea un snapshot del estado actual del área "{selectedAreaForNewMeasurement.areaName}" para comparar en el futuro
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="measurement-name">Nombre de la Medición</Label>
-                <Input
-                  id="measurement-name"
-                  value={newMeasurementName}
-                  onChange={(e) => setNewMeasurementName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      createNewMeasurement();
-                    } else if (e.key === "Escape") {
-                      setShowNewMeasurementDialog(false);
-                      setNewMeasurementName("");
-                    }
-                  }}
-                  placeholder="Ej: Medición Marzo 2025, Después de capacitación"
-                  autoFocus
-                />
-                <p className="text-xs text-slate-500 mt-2">
-                  Se guardará una copia de todos los cargos y actividades actuales con sus tiempos
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={createNewMeasurement} className="flex-1">
-                  <Check className="mr-2 h-4 w-4" />
-                  Crear Medición
-                </Button>
-                <Button 
-                  onClick={() => {
-                    setShowNewMeasurementDialog(false);
-                    setNewMeasurementName("");
-                  }} 
-                  variant="outline" 
-                  className="flex-1"
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      {/* Diálogo de Nueva Medición eliminado - Ahora se usa el sistema de Mediciones Globales */}
       
       {/* Diálogo de Edición de Nombre de Cargo */}
       {editingPosition && (

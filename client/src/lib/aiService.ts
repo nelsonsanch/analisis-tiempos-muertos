@@ -51,7 +51,7 @@ export async function generateTurtleSuggestions(
 ): Promise<TurtleSuggestions> {
   try {
     // Llamada directa a la API del backend usando el formato de tRPC
-    const response = await fetch('/api/trpc/ai.generateTurtleSuggestions', {
+    const response = await fetch('/api/trpc/ai.generateTurtleSuggestions?batch=1', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -119,7 +119,7 @@ export async function analyzeAreaWithAI(areaData: {
   observations?: string;
 }): Promise<AreaAnalysis> {
   try {
-    const response = await fetch('/api/trpc/ai.analyzeArea', {
+    const response = await fetch('/api/trpc/ai.analyzeArea?batch=1', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -161,7 +161,7 @@ export async function compareAreasWithAI(areasData: Array<{
   totalActivities: number;
 }>): Promise<ComparativeAnalysis> {
   try {
-    const response = await fetch('/api/trpc/ai.compareAreas', {
+    const response = await fetch('/api/trpc/ai.compareAreas?batch=1', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -210,7 +210,7 @@ export async function analyzeProcessFlowWithAI(processData: {
   }>;
 }): Promise<ProcessFlowAnalysis> {
   try {
-    const response = await fetch('/api/trpc/ai.analyzeProcessFlow', {
+    const response = await fetch('/api/trpc/ai.analyzeProcessFlow?batch=1', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -255,7 +255,7 @@ export async function generateExecutiveReportWithAI(reportData: {
   averageDeadTime: number;
 }): Promise<ExecutiveReport> {
   try {
-    const response = await fetch('/api/trpc/ai.generateExecutiveReport', {
+    const response = await fetch('/api/trpc/ai.generateExecutiveReport?batch=1', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
