@@ -387,3 +387,16 @@
 - [x] Incluir resumen ejecutivo, hallazgos principales
 - [x] Incluir recomendaciones estratégicas y plan de acción
 - [x] Incluir análisis de ROI estimado
+
+## Corrección Error de Autenticación Firebase en Botones IA
+- [x] Diagnosticar error auth/invalid-credential en Firebase
+- [x] Verificar configuración de Firebase y variables de entorno
+- [x] Revisar flujo de autenticación en llamadas a API de IA
+- [x] Implementar solución y probar botones de IA (requiere publicación desde Manus)
+- [ ] Crear checkpoint con corrección
+
+## Publicación desde Manus
+- [x] Verificar estado del proyecto
+- [x] Crear checkpoint para publicación (checkpoint 67be3ad4 ya existe)
+- [x] Guiar al usuario para publicar desde interfaz de Manus
+- [ ] Verificar que los botones de IA funcionen en producción

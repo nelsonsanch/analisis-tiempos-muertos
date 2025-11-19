@@ -86,6 +86,7 @@ interface Activity {
 interface Position {
   id: string;
   name: string; // Nombre del cargo (ej: "Contador Senior", "Auxiliar Contable")
+  peopleCount: number; // Cantidad de personas en este cargo
   activities: Activity[]; // Actividades asignadas a este cargo
 }
 
@@ -145,8 +146,8 @@ export default function Home() {
   // const [selectedAreaForComparison, setSelectedAreaForComparison] = useState<InterviewData | null>(null);
   // const [baseMeasurementId, setBaseMeasurementId] = useState<string | null>(null);
   // const [currentMeasurementId, setCurrentMeasurementId] = useState<string | null>(null);
-  // const comparisonTableRef = useRef<HTMLDivElement>(null);
-  // const comparisonChartsRef = useRef<HTMLDivElement>(null);
+  const comparisonTableRef = useRef<HTMLDivElement>(null);
+  const comparisonChartsRef = useRef<HTMLDivElement>(null);
   
   // Estados para crear nueva medición (SISTEMA ANTIGUO - ELIMINADO)
   // const [selectedAreaForNewMeasurement, setSelectedAreaForNewMeasurement] = useState<InterviewData | null>(null);
@@ -363,7 +364,7 @@ export default function Home() {
   // Cálculo de tiempos por cargo individual
   const calculatePositionTotals = (position: Position, workdayMinutes: number, fixedBreaksMinutes: number) => {
     const activities = position.activities;
-    const count = position.count;
+    const count = position.peopleCount;
     
     // Calcular tiempo total por tipo (duración × frecuencia × cantidad de personas)
     const productiveTime = activities
@@ -406,6 +407,7 @@ export default function Home() {
     const position: Position = {
       id: Date.now().toString(),
       name: newPositionName,
+      peopleCount: 1,
       activities: [],
     };
 
@@ -2385,7 +2387,7 @@ export default function Home() {
                               <div>
                                 <h3 className="font-semibold text-lg">💼 {position.name}</h3>
                                 <Badge variant="secondary" className="text-xs mt-1">
-                                  {position.count} {position.count === 1 ? "persona" : "personas"}
+                                  {position.peopleCount} {position.peopleCount === 1 ? "persona" : "personas"}
                                 </Badge>
                               </div>
                               <Badge variant="outline">
