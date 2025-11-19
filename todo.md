@@ -426,8 +426,13 @@
 - [x] Verificar configuración de Netlify Functions
 - [x] Crear archivo netlify.toml con redirects correctos
 - [x] Crear handler serverless para Netlify Functions (netlify/functions/index.ts)
-- [x] Instalar serverless-http
+- [x] Instalar @netlify/functions
+- [x] Reescribir handler para usar adaptador fetch nativo de tRPC
 - [x] Verificar que el servidor Express esté configurado correctamente
 - [x] Subir corrección a GitHub
-- [ ] Usuario debe hacer redeploy en Netlify
+- [x] Netlify hizo redeploy automáticamente
+- [x] Identificar problema de variables de entorno faltantes
+- [x] Crear guía CONFIGURAR_NETLIFY_ENV.md
+- [ ] Usuario debe configurar variables de entorno en Netlify
+- [ ] Usuario debe redesplegar después de configurar variables
 - [ ] Verificar que botones de IA funcionen en producción
