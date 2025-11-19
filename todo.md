@@ -400,3 +400,12 @@
 - [x] Usar variantes de botones apropiadas (default, outline, ghost)
 - [x] Agrupar botones relacionados visualmente
 - [x] Verificar responsividad en móvil y tablet
+
+## Configuración de Netlify
+
+- [x] Identificar variables de entorno requeridas para Firebase
+- [x] Crear documentación de configuración de variables de entorno
+- [x] Actualizar código para usar variables de entorno
+- [ ] Configurar variables de entorno en Netlify (acción del usuario)
+- [ ] Autorizar dominio de Netlify en Firebase Console (acción del usuario)
+- [ ] Verificar que la aplicación funcione correctamente en Netlify
