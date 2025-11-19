@@ -436,3 +436,17 @@
 - [ ] Usuario debe configurar variables de entorno en Netlify
 - [ ] Usuario debe redesplegar después de configurar variables
 - [ ] Verificar que botones de IA funcionen en producción
+
+## Implementar Asistente IA Flotante
+
+- [x] Diseñar arquitectura del asistente IA
+- [x] Crear componente FloatingAssistant.tsx (botón flotante)
+- [x] Crear componente ChatPanel.tsx (panel lateral de chat)
+- [x] Implementar endpoint tRPC para el asistente (server/routers/ai.ts)
+- [x] Configurar acceso a datos de áreas desde Firebase
+- [x] Implementar sistema de prompts para el asistente
+- [x] Eliminar botones de IA antiguos del header (Comparar Áreas, Informe Ejecutivo)
+- [x] Eliminar botón de Análisis IA de las tarjetas de áreas
+- [x] Agregar FloatingAssistant a App.tsx
+- [x] Probar el asistente con diferentes preguntas
+- [x] Crear checkpoint con la nueva funcionalidad

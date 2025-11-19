@@ -1580,54 +1580,7 @@ export default function Home() {
                         </Button>
                       </div>
                       
-                      {/* Separador Visual */}
-                      <div className="hidden lg:block h-8 w-px bg-slate-300"></div>
-                      
-                      {/* Grupo: Análisis IA */}
-                      <div className="flex flex-wrap gap-2">
-                        {savedAreas.length >= 2 && (
-                          <Button 
-                            onClick={handleCompareAreas} 
-                            variant="default" 
-                            size="lg" 
-                            className="shadow-md bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700"
-                            disabled={isComparingAreas}
-                          >
-                            {isComparingAreas ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                <span className="hidden md:inline">Analizando...</span>
-                                <span className="md:hidden">...</span>
-                              </>
-                            ) : (
-                              <>
-                                <span className="hidden md:inline">🤖 Comparar Áreas</span>
-                                <span className="md:hidden">🤖</span>
-                              </>
-                            )}
-                          </Button>
-                        )}
-                        <Button 
-                          onClick={handleGenerateExecutiveReport} 
-                          variant="default" 
-                          size="lg" 
-                          className="shadow-md bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
-                          disabled={isGeneratingReport}
-                        >
-                          {isGeneratingReport ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              <span className="hidden md:inline">Generando...</span>
-                              <span className="md:hidden">...</span>
-                            </>
-                          ) : (
-                            <>
-                              <span className="hidden md:inline">🤖 Informe Ejecutivo</span>
-                              <span className="md:hidden">📊</span>
-                            </>
-                          )}
-                        </Button>
-                      </div>
+
                     </>
                   )}
                 </>
@@ -1788,26 +1741,6 @@ export default function Home() {
                                   <span>Exportar</span>
                                 </Button>
                               </div>
-                              
-                              {/* Análisis IA */}
-                              <Button
-                                onClick={() => handleAnalyzeArea(area)}
-                                variant="default"
-                                size="sm"
-                                className="w-full shadow-sm bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                                disabled={isAnalyzingArea}
-                              >
-                                {isAnalyzingArea ? (
-                                  <>
-                                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                                    Analizando...
-                                  </>
-                                ) : (
-                                  <>
-                                    🤖 Análisis IA
-                                  </>
-                                )}
-                              </Button>
                               
                               {/* Botón Eliminar */}
                               <Button
