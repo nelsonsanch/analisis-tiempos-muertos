@@ -439,3 +439,110 @@
 - [x] Corregir formato de datos agregando valor por defecto peopleCount: 1
 - [x] Probar análisis de área con datos reales
 - [x] Crear checkpoint final
+
+## Publicación desde Manus Dashboard
+- [x] Explicar diferencia entre Netlify y Manus para esta aplicación
+- [x] Guiar al usuario para encontrar botón "Publish" en Management UI
+- [x] Verificar que la aplicación ya está publicada en Manus
+- [x] Identificar dominio correcto: tiemposapp-9omoqzpg.manus.space
+- [x] Usuario probó funciones de IA en producción (funciona correctamente)
+
+## Configuración de Dominio Personalizado en Manus
+- [x] Explicar por qué Netlify no puede ejecutar el backend
+- [x] Presentar opciones para usar dominio personal
+- [x] Guiar configuración de dominio personalizado en Manus
+- [x] Identificar dominio del usuario: sanchezcya.com (Google Workspace)
+- [x] Confirmar nombre de la aplicación: MapTX (mapeo de procesos)
+- [x] Definir subdominio: maptx.sanchezcya.com
+- [x] Usuario configura dominio personalizado en panel de Manus
+- [x] Obtener valores CNAME: maptx → cname.manus.space
+- [x] Identificar que dominio está en Squarespace (no Google Domains)
+- [x] Usuario accede a configuración DNS en Squarespace
+- [ ] PAUSADO: Usuario agrega registro CNAME en Squarespace (para hacer después)
+- [ ] PAUSADO: Esperar propagación DNS
+- [ ] PAUSADO: Verificar dominio personalizado
+- [x] Usar dominio de Manus por ahora: tiemposapp-9omoqzpg.manus.space
+
+## Actualización de Branding a MapTX
+- [ ] Actualizar título de la aplicación a "MapTX"
+- [ ] Actualizar descripción y textos de bienvenida
+- [ ] Crear/actualizar logo con branding MapTX
+- [ ] Actualizar favicon
+- [ ] Actualizar metadata (title, description, og:tags)
+- [ ] Crear checkpoint con nuevo branding
+
+## Sistema Multi-Tenant (Multi-Cliente)
+
+### Fase 1: Planificación y Arquitectura
+- [x] Definir modelo de negocio (auto-registro + aprobación)
+- [x] Confirmar roles (Super Admin + Company Admin)
+- [x] Diseñar estructura de datos en Firestore
+- [x] Obtener credenciales Super Admin (nelson@sanchezcya.com)
+
+### Fase 2: Estructura de Datos en Firestore
+- [x] Crear colección `companies` con campos (name, email, status, createdAt, approvedBy)
+- [x] Crear colección `users` con campos (email, companyId, role, name)
+- [x] Modificar `timeAnalysisAreas` para incluir `companyId`
+- [x] Modificar `globalMeasurements` para incluir `companyId`
+- [x] Actualizar interfaces TypeScript (Company, AppUser, Role)
+- [x] Crear companyService.ts con funciones CRUD
+
+### Fase 3: Sistema de Autenticación
+- [x] Implementar registro de empresas (auto-registro)
+- [x] Crear pantalla de login con validación de empresa activa
+- [x] Implementar middleware de autorización por rol (ProtectedRoute)
+- [x] Crear contexto de autenticación (AuthContext)
+- [x] Agregar validación de estado de empresa en cada request
+
+### Fase 4: Panel Super Admin
+- [x] Crear página SuperAdminDashboard
+- [x] Mostrar lista de empresas pendientes de aprobación
+- [x] Implementar botones aprobar/rechazar empresa
+- [x] Mostrar lista de empresas activas
+- [x] Implementar botones activar/desactivar empresa
+- [x] Agregar estadísticas (total empresas, activas, pendientes)
+- [x] Actualizar rutas en App.tsx
+- [x] Actualizar ProtectedRoute con redirección por rol
+
+### Fase 5: Pantallas de Usuario
+- [x] Crear pantalla de registro de empresa (CompanyRegistration)
+- [x] Crear pantalla "Pendiente de aprobación" (PendingApproval)
+- [x] Modificar pantalla de login para validar estado
+- [x] Agregar redirección según rol (super admin vs company admin)
+
+### Fase 6: Filtrado de Datos por Empresa
+- [x] Modificar firestoreService para filtrar por companyId
+- [x] Actualizar todas las consultas de áreas
+- [x] Actualizar todas las consultas de mediciones
+- [x] Agregar companyId automáticamente al crear datos
+- [x] Actualizar useFirestore hook para recibir companyId
+- [x] Modificar Home.tsx para pasar companyId del usuario autenticado
+
+### Fase 7: Reglas de Seguridad Firebase
+- [x] Actualizar firestore.rules para multi-tenant
+- [x] Agregar reglas para colección companies
+- [x] Agregar reglas para colección users
+- [x] Actualizar reglas para timeAnalysisAreas (filtro por companyId)
+- [x] Actualizar reglas para globalMeasurements (filtro por companyId)
+- [x] Crear archivo CONFIGURACION_FIREBASE_MULTITENANT.md con instrucciones
+
+### Fase 8: Creación de Super Admin
+- [ ] Crear cuenta Super Admin en Firebase Auth
+- [ ] Crear documento en colección users con role: super_admin
+- [ ] Probar login como Super Admin
+- [ ] Verificar acceso a panel de administración
+
+### Fase 9: Testing y Validación
+- [ ] Crear empresa de prueba (auto-registro)
+- [ ] Probar flujo de aprobación
+- [ ] Crear datos de prueba en empresa aprobada
+- [ ] Verificar aislamiento de datos entre empresas
+- [ ] Probar activar/desactivar empresa
+- [ ] Verificar que empresa inactiva no puede acceder
+
+### Fase 10: Documentación y Checkpoint
+- [ ] Crear documentación de sistema multi-tenant
+- [ ] Documentar flujo de registro y aprobación
+- [ ] Documentar roles y permisos
+- [ ] Crear checkpoint final
+- [ ] Subir código a GitHub

@@ -1,16 +1,148 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Solo usuarios autenticados pueden acceder a las áreas
-    match /timeAnalysisAreas/{areaId} {
-      allow read, write: if request.auth != null;
+    
+    // ========================================
+    // FUNCIONES AUXILIARES
+    // ========================================
+    
+    // Verificar si el usuario está autenticado
+    function isAuthenticated() {
+      return request.auth != null;
     }
     
-    // Colección de usuarios autorizados (solo lectura para autenticados)
+    // Obtener el documento del usuario desde la colección users
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    // Verificar si el usuario es super admin
+    function isSuperAdmin() {
+      return isAuthenticated() && getUserData().role == 'super_admin';
+    }
+    
+    // Verificar si el usuario pertenece a una empresa específica
+    function belongsToCompany(companyId) {
+      return isAuthenticated() && getUserData().companyId == companyId;
+    }
+    
+    // Verificar si la empresa del usuario está activa
+    function isCompanyActive() {
+      let companyId = getUserData().companyId;
+      return get(/databases/$(database)/documents/companies/$(companyId)).data.status == 'active';
+    }
+    
+    // ========================================
+    // COLECCIÓN: companies
+    // ========================================
+    match /companies/{companyId} {
+      // Lectura: Solo super admin puede ver todas las empresas
+      allow read: if isSuperAdmin();
+      
+      // Crear: Cualquier usuario autenticado puede crear una empresa (auto-registro)
+      // La empresa se crea con status 'pending'
+      allow create: if isAuthenticated() && 
+                       request.resource.data.status == 'pending';
+      
+      // Actualizar: Solo super admin puede actualizar empresas
+      // (aprobar, rechazar, activar, desactivar)
+      allow update: if isSuperAdmin();
+      
+      // Eliminar: Solo super admin puede eliminar empresas
+      allow delete: if isSuperAdmin();
+    }
+    
+    // ========================================
+    // COLECCIÓN: users
+    // ========================================
+    match /users/{userId} {
+      // Lectura: El usuario puede leer su propio documento
+      // Super admin puede leer todos los usuarios
+      allow read: if isAuthenticated() && 
+                     (request.auth.uid == userId || isSuperAdmin());
+      
+      // Crear: Solo al registrarse (el UID debe coincidir con el auth UID)
+      allow create: if isAuthenticated() && 
+                       request.auth.uid == userId;
+      
+      // Actualizar: El usuario puede actualizar su propio documento
+      // Super admin puede actualizar cualquier usuario
+      allow update: if isAuthenticated() && 
+                       (request.auth.uid == userId || isSuperAdmin());
+      
+      // Eliminar: Solo super admin
+      allow delete: if isSuperAdmin();
+    }
+    
+    // ========================================
+    // COLECCIÓN: timeAnalysisAreas
+    // ========================================
+    match /timeAnalysisAreas/{areaId} {
+      // Lectura: Solo usuarios de la misma empresa con empresa activa
+      allow read: if isAuthenticated() && 
+                     belongsToCompany(resource.data.companyId) && 
+                     isCompanyActive();
+      
+      // Crear: Solo usuarios de empresa activa
+      // El companyId debe coincidir con el del usuario
+      allow create: if isAuthenticated() && 
+                       belongsToCompany(request.resource.data.companyId) && 
+                       isCompanyActive();
+      
+      // Actualizar: Solo usuarios de la misma empresa con empresa activa
+      // No se puede cambiar el companyId
+      allow update: if isAuthenticated() && 
+                       belongsToCompany(resource.data.companyId) && 
+                       isCompanyActive() &&
+                       request.resource.data.companyId == resource.data.companyId;
+      
+      // Eliminar: Solo usuarios de la misma empresa con empresa activa
+      allow delete: if isAuthenticated() && 
+                       belongsToCompany(resource.data.companyId) && 
+                       isCompanyActive();
+    }
+    
+    // ========================================
+    // COLECCIÓN: globalMeasurements
+    // ========================================
+    match /globalMeasurements/{measurementId} {
+      // Lectura: Solo usuarios de la misma empresa con empresa activa
+      allow read: if isAuthenticated() && 
+                     belongsToCompany(resource.data.companyId) && 
+                     isCompanyActive();
+      
+      // Crear: Solo usuarios de empresa activa
+      // El companyId debe coincidir con el del usuario
+      allow create: if isAuthenticated() && 
+                       belongsToCompany(request.resource.data.companyId) && 
+                       isCompanyActive();
+      
+      // Actualizar: Solo usuarios de la misma empresa con empresa activa
+      // No se puede cambiar el companyId
+      allow update: if isAuthenticated() && 
+                       belongsToCompany(resource.data.companyId) && 
+                       isCompanyActive() &&
+                       request.resource.data.companyId == resource.data.companyId;
+      
+      // Eliminar: Solo usuarios de la misma empresa con empresa activa
+      allow delete: if isAuthenticated() && 
+                       belongsToCompany(resource.data.companyId) && 
+                       isCompanyActive();
+    }
+    
+    // ========================================
+    // COLECCIÓN: authorized_users (legacy - mantener compatibilidad)
+    // ========================================
     match /authorized_users/{userId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // ========================================
+    // DENEGAR TODO LO DEMÁS
+    // ========================================
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
