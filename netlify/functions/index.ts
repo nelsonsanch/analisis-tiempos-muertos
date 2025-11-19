@@ -1,28 +1,70 @@
-import express from "express";
-import serverless from "serverless-http";
-import { createExpressMiddleware } from "@trpc/server/adapters/express";
+import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
+import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "../../server/routers";
 import { createContext } from "../../server/_core/context";
 
-const app = express();
+export const handler: Handler = async (event: HandlerEvent, context: HandlerContext) => {
+  // Only handle tRPC routes
+  if (!event.path.startsWith("/api/trpc")) {
+    return {
+      statusCode: 404,
+      body: JSON.stringify({ error: "Not found" }),
+    };
+  }
 
-// Configure body parser with larger size limit
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  // Convert Netlify event to Fetch Request
+  const url = new URL(event.path, `https://${event.headers.host}`);
+  if (event.queryStringParameters) {
+    Object.entries(event.queryStringParameters).forEach(([key, value]) => {
+      if (value) url.searchParams.append(key, value);
+    });
+  }
 
-// tRPC API - this is the main route for AI buttons
-app.use(
-  "/api/trpc",
-  createExpressMiddleware({
-    router: appRouter,
-    createContext,
-  })
-);
+  const request = new Request(url.toString(), {
+    method: event.httpMethod,
+    headers: new Headers(event.headers as Record<string, string>),
+    body: event.body ? event.body : undefined,
+  });
 
-// Health check endpoint
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
-});
+  try {
+    // Use tRPC fetch adapter
+    const response = await fetchRequestHandler({
+      endpoint: "/api/trpc",
+      req: request,
+      router: appRouter,
+      createContext: async () => {
+        // Create context from Netlify event
+        return createContext({
+          req: {
+            headers: event.headers,
+            method: event.httpMethod,
+            url: event.path,
+          } as any,
+          res: {} as any,
+        });
+      },
+    });
 
-// Export handler for Netlify Functions
-export const handler = serverless(app);
+    // Convert Fetch Response to Netlify response
+    const body = await response.text();
+    const headers: Record<string, string> = {};
+    response.headers.forEach((value, key) => {
+      headers[key] = value;
+    });
+
+    return {
+      statusCode: response.status,
+      headers,
+      body,
+    };
+  } catch (error) {
+    console.error("Error handling tRPC request:", error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : String(error),
+      }),
+    };
+  }
+};
