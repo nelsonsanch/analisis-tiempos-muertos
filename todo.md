@@ -412,5 +412,15 @@
 - [x] Diagnosticar causa del error 400 en compareAreasWithAI
 - [x] Revisar formato de datos enviados a la API
 - [x] Corregir validación de entrada en el endpoint (agregar ?batch=1 a URLs)
-- [ ] Probar análisis comparativo con datos reales
-- [ ] Crear checkpoint con corrección
+- [x] Probar análisis comparativo con datos reales
+- [x] Crear checkpoint con corrección
+
+## Corrección Formato de Respuesta Batch tRPC
+- [x] Analizar estructura de respuesta batch de tRPC (array vs objeto)
+- [x] Corregir parseo en compareAreasWithAI
+- [x] Corregir parseo en generateExecutiveReportWithAI
+- [x] Corregir parseo en analyzeAreaWithAI
+- [x] Corregir parseo en analyzeProcessFlowWithAI
+- [x] Corregir parseo en generateTurtleSuggestions
+- [x] Probar todos los botones de IA (verificado con curl)
+- [x] Crear checkpoint con corrección

@@ -71,7 +71,9 @@ export async function generateTurtleSuggestions(
     }
 
     const data = await response.json();
-    const result = data.result.data;
+    // En modo batch, tRPC devuelve un array
+    const batchResult = Array.isArray(data) ? data[0] : data;
+    const result = batchResult.result.data;
 
     if (!result.success || !result.suggestions) {
       throw new Error("Respuesta inválida de la IA");
@@ -136,7 +138,9 @@ export async function analyzeAreaWithAI(areaData: {
     }
 
     const data = await response.json();
-    const result = data.result.data;
+    // En modo batch, tRPC devuelve un array
+    const batchResult = Array.isArray(data) ? data[0] : data;
+    const result = batchResult.result.data;
 
     if (!result.success || !result.analysis) {
       throw new Error("Respuesta inválida de la IA");
@@ -178,7 +182,9 @@ export async function compareAreasWithAI(areasData: Array<{
     }
 
     const data = await response.json();
-    const result = data.result.data;
+    // En modo batch, tRPC devuelve un array
+    const batchResult = Array.isArray(data) ? data[0] : data;
+    const result = batchResult.result.data;
 
     if (!result.success || !result.analysis) {
       throw new Error("Respuesta inválida de la IA");
@@ -227,7 +233,9 @@ export async function analyzeProcessFlowWithAI(processData: {
     }
 
     const data = await response.json();
-    const result = data.result.data;
+    // En modo batch, tRPC devuelve un array
+    const batchResult = Array.isArray(data) ? data[0] : data;
+    const result = batchResult.result.data;
 
     if (!result.success || !result.analysis) {
       throw new Error("Respuesta inválida de la IA");
@@ -272,7 +280,9 @@ export async function generateExecutiveReportWithAI(reportData: {
     }
 
     const data = await response.json();
-    const result = data.result.data;
+    // En modo batch, tRPC devuelve un array
+    const batchResult = Array.isArray(data) ? data[0] : data;
+    const result = batchResult.result.data;
 
     if (!result.success || !result.report) {
       throw new Error("Respuesta inválida de la IA");
