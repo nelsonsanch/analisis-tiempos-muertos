@@ -15,12 +15,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     if (!loading && !user) {
       window.location.href = '/login';
     }
-    
-    // Redirigir super_admin a su panel si intenta acceder a otras rutas
-    if (!loading && user && userProfile?.role === 'super_admin' && location !== '/super-admin') {
-      window.location.href = '/super-admin';
-    }
-  }, [user, userProfile, loading, location]);
+  }, [user, loading]);
 
   if (loading) {
     return (

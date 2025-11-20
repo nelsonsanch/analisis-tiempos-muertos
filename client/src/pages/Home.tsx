@@ -42,7 +42,9 @@ import {
   Loader2,
   LogOut,
   User,
-  Building2
+  Building2,
+  Settings,
+  ChevronDown
 } from "lucide-react";
 import {
   BarChart,
@@ -75,6 +77,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Tipos de datos
 interface Activity {
@@ -1469,31 +1479,41 @@ export default function Home() {
                 </div>
               </div>
               <div className="flex items-center gap-2 ml-auto">
-                {userProfile?.role === 'super_admin' && (
-                  <Button 
-                    onClick={() => window.location.href = '/super-admin'} 
-                    variant="outline" 
-                    size="sm"
-                    className="hidden md:flex"
-                  >
-                    <Building2 className="mr-2 h-4 w-4" />
-                    Panel Admin
-                  </Button>
-                )}
-                <div className="flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-lg">
-                  <User className="h-4 w-4 text-slate-600" />
-                  <span className="text-sm text-slate-700 hidden sm:inline">
-                    {userProfile?.email}
-                  </span>
-                </div>
-                <Button 
-                  onClick={handleLogout} 
-                  variant="outline" 
-                  size="sm"
-                >
-                  <LogOut className="h-4 w-4 md:mr-2" />
-                  <span className="hidden md:inline">Cerrar Sesión</span>
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2">
+                      <User className="h-4 w-4" />
+                      <span className="hidden md:inline max-w-[150px] truncate">
+                        {userProfile?.email}
+                      </span>
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">Mi Cuenta</p>
+                        <p className="text-xs leading-none text-muted-foreground truncate">
+                          {userProfile?.email}
+                        </p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {userProfile?.role === 'super_admin' && (
+                      <>
+                        <DropdownMenuItem onClick={() => window.location.href = '/super-admin'}>
+                          <Building2 className="mr-2 h-4 w-4" />
+                          <span>Panel de Super Admin</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                      </>
+                    )}
+                    <DropdownMenuItem onClick={handleLogout} className="text-red-600">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Cerrar Sesión</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">

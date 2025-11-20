@@ -6,7 +6,15 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Building2, Plus, Loader2, CheckCircle2, XCircle, Clock, LogOut, User } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Building2, Plus, Loader2, CheckCircle2, XCircle, Clock, LogOut, User, ChevronDown, Home } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAllCompanies, createCompany, updateCompanyStatus } from '@/lib/companyService';
 import type { Company, CompanyStatus } from '@/types/multitenant';
@@ -138,20 +146,41 @@ export default function SuperAdmin() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 rounded-lg">
-              <User className="h-4 w-4 text-slate-600" />
-              <span className="text-sm text-slate-700">
-                {userProfile?.email}
-              </span>
-            </div>
             <Button onClick={() => setShowCreateDialog(true)} size="lg">
               <Plus className="w-4 h-4 mr-2" />
               Nueva Empresa
             </Button>
-            <Button onClick={handleLogout} variant="outline" size="lg">
-              <LogOut className="w-4 h-4 mr-2" />
-              Cerrar Sesión
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="lg" className="gap-2">
+                  <User className="h-4 w-4" />
+                  <span className="hidden md:inline max-w-[150px] truncate">
+                    {userProfile?.email}
+                  </span>
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">Super Administrador</p>
+                    <p className="text-xs leading-none text-muted-foreground truncate">
+                      {userProfile?.email}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => window.location.href = '/'}>
+                  <Home className="mr-2 h-4 w-4" />
+                  <span>Ir a Página Principal</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} className="text-red-600">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Cerrar Sesión</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
