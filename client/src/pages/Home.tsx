@@ -287,17 +287,35 @@ export default function Home() {
   
   // Suscribirse a mediciones globales en tiempo real
   useEffect(() => {
+    // Si no hay perfil de usuario, no cargar mediciones
+    if (!userProfile) {
+      setGlobalMeasurements([]);
+      return;
+    }
+    
+    // Determinar el companyId a usar para filtrar
+    let companyIdFilter: string | null | undefined;
+    
+    if (userProfile.role === 'super_admin') {
+      // Super admin NO debe ver mediciones de empresas
+      companyIdFilter = null;
+    } else {
+      // Usuarios regulares ven solo mediciones de su empresa
+      companyIdFilter = userProfile.companyId;
+    }
+    
     const unsubscribe = subscribeToGlobalMeasurements(
       (measurements) => {
         setGlobalMeasurements(measurements);
       },
       (error) => {
         console.error('Error al cargar mediciones globales:', error);
-      }
+      },
+      companyIdFilter
     );
     
     return () => unsubscribe();
-  }, []);
+  }, [userProfile]);
 
   // Generar lista global de items únicos por campo
   const globalTurtleItems = useMemo(() => {
@@ -1062,6 +1080,7 @@ export default function Home() {
         date: new Date().toISOString(),
         areas: areasSnapshot,
         createdAt: new Date().toISOString(),
+        companyId: userProfile?.companyId, // Asociar medición a la empresa del usuario
       };
       
       await saveGlobalMeasurement(newGlobalMeasurement);

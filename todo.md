@@ -562,3 +562,16 @@
 - [x] Agregar botón mostrar/ocultar contraseña en registro
 - [x] Agregar botón mostrar/ocultar contraseña en confirmación de contraseña
 - [ ] Probar flujo completo de errores
+
+## CRÍTICO: Aislamiento Multi-Tenant
+
+- [x] Verificar que todas las áreas tengan campo companyId (ya existía en interfaces)
+- [x] Agregar campo companyId a GlobalMeasurement interface
+- [x] Actualizar subscribeToAreas para filtrar por companyId del usuario (ya existía en useFirestore)
+- [x] Actualizar subscribeToGlobalMeasurements para filtrar por companyId
+- [x] Actualizar saveAreaToFirestore para incluir companyId (ya existía en useFirestore)
+- [x] Actualizar createGlobalMeasurement para incluir companyId
+- [x] Actualizar reglas de Firestore (mantener simples, filtrado en cliente)
+- [x] Actualizar archivo REGLAS_FIRESTORE_COPIAR_AQUI.txt
+- [ ] Usuario debe publicar nuevas reglas en Firebase Console
+- [ ] Probar con dos empresas diferentes que no vean datos entre sí

@@ -59,6 +59,7 @@ export interface GlobalMeasurement {
   date: string; // Fecha de creación
   areas: InterviewData[]; // Snapshot de todas las áreas en ese momento
   createdAt: string;
+  companyId?: string; // ID de la empresa a la que pertenece esta medición
 }
 
 const COLLECTION_NAME = 'timeAnalysisAreas';
@@ -311,13 +312,32 @@ export const getGlobalMeasurements = async (): Promise<GlobalMeasurement[]> => {
 
 /**
  * Suscribirse a cambios en mediciones globales en tiempo real
+ * @param companyId - ID de la empresa para filtrar mediciones. Si es null, no se cargan mediciones (para super_admin)
  */
 export const subscribeToGlobalMeasurements = (
   callback: (measurements: GlobalMeasurement[]) => void,
-  onError?: (error: Error) => void
+  onError?: (error: Error) => void,
+  companyId?: string | null
 ) => {
   try {
-    const q = query(collection(db, GLOBAL_MEASUREMENTS_COLLECTION), orderBy('createdAt', 'desc'));
+    // Si companyId es null (super_admin sin empresa), devolver array vacío
+    if (companyId === null) {
+      callback([]);
+      return () => {}; // Unsubscribe vacío
+    }
+    
+    // Si companyId está definido, filtrar por ese campo
+    let q;
+    if (companyId) {
+      q = query(
+        collection(db, GLOBAL_MEASUREMENTS_COLLECTION),
+        where('companyId', '==', companyId),
+        orderBy('createdAt', 'desc')
+      );
+    } else {
+      // Si no hay companyId, cargar todas (fallback para compatibilidad)
+      q = query(collection(db, GLOBAL_MEASUREMENTS_COLLECTION), orderBy('createdAt', 'desc'));
+    }
     
     const unsubscribe = onSnapshot(
       q,

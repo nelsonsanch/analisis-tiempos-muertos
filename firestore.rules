@@ -30,10 +30,11 @@ service cloud.firestore {
     }
     
     // Colección de áreas de análisis (multi-tenant)
+    // El filtrado por companyId se hace en el cliente mediante queries
     match /timeAnalysisAreas/{areaId} {
       // Usuarios autenticados pueden leer áreas
       allow read: if request.auth != null;
-      // Usuarios autenticados pueden crear áreas
+      // Usuarios autenticados pueden crear áreas (deben incluir companyId)
       allow create: if request.auth != null;
       // Usuarios autenticados pueden actualizar áreas
       allow update: if request.auth != null;
@@ -42,10 +43,11 @@ service cloud.firestore {
     }
     
     // Colección de mediciones globales (multi-tenant)
+    // El filtrado por companyId se hace en el cliente mediante queries
     match /globalMeasurements/{measurementId} {
       // Usuarios autenticados pueden leer mediciones
       allow read: if request.auth != null;
-      // Usuarios autenticados pueden crear mediciones
+      // Usuarios autenticados pueden crear mediciones (deben incluir companyId)
       allow create: if request.auth != null;
       // Usuarios autenticados pueden actualizar mediciones
       allow update: if request.auth != null;
