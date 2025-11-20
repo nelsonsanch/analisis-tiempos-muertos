@@ -515,3 +515,9 @@
 - [x] Agregar validación de estado de empresa en reglas
 - [x] Solo usuarios de empresas activas pueden leer/escribir áreas
 - [ ] Usuario debe publicar nuevas reglas en Firebase Console
+
+## Bug: Error en Registro de Empresas
+
+- [x] Corregir error NotFoundError removeChild en Register.tsx
+- [x] Problema con redirección o manejo de estado después del registro (agregado signOut antes de redirigir)
+- [ ] Probar registro de empresa exitoso

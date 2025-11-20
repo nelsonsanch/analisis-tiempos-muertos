@@ -97,9 +97,12 @@ export default function Register() {
 
       setSuccess(true);
       
+      // Cerrar sesión automáticamente (Firebase autentica al crear usuario)
+      await auth.signOut();
+      
       // Redirigir al login después de 3 segundos
       setTimeout(() => {
-        setLocation('/login');
+        window.location.href = '/login';
       }, 3000);
     } catch (err: any) {
       console.error('Error during registration:', err);
