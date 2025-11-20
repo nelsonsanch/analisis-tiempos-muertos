@@ -6,13 +6,22 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Building2, Plus, Loader2, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { Building2, Plus, Loader2, CheckCircle2, XCircle, Clock, LogOut, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAllCompanies, createCompany, updateCompanyStatus } from '@/lib/companyService';
 import type { Company, CompanyStatus } from '@/types/multitenant';
 
 export default function SuperAdmin() {
-  const { userProfile } = useAuth();
+  const { userProfile, signOut } = useAuth();
+  
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      window.location.href = '/login';
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+    }
+  };
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -128,10 +137,22 @@ export default function SuperAdmin() {
               Gestiona todas las empresas y sus configuraciones
             </p>
           </div>
-          <Button onClick={() => setShowCreateDialog(true)} size="lg">
-            <Plus className="w-4 h-4 mr-2" />
-            Nueva Empresa
-          </Button>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 rounded-lg">
+              <User className="h-4 w-4 text-slate-600" />
+              <span className="text-sm text-slate-700">
+                {userProfile?.email}
+              </span>
+            </div>
+            <Button onClick={() => setShowCreateDialog(true)} size="lg">
+              <Plus className="w-4 h-4 mr-2" />
+              Nueva Empresa
+            </Button>
+            <Button onClick={handleLogout} variant="outline" size="lg">
+              <LogOut className="w-4 h-4 mr-2" />
+              Cerrar Sesión
+            </Button>
+          </div>
         </div>
 
         {loading ? (

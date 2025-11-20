@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-// // import { useAuth } from "@/hooks/useAuth"; // Comentado temporalmente // Comentado temporalmente - auth no implementado aún
+import { useAuth } from '@/contexts/AuthContext';
 import { useFirestore } from "@/hooks/useFirestore";
 import { 
   saveGlobalMeasurement, 
@@ -39,7 +39,10 @@ import {
   CheckCircle2,
   Check,
   ChevronsUpDown,
-  Loader2
+  Loader2,
+  LogOut,
+  User,
+  Building2
 } from "lucide-react";
 import {
   BarChart,
@@ -134,6 +137,16 @@ const TURTLE_FIELDS = [
 ];
 
 export default function Home() {
+  const { userProfile, signOut } = useAuth();
+  
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      window.location.href = '/login';
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+    }
+  };
   // The userAuth hooks provides authentication state
   // To implement login/logout functionality, simply call logout() or redirect to getLoginUrl()
   // let { user, loading, error, isAuthenticated, logout } = useAuth(); // Comentado - auth opcional por ahora
@@ -1426,11 +1439,11 @@ export default function Home() {
       <header className="bg-white border-b shadow-sm sticky top-0 z-40">
         <div className="container mx-auto px-4 py-4">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-1">
               <div className="p-2 bg-blue-600 rounded-lg">
                 <Clock className="h-6 w-6 md:h-8 md:w-8 text-white" />
               </div>
-              <div>
+              <div className="flex-1">
                 <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight text-slate-900">
                   Análisis de Tiempos Muertos
                 </h1>
@@ -1454,6 +1467,33 @@ export default function Home() {
                     </Badge>
                   )}
                 </div>
+              </div>
+              <div className="flex items-center gap-2 ml-auto">
+                {userProfile?.role === 'super_admin' && (
+                  <Button 
+                    onClick={() => window.location.href = '/super-admin'} 
+                    variant="outline" 
+                    size="sm"
+                    className="hidden md:flex"
+                  >
+                    <Building2 className="mr-2 h-4 w-4" />
+                    Panel Admin
+                  </Button>
+                )}
+                <div className="flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-lg">
+                  <User className="h-4 w-4 text-slate-600" />
+                  <span className="text-sm text-slate-700 hidden sm:inline">
+                    {userProfile?.email}
+                  </span>
+                </div>
+                <Button 
+                  onClick={handleLogout} 
+                  variant="outline" 
+                  size="sm"
+                >
+                  <LogOut className="h-4 w-4 md:mr-2" />
+                  <span className="hidden md:inline">Cerrar Sesión</span>
+                </Button>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
