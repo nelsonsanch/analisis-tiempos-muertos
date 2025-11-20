@@ -575,3 +575,26 @@
 - [x] Actualizar archivo REGLAS_FIRESTORE_COPIAR_AQUI.txt
 - [ ] Usuario debe publicar nuevas reglas en Firebase Console
 - [ ] Probar con dos empresas diferentes que no vean datos entre sí
+
+## Índices Compuestos de Firestore
+
+- [x] Crear archivo CREAR_INDICES_FIRESTORE.md con instrucciones
+- [ ] Usuario debe crear índice compuesto para timeAnalysisAreas (companyId + savedAt)
+- [ ] Usuario debe crear índice compuesto para globalMeasurements (companyId + createdAt)
+- [ ] Esperar 5-15 minutos a que los índices se construyan
+- [ ] Verificar que los errores de índices desaparezcan
+
+## Bug: Error NotFoundError removeChild en React
+
+- [ ] Diagnosticar origen del error en index-Ck_QjyzV.js
+- [ ] Verificar componentes que renderizan condicionalmente
+- [ ] Agregar guards para evitar renderizado de componentes sin datos
+- [ ] Probar que el error desaparezca
+
+## Solución: Crear Índices de Firestore Manualmente
+
+- [ ] Ir a Firebase Console → Firestore Database → Índices
+- [ ] Crear índice 1: Collection=timeAnalysisAreas, Fields=(companyId ASC, savedAt DESC)
+- [ ] Crear índice 2: Collection=globalMeasurements, Fields=(companyId ASC, createdAt DESC)
+- [ ] Esperar a que los índices estén en estado "Enabled"
+- [ ] Recargar aplicación y verificar que errores desaparezcan
