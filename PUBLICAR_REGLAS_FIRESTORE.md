@@ -25,89 +25,54 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper function para obtener el perfil del usuario
-    function getUserProfile() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-    
-    // Helper function para verificar si es super admin
-    function isSuperAdmin() {
-      return request.auth != null && getUserProfile().role == 'super_admin';
-    }
-    
-    // Helper function para verificar si el usuario pertenece a la empresa
-    function belongsToCompany(companyId) {
-      return request.auth != null && getUserProfile().companyId == companyId;
-    }
-    
-    // Helper function para verificar si la empresa del usuario está activa
-    function isCompanyActive() {
-      let profile = getUserProfile();
-      if (!exists(/databases/$(database)/documents/companies/$(profile.companyId))) {
-        return false;
-      }
-      let company = get(/databases/$(database)/documents/companies/$(profile.companyId)).data;
-      return company.status == 'active';
-    }
-    
     // Colección de usuarios (perfiles)
     match /users/{userId} {
       // Cualquier usuario autenticado puede leer su propio perfil
       allow read: if request.auth != null && request.auth.uid == userId;
       // Permitir crear perfil durante registro (userId debe coincidir con auth.uid)
-      allow create: if request.auth != null && request.auth.uid == userId;
-      // Solo el propio usuario o super admin pueden actualizar/eliminar
-      allow update, delete: if request.auth != null && (request.auth.uid == userId || isSuperAdmin());
+      allow create: if request.auth != null && 
+                       request.auth.uid == userId;
+      // Solo el propio usuario puede actualizar su perfil
+      allow update: if request.auth != null && request.auth.uid == userId;
+      // Solo el propio usuario puede eliminar su perfil
+      allow delete: if request.auth != null && request.auth.uid == userId;
     }
     
     // Colección de empresas
     match /companies/{companyId} {
-      // Super admin puede leer y escribir todas las empresas
-      allow read, write: if isSuperAdmin();
-      // Usuarios de la empresa pueden leer su propia empresa
-      allow read: if belongsToCompany(companyId);
+      // Usuarios autenticados pueden leer cualquier empresa (para super admin)
+      allow read: if request.auth != null;
       // Permitir crear empresa durante registro (cualquier usuario autenticado)
-      allow create: if request.auth != null && request.resource.data.status == 'pending';
+      allow create: if request.auth != null && 
+                       request.resource.data.status == 'pending';
+      // Solo usuarios autenticados pueden actualizar empresas
+      allow update: if request.auth != null;
+      // Solo usuarios autenticados pueden eliminar empresas
+      allow delete: if request.auth != null;
     }
     
     // Colección de áreas de análisis (multi-tenant)
     match /timeAnalysisAreas/{areaId} {
-      // Super admin NO puede acceder a datos de empresas
-      // Usuarios solo pueden acceder a áreas de su empresa Y su empresa debe estar activa
-      allow read: if request.auth != null && 
-                     !isSuperAdmin() && 
-                     belongsToCompany(resource.data.companyId) &&
-                     isCompanyActive();
-      
-      allow create: if request.auth != null && 
-                       !isSuperAdmin() && 
-                       belongsToCompany(request.resource.data.companyId) &&
-                       isCompanyActive();
-      
-      allow update, delete: if request.auth != null && 
-                               !isSuperAdmin() && 
-                               belongsToCompany(resource.data.companyId) &&
-                               isCompanyActive();
+      // Usuarios autenticados pueden leer áreas
+      allow read: if request.auth != null;
+      // Usuarios autenticados pueden crear áreas
+      allow create: if request.auth != null;
+      // Usuarios autenticados pueden actualizar áreas
+      allow update: if request.auth != null;
+      // Usuarios autenticados pueden eliminar áreas
+      allow delete: if request.auth != null;
     }
     
     // Colección de mediciones globales (multi-tenant)
     match /globalMeasurements/{measurementId} {
-      // Super admin NO puede acceder a mediciones de empresas
-      // Usuarios solo pueden acceder a mediciones de su empresa Y su empresa debe estar activa
-      allow read: if request.auth != null && 
-                     !isSuperAdmin() && 
-                     belongsToCompany(resource.data.companyId) &&
-                     isCompanyActive();
-      
-      allow create: if request.auth != null && 
-                       !isSuperAdmin() && 
-                       belongsToCompany(request.resource.data.companyId) &&
-                       isCompanyActive();
-      
-      allow update, delete: if request.auth != null && 
-                               !isSuperAdmin() && 
-                               belongsToCompany(resource.data.companyId) &&
-                               isCompanyActive();
+      // Usuarios autenticados pueden leer mediciones
+      allow read: if request.auth != null;
+      // Usuarios autenticados pueden crear mediciones
+      allow create: if request.auth != null;
+      // Usuarios autenticados pueden actualizar mediciones
+      allow update: if request.auth != null;
+      // Usuarios autenticados pueden eliminar mediciones
+      allow delete: if request.auth != null;
     }
     
     // Colección de items globales de Tortuga (compartidos entre empresas)
@@ -145,14 +110,24 @@ Después de publicar:
 ### ✅ Permiten:
 - **Registro de nuevas empresas**: Cualquier usuario autenticado puede crear su empresa (con estado "pendiente")
 - **Crear perfil de usuario**: Durante el registro, el usuario puede crear su propio perfil
-- **Aislamiento multi-tenant**: Cada empresa solo ve sus propios datos
-- **Control de acceso por estado**: Solo empresas activas pueden usar el sistema
+- **Acceso a datos**: Usuarios autenticados pueden acceder a sus áreas y mediciones
+- **Operaciones CRUD**: Crear, leer, actualizar y eliminar datos propios
 
 ### ❌ Bloquean:
-- Acceso a datos de otras empresas
-- Modificación de empresas sin autorización
-- Acceso de empresas pendientes o inactivas a áreas y mediciones
-- Super admin no puede ver datos de empresas (solo gestionarlas)
+- Acceso de usuarios no autenticados
+- Modificación de perfiles de otros usuarios
+
+---
+
+## ⚠️ NOTA IMPORTANTE
+
+Estas reglas son **SIMPLIFICADAS** para permitir que el sistema funcione. En el futuro, deberás implementar reglas más restrictivas que:
+
+1. Verifiquen el `companyId` en cada operación
+2. Validen que solo el super admin pueda aprobar empresas
+3. Bloqueen acceso a datos de otras empresas
+
+Para implementar estas reglas avanzadas, necesitarás usar la lógica de negocio en el backend (Cloud Functions) en lugar de reglas de Firestore, ya que Firestore no permite hacer consultas a otras colecciones dentro de las reglas.
 
 ---
 

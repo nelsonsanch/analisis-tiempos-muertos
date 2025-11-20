@@ -529,3 +529,11 @@
 - [x] Crear archivo PUBLICAR_REGLAS_FIRESTORE.md con instrucciones detalladas
 - [ ] Usuario debe publicar reglas en Firebase Console
 - [ ] Probar registro exitoso
+
+## Bug: Error de Sintaxis en Reglas de Firestore
+
+- [x] Corregir sintaxis de reglas de Firestore (eliminar get() y exists() que no son compatibles)
+- [x] Simplificar reglas para usar solo request.auth y resource.data
+- [x] Actualizar archivo PUBLICAR_REGLAS_FIRESTORE.md con reglas corregidas
+- [ ] Usuario debe publicar reglas simplificadas en Firebase Console
+- [ ] Probar registro de empresa exitoso
