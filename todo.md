@@ -537,3 +537,11 @@
 - [x] Actualizar archivo PUBLICAR_REGLAS_FIRESTORE.md con reglas corregidas
 - [ ] Usuario debe publicar reglas simplificadas en Firebase Console
 - [ ] Probar registro de empresa exitoso
+
+## Bug: Errores de Permisos en Tiempo Real
+
+- [x] Verificar que existe archivo firestore.rules en la raíz del proyecto
+- [x] Actualizar archivo firestore.rules con reglas simplificadas
+- [x] Verificar que las reglas coincidan con PUBLICAR_REGLAS_FIRESTORE.md
+- [ ] Usuario debe publicar reglas desde Firebase Console
+- [ ] Probar suscripciones en tiempo real (áreas y mediciones)
