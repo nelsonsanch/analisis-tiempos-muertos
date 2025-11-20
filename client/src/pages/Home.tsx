@@ -149,6 +149,13 @@ const TURTLE_FIELDS = [
 export default function Home() {
   const { userProfile, signOut } = useAuth();
   
+  // Redirección automática: super_admin no debe acceder a esta página
+  useEffect(() => {
+    if (userProfile?.role === 'super_admin') {
+      window.location.href = '/super-admin';
+    }
+  }, [userProfile]);
+  
   const handleLogout = async () => {
     try {
       await signOut();
@@ -913,6 +920,7 @@ export default function Home() {
         ...interviewData,
         id: editingId || undefined,
         savedAt: new Date().toISOString(),
+        companyId: userProfile?.companyId, // Asociar área a la empresa del usuario
       };
 
       await saveAreaToFirestore(newArea);

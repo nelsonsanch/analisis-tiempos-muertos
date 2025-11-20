@@ -8,7 +8,7 @@ import {
   browserLocalPersistence
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { getUserProfile, upsertUserProfile, getCompanyById } from '@/lib/companyService';
+import { getUserProfile, upsertUserProfile, getCompanyById, createCompanyWithUser } from '@/lib/companyService';
 import type { UserProfile, Company } from '@/types/multitenant';
 
 interface AuthContextType {
@@ -41,20 +41,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Cargar perfil del usuario
           let profile = await getUserProfile(firebaseUser.uid);
           
-          // Si no existe perfil, crear uno básico
-          if (!profile) {
-            const userData: any = {
-              email: firebaseUser.email || '',
-              role: 'user', // Por defecto, será actualizado manualmente a super_admin si es necesario
-            };
+          // Si no existe perfil O no tiene companyId, crear empresa automáticamente
+          if (!profile || (!profile.companyId && profile.role !== 'super_admin')) {
+            console.log('[AuthContext] Usuario sin perfil detectado, creando empresa automática...');
             
-            // Solo agregar name si existe
-            if (firebaseUser.displayName) {
-              userData.name = firebaseUser.displayName;
+            // Crear empresa automática para el usuario
+            const companyName = firebaseUser.displayName 
+              ? `Empresa de ${firebaseUser.displayName}`
+              : `Empresa de ${firebaseUser.email?.split('@')[0] || 'Usuario'}`;
+            
+            try {
+              await createCompanyWithUser(firebaseUser.uid, {
+                email: firebaseUser.email || '',
+                companyName,
+                nit: 'Por definir',
+                phone: 'Por definir',
+                economicActivity: 'Por definir',
+                address: 'Por definir',
+              });
+              
+              console.log('[AuthContext] Empresa creada exitosamente');
+              profile = await getUserProfile(firebaseUser.uid);
+            } catch (error) {
+              console.error('[AuthContext] Error creando empresa automática:', error);
+              // Fallback: crear perfil básico sin empresa (para super_admin)
+              const userData: any = {
+                email: firebaseUser.email || '',
+                role: 'user',
+              };
+              
+              if (firebaseUser.displayName) {
+                userData.name = firebaseUser.displayName;
+              }
+              
+              await upsertUserProfile(firebaseUser.uid, userData);
+              profile = await getUserProfile(firebaseUser.uid);
             }
-            
-            await upsertUserProfile(firebaseUser.uid, userData);
-            profile = await getUserProfile(firebaseUser.uid);
           }
           
           setUserProfile(profile);

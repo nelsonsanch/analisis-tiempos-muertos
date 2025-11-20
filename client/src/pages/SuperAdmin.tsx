@@ -22,6 +22,13 @@ import type { Company, CompanyStatus } from '@/types/multitenant';
 export default function SuperAdmin() {
   const { userProfile, signOut } = useAuth();
   
+  // Protección de ruta: solo super_admin puede acceder
+  useEffect(() => {
+    if (userProfile && userProfile.role !== 'super_admin') {
+      window.location.href = '/';
+    }
+  }, [userProfile]);
+  
   const handleLogout = async () => {
     try {
       await signOut();
