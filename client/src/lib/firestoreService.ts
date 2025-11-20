@@ -7,6 +7,7 @@ import {
   getDocs, 
   onSnapshot,
   query,
+  where,
   orderBy,
   Timestamp,
   deleteField 
@@ -24,6 +25,7 @@ export interface InterviewData {
   observations: string;
   savedAt?: string;
   turtleProcess?: TurtleProcess;
+  companyId?: string; // ID de la empresa a la que pertenece esta área
 }
 
 export interface Position {
@@ -134,13 +136,32 @@ export const getAreas = async (): Promise<InterviewData[]> => {
 
 /**
  * Suscribirse a cambios en tiempo real
+ * @param companyId - ID de la empresa para filtrar áreas. Si es null, no se cargan áreas (para super_admin)
  */
 export const subscribeToAreas = (
   callback: (areas: InterviewData[]) => void,
-  onError?: (error: Error) => void
+  onError?: (error: Error) => void,
+  companyId?: string | null
 ) => {
   try {
-    const q = query(collection(db, COLLECTION_NAME), orderBy('savedAt', 'desc'));
+    // Si companyId es null (super_admin sin empresa), devolver array vacío
+    if (companyId === null) {
+      callback([]);
+      return () => {}; // Unsubscribe vacío
+    }
+    
+    // Si companyId está definido, filtrar por ese campo
+    let q;
+    if (companyId) {
+      q = query(
+        collection(db, COLLECTION_NAME),
+        where('companyId', '==', companyId),
+        orderBy('savedAt', 'desc')
+      );
+    } else {
+      // Si no hay companyId, cargar todas (fallback para compatibilidad)
+      q = query(collection(db, COLLECTION_NAME), orderBy('savedAt', 'desc'));
+    }
     
     const unsubscribe = onSnapshot(
       q,

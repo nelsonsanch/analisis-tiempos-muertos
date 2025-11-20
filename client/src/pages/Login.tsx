@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Clock, Loader2 } from 'lucide-react';
+import { Clock, Loader2, UserPlus, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function Login() {
+  const [, setLocation] = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -106,6 +108,30 @@ export default function Login() {
               )}
             </Button>
           </form>
+          
+          {/* Botones de Registro y Reseteo de Contraseña */}
+          <div className="mt-6 space-y-3">
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => setLocation('/register')}
+              disabled={loading}
+            >
+              <UserPlus className="mr-2 h-4 w-4" />
+              Registrarse
+            </Button>
+            
+            <Button
+              variant="ghost"
+              className="w-full text-sm"
+              onClick={() => setLocation('/reset-password')}
+              disabled={loading}
+            >
+              <KeyRound className="mr-2 h-4 w-4" />
+              ¿Olvidó su contraseña?
+            </Button>
+          </div>
+          
           <div className="mt-6 text-center text-sm text-muted-foreground">
             <p>Solo usuarios autorizados pueden acceder</p>
           </div>

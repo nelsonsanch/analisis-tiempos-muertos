@@ -7,6 +7,8 @@ import { AuthProvider } from "./contexts/AuthContext";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
+import Register from "./pages/Register";
+import ResetPassword from "./pages/ResetPassword";
 import UserManagement from "./pages/UserManagement";
 import SuperAdmin from "./pages/SuperAdmin";
 import SetupSuperAdmin from "./pages/SetupSuperAdmin";
@@ -16,6 +18,8 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
+      <Route path="/register" component={Register} />
+      <Route path="/reset-password" component={ResetPassword} />
       <Route path="/">
         <ProtectedRoute>
           <Home />

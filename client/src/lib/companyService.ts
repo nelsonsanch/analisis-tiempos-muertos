@@ -138,3 +138,50 @@ export async function getCompanyUsers(companyId: string): Promise<UserProfile[]>
   
   return snapshot.docs.map(doc => doc.data() as UserProfile);
 }
+
+/**
+ * Crear empresa y usuario durante el registro
+ * La empresa se crea con estado "pending" hasta que el super admin la apruebe
+ */
+export async function createCompanyWithUser(
+  uid: string,
+  data: {
+    email: string;
+    companyName: string;
+    nit: string;
+    phone: string;
+    economicActivity: string;
+    address: string;
+  }
+): Promise<string> {
+  // 1. Crear la empresa con estado "pending"
+  const companyRef = doc(collection(db, COMPANIES_COLLECTION));
+  const companyId = companyRef.id;
+
+  const company: Omit<Company, 'id'> = {
+    name: data.companyName,
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+    createdBy: uid,
+    adminEmail: data.email,
+    nit: data.nit,
+    phone: data.phone,
+    economicActivity: data.economicActivity,
+    address: data.address,
+  };
+
+  await setDoc(companyRef, company);
+
+  // 2. Crear el perfil de usuario asociado a la empresa
+  await upsertUserProfile(uid, {
+    uid,
+    email: data.email,
+    role: 'user',
+    companyId,
+  });
+
+  // 3. TODO: Enviar notificación por email al super admin
+  // Esto se implementará en la siguiente fase
+
+  return companyId;
+}

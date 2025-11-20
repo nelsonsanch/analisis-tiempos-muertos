@@ -96,11 +96,26 @@ export default function SuperAdmin() {
   };
 
   const handleToggleStatus = async (companyId: string, currentStatus: CompanyStatus) => {
-    const newStatus: CompanyStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    let newStatus: CompanyStatus;
+    
+    if (currentStatus === 'pending') {
+      newStatus = 'active';
+    } else if (currentStatus === 'active') {
+      newStatus = 'inactive';
+    } else {
+      newStatus = 'active';
+    }
     
     try {
       await updateCompanyStatus(companyId, newStatus);
-      toast.success(`Empresa ${newStatus === 'active' ? 'activada' : 'desactivada'}`);
+      
+      if (newStatus === 'active' && currentStatus === 'pending') {
+        toast.success('Empresa activada. El cliente puede iniciar sesión.');
+        // TODO: Enviar email de notificación al cliente
+      } else {
+        toast.success(`Empresa ${newStatus === 'active' ? 'activada' : 'desactivada'}`);
+      }
+      
       loadCompanies();
     } catch (error) {
       console.error('Error updating company status:', error);
@@ -221,19 +236,38 @@ export default function SuperAdmin() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2 text-sm text-muted-foreground mb-4">
+                    {company.nit && (
+                      <div>
+                        <strong>NIT:</strong> {company.nit}
+                      </div>
+                    )}
+                    {company.phone && (
+                      <div>
+                        <strong>Teléfono:</strong> {company.phone}
+                      </div>
+                    )}
+                    {company.economicActivity && (
+                      <div>
+                        <strong>Actividad:</strong> {company.economicActivity}
+                      </div>
+                    )}
+                    {company.address && (
+                      <div>
+                        <strong>Dirección:</strong> {company.address}
+                      </div>
+                    )}
                     <div>
                       <strong>Creada:</strong> {new Date(company.createdAt).toLocaleDateString('es-ES')}
                     </div>
-                    <div>
-                      <strong>ID:</strong> <code className="text-xs">{company.id}</code>
-                    </div>
                   </div>
                   <Button
-                    variant={company.status === 'active' ? 'outline' : 'default'}
-                    className="w-full"
+                    variant={company.status === 'pending' ? 'default' : company.status === 'active' ? 'outline' : 'default'}
+                    className={company.status === 'pending' ? 'w-full bg-green-600 hover:bg-green-700' : 'w-full'}
                     onClick={() => handleToggleStatus(company.id, company.status)}
                   >
-                    {company.status === 'active' ? 'Desactivar' : 'Activar'}
+                    {company.status === 'pending' && '✅ Activar Empresa'}
+                    {company.status === 'active' && '❌ Desactivar'}
+                    {company.status === 'inactive' && '✅ Reactivar'}
                   </Button>
                 </CardContent>
               </Card>

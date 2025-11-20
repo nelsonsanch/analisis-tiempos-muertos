@@ -439,3 +439,79 @@
 - [x] Corregir formato de datos agregando valor por defecto peopleCount: 1
 - [ ] Probar análisis de área con datos reales
 - [ ] Crear checkpoint final
+
+## Corrección de Aislamiento Multi-Tenant
+
+- [x] Analizar por qué el super admin ve datos de empresas cliente
+- [x] Implementar filtrado por companyId en useFirestore hook
+- [x] Agregar validación de rol super_admin para no cargar datos de empresas
+- [x] Agregar campo companyId a interface InterviewData
+- [x] Modificar subscribeToAreas para aceptar y filtrar por companyId
+- [x] Actualizar saveArea para incluir companyId automáticamente
+- [x] Crear nuevas reglas de Firestore con aislamiento multi-tenant
+- [x] Crear guía de configuración CONFIGURACION_REGLAS_MULTITENANT.md
+- [ ] Usuario debe publicar nuevas reglas en Firebase Console
+- [ ] Verificar que cada empresa solo vea sus propios datos
+- [ ] Probar con usuario super admin (nelson@sanchezcya.com)
+- [ ] Probar con usuario de empresa (hsesupergas@gmail.com)
+
+## Sistema de Autenticación y Registro Completo
+
+### Pantalla de Login
+- [x] Mostrar login como primera vista al entrar a la aplicación
+- [x] Agregar botón "Registrarse" debajo de "Iniciar Sesión"
+- [x] Agregar botón/link "¿Olvidó su contraseña?" / "Resetear Contraseña"
+
+### Formulario de Registro de Nuevas Empresas
+- [x] Crear página/modal de registro
+- [x] Campo: Correo electrónico (usuario)
+- [x] Campo: Contraseña (validación: mayúsculas + minúsculas + carácter especial)
+- [x] Campo: Confirmar contraseña
+- [x] Campo: Nombre de la empresa
+- [x] Campo: NIT
+- [x] Campo: Teléfono de contacto
+- [x] Campo: Actividad económica
+- [x] Campo: Dirección
+- [x] Validar formato de contraseña en tiempo real
+- [x] Crear empresa con estado "pendiente" al registrarse
+- [x] Crear usuario en Firebase Authentication
+- [x] Guardar datos de empresa en Firestore
+
+### Sistema de Reseteo de Contraseña
+- [x] Crear página/modal de reseteo de contraseña
+- [x] Campo: Correo electrónico
+- [x] Integrar con Firebase sendPasswordResetEmail
+- [x] Mostrar mensaje de confirmación
+- [x] Cliente recibe email con enlace de Firebase
+- [x] Cliente puede asignar nueva contraseña desde el enlace
+
+### Panel de Super Admin
+- [x] Crear página /super-admin
+- [x] Proteger ruta (solo accesible para role: super_admin)
+- [x] Mostrar lista de empresas registradas
+- [x] Mostrar estado de cada empresa (pendiente/activa/inactiva)
+- [x] Botón "Activar" para empresas pendientes
+- [x] Botón "Desactivar" para empresas activas
+- [x] Mostrar información completa de cada empresa (nombre, NIT, teléfono, etc.)
+- [x] Actualizar estado de empresa en Firestore
+- [x] Actualizar estado de usuario asociado
+
+### Sistema de Notificaciones por Email
+- [ ] Configurar servicio de envío de emails (pendiente - requiere configuración adicional)
+- [ ] Enviar email a nelson@sanchezcya.com cuando se registra nueva empresa
+- [ ] Email debe incluir: nombre empresa, NIT, correo, teléfono, actividad, dirección
+- [ ] Enviar email al cliente cuando su empresa es aprobada
+- [ ] Enviar email al cliente cuando su empresa es desactivada
+
+### Control de Acceso
+- [x] Bloquear acceso a la aplicación si empresa está en estado "pendiente"
+- [x] Mostrar mensaje "Su cuenta está pendiente de aprobación" si intenta iniciar sesión
+- [x] Bloquear acceso si empresa está "inactiva"
+- [x] Permitir acceso solo si empresa está "activa"
+- [x] Super admin siempre puede acceder
+
+### Actualización de Reglas de Firestore
+- [x] Agregar reglas para colección "companies"
+- [x] Agregar validación de estado de empresa en reglas
+- [x] Solo usuarios de empresas activas pueden leer/escribir áreas
+- [ ] Usuario debe publicar nuevas reglas en Firebase Console

@@ -7,10 +7,12 @@ import {
   migrateFromLocalStorage,
   cleanExistingDocuments 
 } from '@/lib/firestoreService';
+import { useAuth } from '@/contexts/AuthContext';
 
 export type SyncStatus = 'idle' | 'loading' | 'syncing' | 'synced' | 'error';
 
 export const useFirestore = () => {
+  const { userProfile } = useAuth();
   const [areas, setAreas] = useState<InterviewData[]>([]);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +26,25 @@ export const useFirestore = () => {
 
   // Suscribirse a cambios en tiempo real
   useEffect(() => {
+    // Si no hay perfil de usuario, no cargar nada
+    if (!userProfile) {
+      setAreas([]);
+      setSyncStatus('idle');
+      return;
+    }
+    
     setSyncStatus('loading');
+    
+    // Determinar el companyId a usar para filtrar
+    let companyIdFilter: string | null | undefined;
+    
+    if (userProfile.role === 'super_admin') {
+      // Super admin NO debe ver datos de empresas
+      companyIdFilter = null;
+    } else {
+      // Usuarios regulares ven solo datos de su empresa
+      companyIdFilter = userProfile.companyId;
+    }
     
     const unsubscribe = subscribeToAreas(
       (updatedAreas) => {
@@ -35,7 +55,8 @@ export const useFirestore = () => {
       (err) => {
         setError(err.message);
         setSyncStatus('error');
-      }
+      },
+      companyIdFilter
     );
 
     return () => {
@@ -43,7 +64,7 @@ export const useFirestore = () => {
         unsubscribe();
       }
     };
-  }, []);
+  }, [userProfile]);
 
   /**
    * Guardar área en Firestore
@@ -53,7 +74,13 @@ export const useFirestore = () => {
       setSyncStatus('syncing');
       setError(null);
       
-      const areaId = await saveAreaToFirestore(area);
+      // Agregar companyId automáticamente si el usuario tiene uno
+      const areaWithCompany = {
+        ...area,
+        companyId: userProfile?.companyId || area.companyId
+      };
+      
+      const areaId = await saveAreaToFirestore(areaWithCompany);
       
       setSyncStatus('synced');
       return areaId;

@@ -14,6 +14,10 @@ export interface Company {
   createdBy: string;
   adminEmail?: string;
   adminName?: string;
+  nit?: string;
+  phone?: string;
+  economicActivity?: string;
+  address?: string;
 }
 
 export interface UserProfile {
