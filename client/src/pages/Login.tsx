@@ -1,6 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,8 +11,14 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
-  const [, setLocation] = useLocation();
+  const { user, signIn } = useAuth();
+
+  // Si ya está autenticado, redirigir inmediatamente
+  useEffect(() => {
+    if (user) {
+      window.location.href = '/';
+    }
+  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,14 +32,28 @@ export default function Login() {
     try {
       await signIn(email, password);
       toast.success('¡Bienvenido!');
-      setLocation('/');
+      // Esperar un momento para que el toast se muestre
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 500);
     } catch (error: any) {
       console.error('Login error:', error);
       toast.error('Credenciales inválidas. Verifica tu email y contraseña.');
-    } finally {
       setLoading(false);
     }
   };
+
+  // Si ya está autenticado, mostrar loading
+  if (user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto" />
+          <p className="text-muted-foreground">Redirigiendo...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 p-4">

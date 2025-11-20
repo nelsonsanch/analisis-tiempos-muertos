@@ -8,9 +8,13 @@ import {
   browserLocalPersistence
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { getUserProfile, upsertUserProfile, getCompanyById } from '@/lib/companyService';
+import type { UserProfile, Company } from '@/types/multitenant';
 
 interface AuthContextType {
   user: User | null;
+  userProfile: UserProfile | null;
+  company: Company | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -20,6 +24,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [company, setCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -27,8 +33,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setPersistence(auth, browserLocalPersistence).catch(console.error);
 
     // Listen for auth state changes
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setUser(firebaseUser);
+      
+      if (firebaseUser) {
+        try {
+          // Cargar perfil del usuario
+          let profile = await getUserProfile(firebaseUser.uid);
+          
+          // Si no existe perfil, crear uno básico
+          if (!profile) {
+            await upsertUserProfile(firebaseUser.uid, {
+              email: firebaseUser.email || '',
+              name: firebaseUser.displayName || undefined,
+              role: 'user', // Por defecto, será actualizado manualmente a super_admin si es necesario
+            });
+            profile = await getUserProfile(firebaseUser.uid);
+          }
+          
+          setUserProfile(profile);
+          
+          // Cargar empresa si el usuario tiene companyId
+          if (profile?.companyId) {
+            const companyData = await getCompanyById(profile.companyId);
+            setCompany(companyData);
+          } else {
+            setCompany(null);
+          }
+        } catch (error) {
+          console.error('Error loading user profile:', error);
+          setUserProfile(null);
+          setCompany(null);
+        }
+      } else {
+        setUserProfile(null);
+        setCompany(null);
+      }
+      
       setLoading(false);
     });
 
@@ -54,7 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, userProfile, company, loading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

@@ -8,6 +8,8 @@ import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import UserManagement from "./pages/UserManagement";
+import SuperAdmin from "./pages/SuperAdmin";
+import SetupSuperAdmin from "./pages/SetupSuperAdmin";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 function Router() {
@@ -27,6 +29,16 @@ function Router() {
       <Route path="/admin/users">
         <ProtectedRoute>
           <UserManagement />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/super-admin">
+        <ProtectedRoute>
+          <SuperAdmin />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/setup-super-admin">
+        <ProtectedRoute>
+          <SetupSuperAdmin />
         </ProtectedRoute>
       </Route>
       <Route>
