@@ -1,3 +1,25 @@
+# 🔥 INSTRUCCIONES PARA PUBLICAR REGLAS DE FIRESTORE
+
+## ⚠️ IMPORTANTE: PASO OBLIGATORIO
+
+El sistema **NO FUNCIONARÁ** hasta que publiques estas reglas en Firebase Console.
+
+---
+
+## 📋 Pasos para Publicar las Reglas
+
+### 1️⃣ Abrir Firebase Console
+
+1. Ve a [https://console.firebase.google.com/](https://console.firebase.google.com/)
+2. Selecciona tu proyecto
+3. En el menú lateral izquierdo, haz clic en **"Firestore Database"**
+4. Haz clic en la pestaña **"Reglas"** (Rules)
+
+### 2️⃣ Copiar las Reglas
+
+Copia **TODO** el siguiente código:
+
+```
 rules_version = '2';
 
 service cloud.firestore {
@@ -101,3 +123,58 @@ service cloud.firestore {
     }
   }
 }
+```
+
+### 3️⃣ Pegar y Publicar
+
+1. **Borra todo** el contenido actual en el editor de reglas
+2. **Pega** el código de arriba
+3. Haz clic en el botón **"Publicar"** (Publish)
+4. Confirma la publicación
+
+### 4️⃣ Verificar
+
+Después de publicar:
+1. Intenta registrar una nueva empresa desde `/register`
+2. El registro debería funcionar sin errores de permisos
+
+---
+
+## 🔍 ¿Qué Hacen Estas Reglas?
+
+### ✅ Permiten:
+- **Registro de nuevas empresas**: Cualquier usuario autenticado puede crear su empresa (con estado "pendiente")
+- **Crear perfil de usuario**: Durante el registro, el usuario puede crear su propio perfil
+- **Aislamiento multi-tenant**: Cada empresa solo ve sus propios datos
+- **Control de acceso por estado**: Solo empresas activas pueden usar el sistema
+
+### ❌ Bloquean:
+- Acceso a datos de otras empresas
+- Modificación de empresas sin autorización
+- Acceso de empresas pendientes o inactivas a áreas y mediciones
+- Super admin no puede ver datos de empresas (solo gestionarlas)
+
+---
+
+## 🆘 Solución de Problemas
+
+### Error: "Missing or insufficient permissions"
+- **Causa**: Las reglas no están publicadas o están mal configuradas
+- **Solución**: Verifica que hayas publicado las reglas exactamente como se muestran arriba
+
+### Error: "auth/email-already-in-use"
+- **Causa**: El correo ya está registrado
+- **Solución**: Usa otro correo o elimina el usuario existente desde Firebase Console
+
+### Las empresas no aparecen en el panel de super admin
+- **Causa**: El super admin no tiene permisos de lectura
+- **Solución**: Verifica que el usuario tenga `role: 'super_admin'` en la colección `users`
+
+---
+
+## 📞 Soporte
+
+Si después de publicar las reglas sigues teniendo problemas, verifica:
+1. Que el proyecto de Firebase sea el correcto
+2. Que las reglas se hayan publicado correctamente (sin errores de sintaxis)
+3. Que el usuario esté autenticado en Firebase Authentication

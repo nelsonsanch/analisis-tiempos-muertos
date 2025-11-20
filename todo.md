@@ -521,3 +521,11 @@
 - [x] Corregir error NotFoundError removeChild en Register.tsx
 - [x] Problema con redirección o manejo de estado después del registro (agregado signOut antes de redirigir)
 - [ ] Probar registro de empresa exitoso
+
+## Bug: Error de Permisos en Registro
+
+- [x] Actualizar reglas de Firestore para permitir creación de usuarios y empresas durante registro
+- [x] Permitir que usuarios autenticados creen su perfil y empresa con estado 'pending'
+- [x] Crear archivo PUBLICAR_REGLAS_FIRESTORE.md con instrucciones detalladas
+- [ ] Usuario debe publicar reglas en Firebase Console
+- [ ] Probar registro exitoso
