@@ -10,11 +10,7 @@ import {
 
 export type SyncStatus = 'idle' | 'loading' | 'syncing' | 'synced' | 'error';
 
-interface UseFirestoreProps {
-  companyId?: string;
-}
-
-export const useFirestore = ({ companyId }: UseFirestoreProps = {}) => {
+export const useFirestore = () => {
   const [areas, setAreas] = useState<InterviewData[]>([]);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -28,17 +24,9 @@ export const useFirestore = ({ companyId }: UseFirestoreProps = {}) => {
 
   // Suscribirse a cambios en tiempo real
   useEffect(() => {
-    // No suscribirse si no hay companyId
-    if (!companyId) {
-      setAreas([]);
-      setSyncStatus('idle');
-      return;
-    }
-
     setSyncStatus('loading');
     
     const unsubscribe = subscribeToAreas(
-      companyId,
       (updatedAreas) => {
         setAreas(updatedAreas);
         setSyncStatus('synced');
@@ -55,27 +43,17 @@ export const useFirestore = ({ companyId }: UseFirestoreProps = {}) => {
         unsubscribe();
       }
     };
-  }, [companyId]);
+  }, []);
 
   /**
    * Guardar área en Firestore
    */
   const saveArea = async (area: InterviewData): Promise<string> => {
     try {
-      if (!companyId) {
-        throw new Error('No hay empresa activa');
-      }
-
       setSyncStatus('syncing');
       setError(null);
       
-      // Asegurar que el área tenga el companyId
-      const areaWithCompany = {
-        ...area,
-        companyId
-      };
-      
-      const areaId = await saveAreaToFirestore(areaWithCompany);
+      const areaId = await saveAreaToFirestore(area);
       
       setSyncStatus('synced');
       return areaId;
@@ -111,10 +89,6 @@ export const useFirestore = ({ companyId }: UseFirestoreProps = {}) => {
    */
   const migrateData = async (): Promise<number> => {
     try {
-      if (!companyId) {
-        throw new Error('No hay empresa activa');
-      }
-
       setSyncStatus('syncing');
       setError(null);
       

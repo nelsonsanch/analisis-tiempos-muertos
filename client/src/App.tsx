@@ -8,26 +8,12 @@ import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import UserManagement from "./pages/UserManagement";
-import CompanyRegistration from "./pages/CompanyRegistration";
-import PendingApproval from "./pages/PendingApproval";
-import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
-      <Route path="/register" component={CompanyRegistration} />
-      <Route path="/pending-approval">
-        <ProtectedRoute>
-          <PendingApproval />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/super-admin">
-        <ProtectedRoute requiredRole="super_admin">
-          <SuperAdminDashboard />
-        </ProtectedRoute>
-      </Route>
       <Route path="/">
         <ProtectedRoute>
           <Home />

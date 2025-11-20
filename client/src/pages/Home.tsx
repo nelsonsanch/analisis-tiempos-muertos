@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { useAuth } from "@/contexts/AuthContext";
+// // import { useAuth } from "@/hooks/useAuth"; // Comentado temporalmente // Comentado temporalmente - auth no implementado aún
 import { useFirestore } from "@/hooks/useFirestore";
 import { 
   saveGlobalMeasurement, 
@@ -134,9 +134,9 @@ const TURTLE_FIELDS = [
 ];
 
 export default function Home() {
-  // Autenticación multi-tenant
-  const { currentUser, company } = useAuth();
-  const companyId = currentUser?.companyId || '';
+  // The userAuth hooks provides authentication state
+  // To implement login/logout functionality, simply call logout() or redirect to getLoginUrl()
+  // let { user, loading, error, isAuthenticated, logout } = useAuth(); // Comentado - auth opcional por ahora
 
   const [view, setView] = useState<"list" | "form" | "compare" | "process-map" | "sipoc" | "measurements" | "measurement-detail" | "measurement-compare">("list");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -162,7 +162,7 @@ export default function Home() {
   const [measurementToCompare1, setMeasurementToCompare1] = useState<GlobalMeasurement | null>(null);
   const [measurementToCompare2, setMeasurementToCompare2] = useState<GlobalMeasurement | null>(null);
   
-  // Hook de Firestore para sincronización en la nube (filtrado por empresa)
+  // Hook de Firestore para sincronización en la nube
   const { 
     areas: savedAreas, 
     saveArea: saveAreaToFirestore, 
@@ -172,7 +172,7 @@ export default function Home() {
     syncStatus,
     error: firestoreError,
     isMigrated
-  } = useFirestore({ companyId });
+  } = useFirestore();
   
   const [interviewData, setInterviewData] = useState<InterviewData>({
     areaName: "",
@@ -262,22 +262,19 @@ export default function Home() {
     }
   }, [isMigrated]);
   
-  // Suscribirse a mediciones globales en tiempo real (filtrado por empresa)
+  // Suscribirse a mediciones globales en tiempo real
   useEffect(() => {
-    if (!companyId) return;
-
     const unsubscribe = subscribeToGlobalMeasurements(
-      companyId,
       (measurements) => {
         setGlobalMeasurements(measurements);
       },
       (error) => {
-        console.error('Error en suscripción a mediciones globales:', error);
+        console.error('Error al cargar mediciones globales:', error);
       }
     );
     
     return () => unsubscribe();
-  }, [companyId]);
+  }, []);
 
   // Generar lista global de items únicos por campo
   const globalTurtleItems = useMemo(() => {
@@ -1038,8 +1035,7 @@ export default function Home() {
       const areasSnapshot: InterviewData[] = JSON.parse(JSON.stringify(savedAreas));
       
       const newGlobalMeasurement: GlobalMeasurement = {
-        companyId,
-        name: globalMeasurementName,
+        name: globalMeasurementName.trim(),
         date: new Date().toISOString(),
         areas: areasSnapshot,
         createdAt: new Date().toISOString(),

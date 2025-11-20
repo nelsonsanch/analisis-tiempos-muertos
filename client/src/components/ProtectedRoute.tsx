@@ -2,57 +2,20 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLocation } from 'wouter';
 import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
-import type { UserRole } from '@/../../shared/types';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredRole?: UserRole;
 }
 
-export default function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
-  const { user, currentUser, company, loading } = useAuth();
-  const [location, setLocation] = useLocation();
+export default function ProtectedRoute({ children }: ProtectedRouteProps) {
+  const { user, loading } = useAuth();
+  const [, setLocation] = useLocation();
 
   useEffect(() => {
-    if (!loading) {
-      // No autenticado → Login
-      if (!user || !currentUser) {
-        setLocation('/login');
-        return;
-      }
-
-      // Super admin siempre tiene acceso
-      if (currentUser.role === 'super_admin') {
-        // Si está en raíz, redirigir a panel de super admin
-        if (location === '/') {
-          setLocation('/super-admin');
-        }
-        return;
-      }
-
-      // Verificar rol requerido
-      if (requiredRole && currentUser.role !== requiredRole) {
-        setLocation('/');
-        return;
-      }
-
-      // Verificar estado de la empresa
-      if (company?.status === 'pending') {
-        setLocation('/pending-approval');
-        return;
-      }
-
-      if (company?.status === 'inactive') {
-        setLocation('/login');
-        return;
-      }
-
-      // Empresa activa pero está en pending-approval → redirigir a home
-      if (company?.status === 'active' && location === '/pending-approval') {
-        setLocation('/');
-      }
+    if (!loading && !user) {
+      setLocation('/login');
     }
-  }, [user, currentUser, company, loading, setLocation, location, requiredRole]);
+  }, [user, loading, setLocation]);
 
   if (loading) {
     return (
@@ -65,12 +28,7 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
     );
   }
 
-  if (!user || !currentUser) {
-    return null;
-  }
-
-  // Verificar rol si es requerido
-  if (requiredRole && currentUser.role !== requiredRole) {
+  if (!user) {
     return null;
   }
 

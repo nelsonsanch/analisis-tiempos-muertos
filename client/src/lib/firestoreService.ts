@@ -7,7 +7,6 @@ import {
   getDocs, 
   onSnapshot,
   query,
-  where,
   orderBy,
   Timestamp,
   deleteField 
@@ -16,7 +15,6 @@ import { db } from './firebase';
 
 export interface InterviewData {
   id?: string;
-  companyId?: string; // ID de la empresa (para multi-tenant)
   areaName: string;
   managerName: string;
   date: string;
@@ -55,7 +53,6 @@ export interface TurtleProcess {
 
 export interface GlobalMeasurement {
   id?: string;
-  companyId?: string; // ID de la empresa (para multi-tenant)
   name: string; // Nombre de la medición global (ej: "Estado Inicial", "Medición Enero 2025")
   date: string; // Fecha de creación
   areas: InterviewData[]; // Snapshot de todas las áreas en ese momento
@@ -84,14 +81,9 @@ const cleanUndefined = (obj: any): any => {
 
 /**
  * Guardar o actualizar un área
- * @param area - Datos del área (debe incluir companyId)
  */
 export const saveArea = async (area: InterviewData): Promise<string> => {
   try {
-    if (!area.companyId) {
-      throw new Error('companyId es requerido para guardar un área');
-    }
-
     // Excluir el campo 'id' de los datos a guardar (Firestore maneja los IDs automáticamente)
     const { id, ...areaWithoutId } = area;
     
@@ -118,16 +110,11 @@ export const saveArea = async (area: InterviewData): Promise<string> => {
 };
 
 /**
- * Obtener todas las áreas de una empresa (una sola vez)
- * @param companyId - ID de la empresa
+ * Obtener todas las áreas (una sola vez)
  */
-export const getAreas = async (companyId: string): Promise<InterviewData[]> => {
+export const getAreas = async (): Promise<InterviewData[]> => {
   try {
-    const q = query(
-      collection(db, COLLECTION_NAME),
-      where('companyId', '==', companyId),
-      orderBy('savedAt', 'desc')
-    );
+    const q = query(collection(db, COLLECTION_NAME), orderBy('savedAt', 'desc'));
     const querySnapshot = await getDocs(q);
     
     const areas: InterviewData[] = [];
@@ -146,22 +133,14 @@ export const getAreas = async (companyId: string): Promise<InterviewData[]> => {
 };
 
 /**
- * Suscribirse a cambios en tiempo real de áreas de una empresa
- * @param companyId - ID de la empresa
- * @param callback - Función que recibe las áreas actualizadas
- * @param onError - Función opcional para manejar errores
+ * Suscribirse a cambios en tiempo real
  */
 export const subscribeToAreas = (
-  companyId: string,
   callback: (areas: InterviewData[]) => void,
   onError?: (error: Error) => void
 ) => {
   try {
-    const q = query(
-      collection(db, COLLECTION_NAME),
-      where('companyId', '==', companyId),
-      orderBy('savedAt', 'desc')
-    );
+    const q = query(collection(db, COLLECTION_NAME), orderBy('savedAt', 'desc'));
     
     const unsubscribe = onSnapshot(
       q,
@@ -261,14 +240,9 @@ export const cleanExistingDocuments = async (): Promise<number> => {
 
 /**
  * Guardar una medición global (snapshot de todas las áreas)
- * @param measurement - Datos de la medición (debe incluir companyId)
  */
 export const saveGlobalMeasurement = async (measurement: GlobalMeasurement): Promise<string> => {
   try {
-    if (!measurement.companyId) {
-      throw new Error('companyId es requerido para guardar una medición global');
-    }
-
     const { id, ...measurementWithoutId } = measurement;
     
     const measurementData = cleanUndefined({
@@ -292,16 +266,11 @@ export const saveGlobalMeasurement = async (measurement: GlobalMeasurement): Pro
 };
 
 /**
- * Obtener todas las mediciones globales de una empresa
- * @param companyId - ID de la empresa
+ * Obtener todas las mediciones globales
  */
-export const getGlobalMeasurements = async (companyId: string): Promise<GlobalMeasurement[]> => {
+export const getGlobalMeasurements = async (): Promise<GlobalMeasurement[]> => {
   try {
-    const q = query(
-      collection(db, GLOBAL_MEASUREMENTS_COLLECTION),
-      where('companyId', '==', companyId),
-      orderBy('createdAt', 'desc')
-    );
+    const q = query(collection(db, GLOBAL_MEASUREMENTS_COLLECTION), orderBy('createdAt', 'desc'));
     const querySnapshot = await getDocs(q);
     
     const measurements: GlobalMeasurement[] = [];
@@ -320,22 +289,14 @@ export const getGlobalMeasurements = async (companyId: string): Promise<GlobalMe
 };
 
 /**
- * Suscribirse a cambios en mediciones globales en tiempo real de una empresa
- * @param companyId - ID de la empresa
- * @param callback - Función que recibe las mediciones actualizadas
- * @param onError - Función opcional para manejar errores
+ * Suscribirse a cambios en mediciones globales en tiempo real
  */
 export const subscribeToGlobalMeasurements = (
-  companyId: string,
   callback: (measurements: GlobalMeasurement[]) => void,
   onError?: (error: Error) => void
 ) => {
   try {
-    const q = query(
-      collection(db, GLOBAL_MEASUREMENTS_COLLECTION),
-      where('companyId', '==', companyId),
-      orderBy('createdAt', 'desc')
-    );
+    const q = query(collection(db, GLOBAL_MEASUREMENTS_COLLECTION), orderBy('createdAt', 'desc'));
     
     const unsubscribe = onSnapshot(
       q,

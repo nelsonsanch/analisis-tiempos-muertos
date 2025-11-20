@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Clock, Loader2, Mail, Lock } from 'lucide-react';
+import { Clock, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function Login() {
@@ -27,10 +27,10 @@ export default function Login() {
     try {
       await signIn(email, password);
       toast.success('¡Bienvenido!');
-      // La redirección se maneja en App.tsx según el rol y estado
+      setLocation('/');
     } catch (error: any) {
       console.error('Login error:', error);
-      toast.error(error.message || 'Credenciales inválidas. Verifica tu email y contraseña.');
+      toast.error('Credenciales inválidas. Verifica tu email y contraseña.');
     } finally {
       setLoading(false);
     }
@@ -43,18 +43,15 @@ export default function Login() {
           <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
             <Clock className="w-8 h-8 text-blue-600" />
           </div>
-          <CardTitle className="text-2xl font-bold">MapTX</CardTitle>
+          <CardTitle className="text-2xl font-bold">Análisis de Tiempos Muertos</CardTitle>
           <CardDescription>
-            Mapeo de Procesos Empresariales - Metodología Tortuga
+            Gestión de áreas y mapas de procesos - Metodología Tortuga
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">
-                <Mail className="inline w-4 h-4 mr-2" />
-                Correo Electrónico
-              </Label>
+              <Label htmlFor="email">Correo Electrónico</Label>
               <Input
                 id="email"
                 type="email"
@@ -67,10 +64,7 @@ export default function Login() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">
-                <Lock className="inline w-4 h-4 mr-2" />
-                Contraseña
-              </Label>
+              <Label htmlFor="password">Contraseña</Label>
               <Input
                 id="password"
                 type="password"
@@ -93,17 +87,8 @@ export default function Login() {
               )}
             </Button>
           </form>
-          <div className="mt-6 text-center">
-            <p className="text-sm text-muted-foreground mb-2">
-              ¿No tienes cuenta?
-            </p>
-            <button
-              type="button"
-              onClick={() => setLocation('/register')}
-              className="text-sm text-primary hover:underline font-medium"
-            >
-              Registra tu empresa aquí
-            </button>
+          <div className="mt-6 text-center text-sm text-muted-foreground">
+            <p>Solo usuarios autorizados pueden acceder</p>
           </div>
         </CardContent>
       </Card>
