@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Clock, Loader2, UserPlus, KeyRound } from 'lucide-react';
+import { Clock, Loader2, UserPlus, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function Login() {
@@ -13,6 +13,7 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { user, signIn } = useAuth();
 
   // Si ya está autenticado, redirigir inmediatamente
@@ -40,7 +41,18 @@ export default function Login() {
       }, 500);
     } catch (error: any) {
       console.error('Login error:', error);
-      toast.error('Credenciales inválidas. Verifica tu email y contraseña.');
+      
+      // Mensajes de error específicos según el código de Firebase
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+        toast.error('Usuario o contraseña incorrectos');
+      } else if (error.code === 'auth/invalid-email') {
+        toast.error('El formato del correo electrónico no es válido');
+      } else if (error.code === 'auth/too-many-requests') {
+        toast.error('Demasiados intentos fallidos. Intenta más tarde.');
+      } else {
+        toast.error('Error al iniciar sesión. Verifica tus credenciales.');
+      }
+      
       setLoading(false);
     }
   };
@@ -86,16 +98,32 @@ export default function Login() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Contraseña</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={loading}
-                autoComplete="current-password"
-                required
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
+                  autoComplete="current-password"
+                  className="pr-10"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  disabled={loading}
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? (

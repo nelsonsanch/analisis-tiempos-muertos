@@ -545,3 +545,20 @@
 - [x] Verificar que las reglas coincidan con PUBLICAR_REGLAS_FIRESTORE.md
 - [ ] Usuario debe publicar reglas desde Firebase Console
 - [ ] Probar suscripciones en tiempo real (áreas y mediciones)
+
+## Bug: Errores de Permisos Después de Publicar Reglas
+
+- [ ] Verificar que el usuario esté autenticado antes de suscripciones
+- [ ] Revisar código de subscribeToAreas en firestoreService.ts
+- [ ] Revisar código de subscribeToGlobalMeasurements en firestoreService.ts
+- [ ] Agregar logs de depuración para verificar estado de autenticación
+- [ ] Probar suscripciones después de login exitoso
+
+## Mejora UX: Login y Registro
+
+- [x] Agregar botón mostrar/ocultar contraseña en login
+- [x] Agregar mensaje específico "Correo ya registrado" en registro (ya existía)
+- [x] Agregar mensaje "Usuario o contraseña incorrectos" en login
+- [x] Agregar botón mostrar/ocultar contraseña en registro
+- [x] Agregar botón mostrar/ocultar contraseña en confirmación de contraseña
+- [ ] Probar flujo completo de errores

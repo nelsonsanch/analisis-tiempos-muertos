@@ -1,0 +1,68 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Colección de usuarios (perfiles)
+    match /users/{userId} {
+      // Cualquier usuario autenticado puede leer su propio perfil
+      allow read: if request.auth != null && request.auth.uid == userId;
+      // Permitir crear perfil durante registro (userId debe coincidir con auth.uid)
+      allow create: if request.auth != null && 
+                       request.auth.uid == userId;
+      // Solo el propio usuario puede actualizar su perfil
+      allow update: if request.auth != null && request.auth.uid == userId;
+      // Solo el propio usuario puede eliminar su perfil
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Colección de empresas
+    match /companies/{companyId} {
+      // Usuarios autenticados pueden leer cualquier empresa (para super admin)
+      allow read: if request.auth != null;
+      // Permitir crear empresa durante registro (cualquier usuario autenticado)
+      allow create: if request.auth != null && 
+                       request.resource.data.status == 'pending';
+      // Solo usuarios autenticados pueden actualizar empresas
+      allow update: if request.auth != null;
+      // Solo usuarios autenticados pueden eliminar empresas
+      allow delete: if request.auth != null;
+    }
+    
+    // Colección de áreas de análisis (multi-tenant)
+    match /timeAnalysisAreas/{areaId} {
+      // Usuarios autenticados pueden leer áreas
+      allow read: if request.auth != null;
+      // Usuarios autenticados pueden crear áreas
+      allow create: if request.auth != null;
+      // Usuarios autenticados pueden actualizar áreas
+      allow update: if request.auth != null;
+      // Usuarios autenticados pueden eliminar áreas
+      allow delete: if request.auth != null;
+    }
+    
+    // Colección de mediciones globales (multi-tenant)
+    match /globalMeasurements/{measurementId} {
+      // Usuarios autenticados pueden leer mediciones
+      allow read: if request.auth != null;
+      // Usuarios autenticados pueden crear mediciones
+      allow create: if request.auth != null;
+      // Usuarios autenticados pueden actualizar mediciones
+      allow update: if request.auth != null;
+      // Usuarios autenticados pueden eliminar mediciones
+      allow delete: if request.auth != null;
+    }
+    
+    // Colección de items globales de Tortuga (compartidos entre empresas)
+    match /globalTurtleItems/{itemId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+    
+    // Colección de usuarios autorizados (legacy - mantener por compatibilidad)
+    match /authorized_users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
