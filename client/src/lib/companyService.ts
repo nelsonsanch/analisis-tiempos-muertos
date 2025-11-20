@@ -92,20 +92,25 @@ export async function upsertUserProfile(
   const userRef = doc(db, USERS_COLLECTION, uid);
   const snapshot = await getDoc(userRef);
   
+  // Limpiar valores undefined
+  const cleanData: any = {
+    uid,
+    email: data.email || '',
+    role: data.role || 'user',
+    updatedAt: new Date().toISOString(),
+  };
+  
+  // Solo agregar campos opcionales si tienen valor
+  if (data.name) cleanData.name = data.name;
+  if (data.companyId) cleanData.companyId = data.companyId;
+  
   if (snapshot.exists()) {
     // Actualizar usuario existente
-    await updateDoc(userRef, data);
+    await updateDoc(userRef, cleanData);
   } else {
     // Crear nuevo usuario
-    const newUser: UserProfile = {
-      uid,
-      email: data.email || '',
-      name: data.name,
-      role: data.role || 'user',
-      companyId: data.companyId,
-      createdAt: new Date().toISOString(),
-    };
-    await setDoc(userRef, newUser);
+    cleanData.createdAt = new Date().toISOString();
+    await setDoc(userRef, cleanData);
   }
 }
 

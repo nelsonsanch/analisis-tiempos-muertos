@@ -43,11 +43,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           
           // Si no existe perfil, crear uno básico
           if (!profile) {
-            await upsertUserProfile(firebaseUser.uid, {
+            const userData: any = {
               email: firebaseUser.email || '',
-              name: firebaseUser.displayName || undefined,
               role: 'user', // Por defecto, será actualizado manualmente a super_admin si es necesario
-            });
+            };
+            
+            // Solo agregar name si existe
+            if (firebaseUser.displayName) {
+              userData.name = firebaseUser.displayName;
+            }
+            
+            await upsertUserProfile(firebaseUser.uid, userData);
             profile = await getUserProfile(firebaseUser.uid);
           }
           
