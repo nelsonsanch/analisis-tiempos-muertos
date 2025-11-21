@@ -1,6 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect } from 'react';
 import { useLocation } from 'wouter';
+import { toast } from 'sonner';
 import { Loader2, Clock, XCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -11,7 +12,7 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { user, userProfile, company, loading } = useAuth();
+  const { user, userProfile, company, loading, signOut } = useAuth();
   const [location] = useLocation();
 
   useEffect(() => {
@@ -79,8 +80,15 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
               <Button
                 className="w-full"
                 variant="outline"
-                onClick={() => {
-                  window.location.href = '/login';
+                onClick={async () => {
+                  try {
+                    await signOut();
+                    toast.success('Sesión cerrada correctamente');
+                    window.location.href = '/login';
+                  } catch (error) {
+                    console.error('Error al cerrar sesión:', error);
+                    toast.error('Error al cerrar sesión');
+                  }
                 }}
               >
                 Cerrar Sesión
@@ -121,8 +129,15 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
               <Button
                 className="w-full"
                 variant="outline"
-                onClick={() => {
-                  window.location.href = '/login';
+                onClick={async () => {
+                  try {
+                    await signOut();
+                    toast.success('Sesión cerrada correctamente');
+                    window.location.href = '/login';
+                  } catch (error) {
+                    console.error('Error al cerrar sesión:', error);
+                    toast.error('Error al cerrar sesión');
+                  }
                 }}
               >
                 Cerrar Sesión
