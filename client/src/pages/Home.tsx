@@ -44,7 +44,8 @@ import {
   User,
   Building2,
   Settings,
-  ChevronDown
+  ChevronDown,
+  Menu
 } from "lucide-react";
 import {
   BarChart,
@@ -1546,7 +1547,8 @@ export default function Home() {
             <div className="flex flex-wrap gap-2">
               {view === "list" && (
                 <>
-                  <Button onClick={newArea} size="default" className="flex-1 sm:flex-none">
+                  {/* Botón Nueva Área siempre visible */}
+                  <Button onClick={newArea} size="default" className="flex-shrink-0">
                     <Plus className="mr-2 h-4 w-4" />
                     <span className="hidden sm:inline">Nueva Área</span>
                     <span className="sm:hidden">Área</span>
@@ -1626,58 +1628,105 @@ export default function Home() {
                   )}
                   {savedAreas.length > 0 && (
                     <>
-                      <Button onClick={() => setShowGlobalMeasurementDialog(true)} variant="default" size="default" className="flex-1 sm:flex-none">
-                        <Plus className="mr-2 h-4 w-4" />
-                        <span className="hidden md:inline">📸 Crear Medición</span>
-                        <span className="md:hidden">📸</span>
-                      </Button>
-                      <Button onClick={exportAllAreasPDF} variant="outline" size="default" className="flex-1 sm:flex-none">
-                        <Download className="mr-2 h-4 w-4" />
-                        <span className="hidden md:inline">📄 Exportar Historial PDF</span>
-                        <span className="md:hidden">📄 PDF</span>
-                      </Button>
-                      {savedAreas.length >= 2 && (
+                      {/* Botones visibles en pantallas grandes */}
+                      <div className="hidden lg:flex gap-2 flex-wrap">
+                        <Button onClick={() => setShowGlobalMeasurementDialog(true)} variant="default" size="default">
+                          <Plus className="mr-2 h-4 w-4" />
+                          📸 Crear Medición
+                        </Button>
+                        <Button onClick={exportAllAreasPDF} variant="outline" size="default">
+                          <Download className="mr-2 h-4 w-4" />
+                          📄 Exportar Historial PDF
+                        </Button>
+                        {savedAreas.length >= 2 && (
+                          <Button 
+                            onClick={handleCompareAreas} 
+                            variant="default" 
+                            size="default" 
+                            className="bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700"
+                            disabled={isComparingAreas}
+                          >
+                            {isComparingAreas ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Analizando...
+                              </>
+                            ) : (
+                              '🤖 Análisis Comparativo IA'
+                            )}
+                          </Button>
+                        )}
                         <Button 
-                          onClick={handleCompareAreas} 
+                          onClick={handleGenerateExecutiveReport} 
                           variant="default" 
                           size="default" 
-                          className="flex-1 sm:flex-none bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700"
-                          disabled={isComparingAreas}
+                          className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                          disabled={isGeneratingReport}
                         >
-                          {isComparingAreas ? (
+                          {isGeneratingReport ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              <span className="hidden md:inline">Analizando...</span>
-                              <span className="md:hidden">...</span>
+                              Generando...
                             </>
                           ) : (
-                            <>
-                              <span className="hidden md:inline">🤖 Análisis Comparativo IA</span>
-                              <span className="md:hidden">🤖</span>
-                            </>
+                            '🤖 Informe Ejecutivo IA'
                           )}
                         </Button>
-                      )}
-                      <Button 
-                        onClick={handleGenerateExecutiveReport} 
-                        variant="default" 
-                        size="default" 
-                        className="flex-1 sm:flex-none bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
-                        disabled={isGeneratingReport}
-                      >
-                        {isGeneratingReport ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            <span className="hidden md:inline">Generando...</span>
-                            <span className="md:hidden">...</span>
-                          </>
-                        ) : (
-                          <>
-                            <span className="hidden md:inline">🤖 Informe Ejecutivo IA</span>
-                            <span className="md:hidden">📊</span>
-                          </>
-                        )}
-                      </Button>
+                      </div>
+
+                      {/* Menú desplegable para pantallas pequeñas */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild className="lg:hidden">
+                          <Button variant="default" size="default">
+                            <Menu className="mr-2 h-4 w-4" />
+                            Acciones
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                          <DropdownMenuItem onClick={() => setShowGlobalMeasurementDialog(true)}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            📸 Crear Medición
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={exportAllAreasPDF}>
+                            <Download className="mr-2 h-4 w-4" />
+                            📄 Exportar Historial PDF
+                          </DropdownMenuItem>
+                          {savedAreas.length >= 2 && (
+                            <DropdownMenuItem 
+                              onClick={handleCompareAreas}
+                              disabled={isComparingAreas}
+                            >
+                              {isComparingAreas ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Analizando...
+                                </>
+                              ) : (
+                                <>
+                                  <span className="mr-2">🤖</span>
+                                  Análisis Comparativo IA
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem 
+                            onClick={handleGenerateExecutiveReport}
+                            disabled={isGeneratingReport}
+                          >
+                            {isGeneratingReport ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Generando...
+                              </>
+                            ) : (
+                              <>
+                                <span className="mr-2">🤖</span>
+                                Informe Ejecutivo IA
+                              </>
+                            )}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </>
                   )}
                 </>
