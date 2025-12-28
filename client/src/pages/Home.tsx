@@ -1,15 +1,15 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { useAuth } from '@/contexts/AuthContext';
+// // import { useAuth } from "@/hooks/useAuth"; // Comentado temporalmente // Comentado temporalmente - auth no implementado aún
 import { useFirestore } from "@/hooks/useFirestore";
-import { 
-  saveGlobalMeasurement, 
-  subscribeToGlobalMeasurements, 
+import {
+  saveGlobalMeasurement,
+  subscribeToGlobalMeasurements,
   deleteGlobalMeasurement,
-  type GlobalMeasurement 
+  type GlobalMeasurement
 } from "@/lib/firestoreService";
-import { generateTurtleSuggestions, type TurtleSuggestions, analyzeAreaWithAI, type AreaAnalysis, compareAreasWithAI, type ComparativeAnalysis, analyzeProcessFlowWithAI, type ProcessFlowAnalysis, generateExecutiveReportWithAI, type ExecutiveReport } from "@/lib/aiService";
+import { generateTurtleSuggestions, type TurtleSuggestions, type AreaAnalysis, type ComparativeAnalysis, type ProcessFlowAnalysis, type ExecutiveReport } from "@/lib/aiService";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,13 +19,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { 
-  Clock, 
-  Plus, 
-  Trash2, 
+import {
+  Clock,
+  Plus,
+  Trash2,
   Pencil,
-  PieChart, 
-  BarChart3, 
+  PieChart,
+  BarChart3,
   FileText,
   Download,
   Save,
@@ -40,12 +40,7 @@ import {
   Check,
   ChevronsUpDown,
   Loader2,
-  LogOut,
-  User,
-  Building2,
-  Settings,
-  ChevronDown,
-  Menu
+  X
 } from "lucide-react";
 import {
   BarChart,
@@ -78,14 +73,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 // Tipos de datos
 interface Activity {
@@ -100,8 +87,8 @@ interface Activity {
 interface Position {
   id: string;
   name: string; // Nombre del cargo (ej: "Contador Senior", "Auxiliar Contable")
-  peopleCount: number; // Cantidad de personas en este cargo
   activities: Activity[]; // Actividades asignadas a este cargo
+  peopleCount?: number; // Cantidad de personas en este cargo
 }
 
 interface TurtleProcess {
@@ -124,6 +111,7 @@ interface InterviewData {
   observations: string;
   savedAt?: string;
   turtleProcess?: TurtleProcess;
+  processType?: 'strategic' | 'core' | 'support';
 }
 
 const COLORS = {
@@ -148,23 +136,6 @@ const TURTLE_FIELDS = [
 ];
 
 export default function Home() {
-  const { userProfile, signOut } = useAuth();
-  
-  // Redirección automática: super_admin no debe acceder a esta página
-  useEffect(() => {
-    if (userProfile?.role === 'super_admin') {
-      window.location.href = '/super-admin';
-    }
-  }, [userProfile]);
-  
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      window.location.href = '/login';
-    } catch (error) {
-      console.error('Error al cerrar sesión:', error);
-    }
-  };
   // The userAuth hooks provides authentication state
   // To implement login/logout functionality, simply call logout() or redirect to getLoginUrl()
   // let { user, loading, error, isAuthenticated, logout } = useAuth(); // Comentado - auth opcional por ahora
@@ -172,19 +143,19 @@ export default function Home() {
   const [view, setView] = useState<"list" | "form" | "compare" | "process-map" | "sipoc" | "measurements" | "measurement-detail" | "measurement-compare">("list");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showMigrateDialog, setShowMigrateDialog] = useState(false);
-  
+
   // Estados para vista comparativa de mediciones (SISTEMA ANTIGUO - ELIMINADO)
   // const [selectedAreaForComparison, setSelectedAreaForComparison] = useState<InterviewData | null>(null);
   // const [baseMeasurementId, setBaseMeasurementId] = useState<string | null>(null);
   // const [currentMeasurementId, setCurrentMeasurementId] = useState<string | null>(null);
-  const comparisonTableRef = useRef<HTMLDivElement>(null);
-  const comparisonChartsRef = useRef<HTMLDivElement>(null);
-  
+  // const comparisonTableRef = useRef<HTMLDivElement>(null);
+  // const comparisonChartsRef = useRef<HTMLDivElement>(null);
+
   // Estados para crear nueva medición (SISTEMA ANTIGUO - ELIMINADO)
   // const [selectedAreaForNewMeasurement, setSelectedAreaForNewMeasurement] = useState<InterviewData | null>(null);
   // const [showNewMeasurementDialog, setShowNewMeasurementDialog] = useState(false);
   // const [newMeasurementName, setNewMeasurementName] = useState("");
-  
+
   // Estados para Mediciones Globales (NUEVO SISTEMA)
   const [showGlobalMeasurementDialog, setShowGlobalMeasurementDialog] = useState(false);
   const [globalMeasurementName, setGlobalMeasurementName] = useState("");
@@ -192,11 +163,11 @@ export default function Home() {
   const [selectedMeasurement, setSelectedMeasurement] = useState<GlobalMeasurement | null>(null);
   const [measurementToCompare1, setMeasurementToCompare1] = useState<GlobalMeasurement | null>(null);
   const [measurementToCompare2, setMeasurementToCompare2] = useState<GlobalMeasurement | null>(null);
-  
+
   // Hook de Firestore para sincronización en la nube
-  const { 
-    areas: savedAreas, 
-    saveArea: saveAreaToFirestore, 
+  const {
+    areas: savedAreas,
+    saveArea: saveAreaToFirestore,
     deleteArea: deleteAreaFromFirestore,
     migrateData,
     cleanDocuments,
@@ -204,7 +175,7 @@ export default function Home() {
     error: firestoreError,
     isMigrated
   } = useFirestore();
-  
+
   const [interviewData, setInterviewData] = useState<InterviewData>({
     areaName: "",
     managerName: "",
@@ -221,6 +192,7 @@ export default function Home() {
       indicators: [],
       competencies: [],
     },
+    processType: 'core',
   });
 
   // Estados para gestión de cargos
@@ -236,11 +208,12 @@ export default function Home() {
     cause: "",
   });
 
-  const [editingActivity, setEditingActivity] = useState<{activityId: string, positionId: string} | null>(null);
-  
+  const [editingActivity, setEditingActivity] = useState<{ activityId: string, positionId: string } | null>(null);
+
   // Estado para edición de nombre de cargo
-  const [editingPosition, setEditingPosition] = useState<{id: string, name: string} | null>(null);
+  const [editingPosition, setEditingPosition] = useState<{ id: string, name: string } | null>(null);
   const [editPositionName, setEditPositionName] = useState("");
+  const [editPositionPeopleCount, setEditPositionPeopleCount] = useState(1);
 
   // Función auxiliar: Obtener todas las actividades de un área (de todos los cargos)
   const getAllActivities = (area: InterviewData): Activity[] => {
@@ -256,27 +229,27 @@ export default function Home() {
   const [openCombobox, setOpenCombobox] = useState(false);
   const [selectedFromList, setSelectedFromList] = useState("");
   const [expandedProcesses, setExpandedProcesses] = useState<Set<string>>(new Set());
-  
+
   // Estados para Asistente IA
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<TurtleSuggestions | null>(null);
   const [showAISuggestions, setShowAISuggestions] = useState(false);
-  
+
   // Estados para Análisis IA de Área
   const [isAnalyzingArea, setIsAnalyzingArea] = useState(false);
   const [areaAnalysis, setAreaAnalysis] = useState<any>(null);
   const [showAreaAnalysis, setShowAreaAnalysis] = useState(false);
-  
+
   // Estados para Análisis Comparativo IA
   const [isComparingAreas, setIsComparingAreas] = useState(false);
   const [comparativeAnalysis, setComparativeAnalysis] = useState<ComparativeAnalysis | null>(null);
   const [showComparativeAnalysis, setShowComparativeAnalysis] = useState(false);
-  
+
   // Estados para Análisis de Procesos IA
   const [isAnalyzingProcesses, setIsAnalyzingProcesses] = useState(false);
   const [processAnalysis, setProcessAnalysis] = useState<ProcessFlowAnalysis | null>(null);
   const [showProcessAnalysis, setShowProcessAnalysis] = useState(false);
-  
+
   // Estados para Reporte Ejecutivo IA
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [executiveReport, setExecutiveReport] = useState<ExecutiveReport | null>(null);
@@ -292,38 +265,20 @@ export default function Home() {
       }
     }
   }, [isMigrated]);
-  
+
   // Suscribirse a mediciones globales en tiempo real
   useEffect(() => {
-    // Si no hay perfil de usuario, no cargar mediciones
-    if (!userProfile) {
-      setGlobalMeasurements([]);
-      return;
-    }
-    
-    // Determinar el companyId a usar para filtrar
-    let companyIdFilter: string | null | undefined;
-    
-    if (userProfile.role === 'super_admin') {
-      // Super admin NO debe ver mediciones de empresas
-      companyIdFilter = null;
-    } else {
-      // Usuarios regulares ven solo mediciones de su empresa
-      companyIdFilter = userProfile.companyId;
-    }
-    
     const unsubscribe = subscribeToGlobalMeasurements(
       (measurements) => {
         setGlobalMeasurements(measurements);
       },
       (error) => {
         console.error('Error al cargar mediciones globales:', error);
-      },
-      companyIdFilter
+      }
     );
-    
+
     return () => unsubscribe();
-  }, [userProfile]);
+  }, []);
 
   // Generar lista global de items únicos por campo
   const globalTurtleItems = useMemo(() => {
@@ -337,13 +292,30 @@ export default function Home() {
     };
 
     // Incluir items de todas las áreas guardadas
+    // Incluir items de todas las áreas guardadas
     savedAreas.forEach((area) => {
       if (area.turtleProcess) {
         Object.keys(items).forEach((key) => {
           const field = key as keyof TurtleProcess;
-          area.turtleProcess![field].forEach((item) => {
-            items[field].add(item);
-          });
+
+          // LÓGICA CORREGIDA:
+          // 1. Las ENTRADAS deben ser las SALIDAS de otros procesos (interacción entre procesos)
+          if (field === 'inputs') {
+            area.turtleProcess!.outputs.forEach((item) => {
+              items.inputs.add(item);
+            });
+          }
+          // 2. Las SALIDAS no deben tener lista global (se crean en el proceso)
+          else if (field === 'outputs') {
+            // No agregamos nada a la lista global de salidas
+            return;
+          }
+          // 3. Los demás campos (recursos, métodos, etc.) funcionan normal
+          else {
+            area.turtleProcess![field].forEach((item) => {
+              items[field].add(item);
+            });
+          }
         });
       }
     });
@@ -373,7 +345,7 @@ export default function Home() {
   const calculateTotals = (data: InterviewData) => {
     // Obtener todas las actividades de todos los cargos
     const allActivities = getAllActivities(data);
-    
+
     // Calcular tiempo total = duración × frecuencia
     const totalActivities = allActivities.reduce(
       (acc, activity) => acc + (activity.timeMinutes * activity.frequency),
@@ -409,29 +381,29 @@ export default function Home() {
   };
 
   const totals = calculateTotals(interviewData);
-  
+
   // Cálculo de tiempos por cargo individual
   const calculatePositionTotals = (position: Position, workdayMinutes: number, fixedBreaksMinutes: number) => {
     const activities = position.activities;
-    const count = position.peopleCount;
-    
+    const count = position.peopleCount || 1;
+
     // Calcular tiempo total por tipo (duración × frecuencia × cantidad de personas)
     const productiveTime = activities
       .filter(a => a.type === "productive")
       .reduce((acc, a) => acc + (a.timeMinutes * a.frequency * count), 0);
-    
+
     const supportTime = activities
       .filter(a => a.type === "support")
       .reduce((acc, a) => acc + (a.timeMinutes * a.frequency * count), 0);
-    
+
     const deadTime = activities
       .filter(a => a.type === "dead_time")
       .reduce((acc, a) => acc + (a.timeMinutes * a.frequency * count), 0);
-    
+
     const totalActivities = productiveTime + supportTime + deadTime;
     const availableTime = (workdayMinutes - fixedBreaksMinutes) * count; // Tiempo disponible multiplicado por cantidad de personas
     const unassignedTime = availableTime - totalActivities;
-    
+
     return {
       productiveTime,
       supportTime,
@@ -456,8 +428,8 @@ export default function Home() {
     const position: Position = {
       id: Date.now().toString(),
       name: newPositionName,
-      peopleCount: 1,
       activities: [],
+      peopleCount: 1,
     };
 
     setInterviewData({
@@ -476,43 +448,45 @@ export default function Home() {
         ...interviewData,
         positions: interviewData.positions.filter((p) => p.id !== positionId),
       });
-      
+
       // Si el cargo eliminado era el actual, limpiar selección
       if (currentPosition?.id === positionId) {
         setCurrentPosition(null);
       }
     }
   };
-  
+
   const startEditPosition = (position: Position) => {
     setEditingPosition({ id: position.id, name: position.name });
     setEditPositionName(position.name);
+    setEditPositionPeopleCount(position.peopleCount || 1);
   };
-  
+
   const saveEditPosition = () => {
     if (!editingPosition || !editPositionName.trim()) {
       alert("Por favor ingresa un nombre válido para el cargo");
       return;
     }
-    
+
     setInterviewData({
       ...interviewData,
-      positions: interviewData.positions.map(p => 
-        p.id === editingPosition.id 
-          ? { ...p, name: editPositionName.trim() }
+      positions: interviewData.positions.map(p =>
+        p.id === editingPosition.id
+          ? { ...p, name: editPositionName.trim(), peopleCount: editPositionPeopleCount }
           : p
       ),
     });
-    
+
     // Actualizar currentPosition si es el que se está editando
     if (currentPosition?.id === editingPosition.id) {
-      setCurrentPosition({ ...currentPosition, name: editPositionName.trim() });
+      setCurrentPosition({ ...currentPosition, name: editPositionName.trim(), peopleCount: editPositionPeopleCount });
     }
-    
+
     setEditingPosition(null);
     setEditPositionName("");
+    setEditPositionPeopleCount(1);
   };
-  
+
   const cancelEditPosition = () => {
     setEditingPosition(null);
     setEditPositionName("");
@@ -524,7 +498,7 @@ export default function Home() {
       alert("Por favor selecciona un cargo primero");
       return;
     }
-    
+
     if (!newActivity.name || newActivity.timeMinutes <= 0) return;
 
     const activity: Activity = {
@@ -539,8 +513,8 @@ export default function Home() {
     // Actualizar el cargo con la nueva actividad
     setInterviewData({
       ...interviewData,
-      positions: interviewData.positions.map(p => 
-        p.id === currentPosition.id 
+      positions: interviewData.positions.map(p =>
+        p.id === currentPosition.id
           ? { ...p, activities: [...p.activities, activity] }
           : p
       ),
@@ -560,8 +534,8 @@ export default function Home() {
 
     setInterviewData({
       ...interviewData,
-      positions: interviewData.positions.map(p => 
-        p.id === currentPosition.id 
+      positions: interviewData.positions.map(p =>
+        p.id === currentPosition.id
           ? { ...p, activities: p.activities.filter((a) => a.id !== activityId) }
           : p
       ),
@@ -605,23 +579,23 @@ export default function Home() {
     // Actualizar la actividad
     setInterviewData({
       ...interviewData,
-      positions: interviewData.positions.map(p => 
+      positions: interviewData.positions.map(p =>
         p.id === editingActivity.positionId
           ? {
-              ...p,
-              activities: p.activities.map(a =>
-                a.id === editingActivity.activityId
-                  ? {
-                      ...a,
-                      name: newActivity.name,
-                      timeMinutes: newActivity.timeMinutes,
-                      frequency: newActivity.frequency,
-                      type: newActivity.type,
-                      cause: newActivity.type === "dead_time" ? newActivity.cause : undefined,
-                    }
-                  : a
-              ),
-            }
+            ...p,
+            activities: p.activities.map(a =>
+              a.id === editingActivity.activityId
+                ? {
+                  ...a,
+                  name: newActivity.name,
+                  timeMinutes: newActivity.timeMinutes,
+                  frequency: newActivity.frequency,
+                  type: newActivity.type,
+                  cause: newActivity.type === "dead_time" ? newActivity.cause : undefined,
+                }
+                : a
+            ),
+          }
           : p
       ),
     });
@@ -632,13 +606,13 @@ export default function Home() {
       activities: currentPosition.activities.map(a =>
         a.id === editingActivity.activityId
           ? {
-              ...a,
-              name: newActivity.name,
-              timeMinutes: newActivity.timeMinutes,
-              frequency: newActivity.frequency,
-              type: newActivity.type,
-              cause: newActivity.type === "dead_time" ? newActivity.cause : undefined,
-            }
+            ...a,
+            name: newActivity.name,
+            timeMinutes: newActivity.timeMinutes,
+            frequency: newActivity.frequency,
+            type: newActivity.type,
+            cause: newActivity.type === "dead_time" ? newActivity.cause : undefined,
+          }
           : a
       ),
     });
@@ -657,7 +631,7 @@ export default function Home() {
   const addTurtleItem = (field: keyof TurtleProcess, value?: string) => {
     const itemToAdd = value || newTurtleItem.trim();
     if (!itemToAdd) return;
-    
+
     const turtle = interviewData.turtleProcess || {
       inputs: [], outputs: [], resources: [], methods: [], indicators: [], competencies: []
     };
@@ -675,7 +649,7 @@ export default function Home() {
         [field]: [...turtle[field], itemToAdd],
       },
     });
-    
+
     setNewTurtleItem("");
     setSelectedFromList("");
     setOpenCombobox(false);
@@ -691,7 +665,7 @@ export default function Home() {
       },
     });
   };
-  
+
   // Mutation de tRPC para generar sugerencias con IA
   const generateAIMutation = trpc.ai.generateTurtleSuggestions.useMutation({
     onSuccess: (data: any) => {
@@ -705,24 +679,24 @@ export default function Home() {
       alert('No se pudieron generar sugerencias. Por favor, intenta de nuevo.');
     },
   });
-  
+
   // Función para generar sugerencias con IA
   const handleGenerateAISuggestions = () => {
     if (!interviewData.areaName) {
       alert("¡Primero ingresa el nombre del área!");
       return;
     }
-    
+
     generateAIMutation.mutate({
       areaName: interviewData.areaName,
       processDescription: interviewData.observations,
     });
   };
-  
+
   // Función para aplicar sugerencias de IA
   const applyAISuggestions = () => {
     if (!aiSuggestions) return;
-    
+
     setInterviewData({
       ...interviewData,
       turtleProcess: {
@@ -734,179 +708,192 @@ export default function Home() {
         competencies: aiSuggestions.competencias,
       },
     });
-    
+
     setShowAISuggestions(false);
     alert('¡Sugerencias aplicadas! Puedes editarlas según necesites.');
   };
-  
+
+  // Mutation para analizar área con IA
+  const analyzeAreaMutation = trpc.ai.analyzeArea.useMutation({
+    onSuccess: (data: any) => {
+      if (data.success && data.analysis) {
+        setAreaAnalysis(data.analysis);
+        setShowAreaAnalysis(true);
+      }
+      setIsAnalyzingArea(false);
+    },
+    onError: (error: any) => {
+      console.error('Error al analizar área:', error);
+      alert('No se pudo generar el análisis. Por favor, intenta de nuevo.');
+      setIsAnalyzingArea(false);
+    },
+  });
+
   // Función para analizar área con IA
-  const handleAnalyzeArea = async (area: InterviewData) => {
+  const handleAnalyzeArea = (area: InterviewData) => {
     setIsAnalyzingArea(true);
-    try {
+    const totals = calculateTotals(area);
+    analyzeAreaMutation.mutate({
+      areaName: area.areaName,
+      managerName: area.managerName,
+      productivePercentage: totals.productivePercentage,
+      supportPercentage: totals.supportPercentage,
+      deadTimePercentage: totals.deadTimePercentage,
+      productiveTime: totals.productiveTime,
+      supportTime: totals.supportTime,
+      deadTime: totals.deadTime,
+      workdayMinutes: area.workdayMinutes,
+      positions: area.positions,
+      observations: area.observations,
+    });
+  };
+
+  // Mutation para comparar áreas con IA
+  const compareAreasMutation = trpc.ai.compareAreas.useMutation({
+    onSuccess: (data: any) => {
+      if (data.success && data.analysis) {
+        setComparativeAnalysis(data.analysis);
+        setShowComparativeAnalysis(true);
+      }
+      setIsComparingAreas(false);
+    },
+    onError: (error: any) => {
+      console.error('Error al comparar áreas:', error);
+      alert('No se pudo generar el análisis comparativo. Por favor, intenta de nuevo.');
+      setIsComparingAreas(false);
+    },
+  });
+
+  // Función para comparar todas las áreas con IA
+  const handleCompareAreas = () => {
+    if (savedAreas.length < 2) {
+      alert('Necesitas al menos 2 áreas para realizar un análisis comparativo.');
+      return;
+    }
+
+    setIsComparingAreas(true);
+    const areasData = savedAreas.map((area) => {
       const totals = calculateTotals(area);
-      // Asegurar que todas las posiciones tengan peopleCount
-      const positionsWithCount = area.positions.map(pos => ({
-        name: pos.name,
-        peopleCount: pos.peopleCount || 1, // Valor por defecto si no existe
-        activities: pos.activities.map(act => ({
-          name: act.name,
-          type: act.type,
-          timeMinutes: act.timeMinutes,
-          frequency: act.frequency,
-        })),
-      }));
-      
-      const analysis = await analyzeAreaWithAI({
+      return {
         areaName: area.areaName,
         managerName: area.managerName,
         productivePercentage: totals.productivePercentage,
         supportPercentage: totals.supportPercentage,
         deadTimePercentage: totals.deadTimePercentage,
-        productiveTime: totals.productiveTime,
-        supportTime: totals.supportTime,
-        deadTime: totals.deadTime,
-        workdayMinutes: area.workdayMinutes,
-        positions: positionsWithCount,
-        observations: area.observations,
-      });
-      
-      setAreaAnalysis(analysis);
-      setShowAreaAnalysis(true);
-    } catch (error) {
-      console.error('Error al analizar área:', error);
-      alert('No se pudo generar el análisis. Por favor, intenta de nuevo.');
-    } finally {
-      setIsAnalyzingArea(false);
-    }
+        totalActivities: getAllActivities(area).length,
+      };
+    });
+
+    compareAreasMutation.mutate({ areas: areasData });
   };
-  
-  // Función para comparar todas las áreas con IA
-  const handleCompareAreas = async () => {
-    if (savedAreas.length < 2) {
-      alert('Necesitas al menos 2 áreas para realizar un análisis comparativo.');
-      return;
-    }
-    
-    setIsComparingAreas(true);
-    try {
-      const areasData = savedAreas.map((area) => {
-        const totals = calculateTotals(area);
-        return {
-          areaName: area.areaName,
-          managerName: area.managerName,
-          productivePercentage: totals.productivePercentage,
-          supportPercentage: totals.supportPercentage,
-          deadTimePercentage: totals.deadTimePercentage,
-          totalActivities: getAllActivities(area).length,
-        };
-      });
-      
-      const analysis = await compareAreasWithAI(areasData);
-      setComparativeAnalysis(analysis);
-      setShowComparativeAnalysis(true);
-    } catch (error) {
-      console.error('Error al comparar áreas:', error);
-      alert('No se pudo generar el análisis comparativo. Por favor, intenta de nuevo.');
-    } finally {
-      setIsComparingAreas(false);
-    }
-  };
-  
+
+  // Mutation para analizar flujo de procesos con IA
+  const analyzeProcessesMutation = trpc.ai.analyzeProcessFlow.useMutation({
+    onSuccess: (data: any) => {
+      if (data.success && data.analysis) {
+        setProcessAnalysis(data.analysis);
+        setShowProcessAnalysis(true);
+      }
+      setIsAnalyzingProcesses(false);
+    },
+    onError: (error: any) => {
+      console.error('Error al analizar procesos:', error);
+      alert('No se pudo generar el análisis de procesos. Por favor, intenta de nuevo.');
+      setIsAnalyzingProcesses(false);
+    },
+  });
+
   // Función para analizar flujo de procesos con IA
-  const handleAnalyzeProcesses = async () => {
+  const handleAnalyzeProcesses = () => {
     if (savedAreas.length < 2) {
       alert('Necesitas al menos 2 áreas con procesos Tortuga para analizar el flujo.');
       return;
     }
-    
+
     setIsAnalyzingProcesses(true);
-    try {
-      const interactions = detectInteractions();
-      
-      const sipocData = savedAreas.map((area) => {
-        const suppliers = savedAreas
-          .filter(otherArea => 
-            otherArea.id !== area.id && 
-            otherArea.turtleProcess &&
-            otherArea.turtleProcess.outputs.some(output =>
-              area.turtleProcess?.inputs.includes(output)
-            )
+    const interactions = detectInteractions();
+
+    const sipocData = savedAreas.map((area) => {
+      const suppliers = savedAreas
+        .filter(otherArea =>
+          otherArea.id !== area.id &&
+          otherArea.turtleProcess &&
+          otherArea.turtleProcess.outputs.some(output =>
+            area.turtleProcess?.inputs.includes(output)
           )
-          .map(a => a.areaName);
-        
-        const customers = savedAreas
-          .filter(otherArea => 
-            otherArea.id !== area.id && 
-            otherArea.turtleProcess &&
-            otherArea.turtleProcess.inputs.some(input =>
-              area.turtleProcess?.outputs.includes(input)
-            )
+        )
+        .map(a => a.areaName);
+
+      const customers = savedAreas
+        .filter(otherArea =>
+          otherArea.id !== area.id &&
+          otherArea.turtleProcess &&
+          otherArea.turtleProcess.inputs.some(input =>
+            area.turtleProcess?.outputs.includes(input)
           )
-          .map(a => a.areaName);
-        
-        return {
-          areaName: area.areaName,
-          suppliers,
-          inputs: area.turtleProcess?.inputs || [],
-          outputs: area.turtleProcess?.outputs || [],
-          customers,
-        };
-      });
-      
-      const analysis = await analyzeProcessFlowWithAI({
-        totalAreas: savedAreas.length,
-        interactions,
-        sipocData,
-      });
-      
-      setProcessAnalysis(analysis);
-      setShowProcessAnalysis(true);
-    } catch (error) {
-      console.error('Error al analizar procesos:', error);
-      alert('No se pudo generar el análisis de procesos. Por favor, intenta de nuevo.');
-    } finally {
-      setIsAnalyzingProcesses(false);
-    }
+        )
+        .map(a => a.areaName);
+
+      return {
+        areaName: area.areaName,
+        suppliers,
+        inputs: area.turtleProcess?.inputs || [],
+        outputs: area.turtleProcess?.outputs || [],
+        customers,
+      };
+    });
+
+    analyzeProcessesMutation.mutate({
+      totalAreas: savedAreas.length,
+      interactions,
+      sipocData,
+    });
   };
-  
+
+  // Mutation para generar reporte ejecutivo con IA
+  const generateReportMutation = trpc.ai.generateExecutiveReport.useMutation({
+    onSuccess: (data: any) => {
+      if (data.success && data.report) {
+        setExecutiveReport(data.report);
+        setShowExecutiveReport(true);
+      }
+      setIsGeneratingReport(false);
+    },
+    onError: (error: any) => {
+      console.error('Error al generar reporte ejecutivo:', error);
+      alert('No se pudo generar el reporte ejecutivo. Por favor, intenta de nuevo.');
+      setIsGeneratingReport(false);
+    },
+  });
+
   // Función para generar reporte ejecutivo con IA
-  const handleGenerateExecutiveReport = async () => {
+  const handleGenerateExecutiveReport = () => {
     if (savedAreas.length === 0) {
       alert('Necesitas al menos un área para generar el reporte ejecutivo.');
       return;
     }
-    
+
     setIsGeneratingReport(true);
-    try {
-      const areasData = savedAreas.map((area) => {
-        const totals = calculateTotals(area);
-        return {
-          areaName: area.areaName,
-          productivePercentage: totals.productivePercentage,
-          deadTimePercentage: totals.deadTimePercentage,
-        };
-      });
-      
-      const averageProductivity = areasData.reduce((sum, a) => sum + a.productivePercentage, 0) / areasData.length;
-      const averageDeadTime = areasData.reduce((sum, a) => sum + a.deadTimePercentage, 0) / areasData.length;
-      const interactions = detectInteractions();
-      
-      const report = await generateExecutiveReportWithAI({
-        totalAreas: savedAreas.length,
-        areasData,
-        totalInteractions: interactions.length,
-        averageProductivity,
-        averageDeadTime,
-      });
-      
-      setExecutiveReport(report);
-      setShowExecutiveReport(true);
-    } catch (error) {
-      console.error('Error al generar reporte ejecutivo:', error);
-      alert('No se pudo generar el reporte ejecutivo. Por favor, intenta de nuevo.');
-    } finally {
-      setIsGeneratingReport(false);
-    }
+    const areasData = savedAreas.map((area) => {
+      const totals = calculateTotals(area);
+      return {
+        areaName: area.areaName,
+        productivePercentage: totals.productivePercentage,
+        deadTimePercentage: totals.deadTimePercentage,
+      };
+    });
+
+    const averageProductivity = areasData.reduce((sum, a) => sum + a.productivePercentage, 0) / areasData.length;
+    const averageDeadTime = areasData.reduce((sum, a) => sum + a.deadTimePercentage, 0) / areasData.length;
+    const interactions = detectInteractions();
+
+    generateReportMutation.mutate({
+      totalAreas: savedAreas.length,
+      areasData,
+      totalInteractions: interactions.length,
+      averageProductivity,
+      averageDeadTime,
+    });
   };
 
   // Funciones de Área
@@ -921,25 +908,25 @@ export default function Home() {
         ...interviewData,
         id: editingId || undefined,
         savedAt: new Date().toISOString(),
-        companyId: userProfile?.companyId, // Asociar área a la empresa del usuario
       };
 
       await saveAreaToFirestore(newArea);
       alert("Área guardada exitosamente en la nube ☁️");
-      
-    setInterviewData({
-      areaName: "",
-      managerName: "",
-      date: new Date().toISOString().split("T")[0],
-      workdayMinutes: 480,
-      fixedBreaksMinutes: 60,
-      positions: [],
-      observations: "",
-      turtleProcess: {
-        inputs: [], outputs: [], resources: [], methods: [], indicators: [], competencies: []
-      },
-    });
-    setCurrentPosition(null);
+
+      setInterviewData({
+        areaName: "",
+        managerName: "",
+        date: new Date().toISOString().split("T")[0],
+        workdayMinutes: 480,
+        fixedBreaksMinutes: 60,
+        positions: [],
+        observations: "",
+        turtleProcess: {
+          inputs: [], outputs: [], resources: [], methods: [], indicators: [], competencies: []
+        },
+        processType: 'core',
+      });
+      setCurrentPosition(null);
       setEditingId(null);
       setView("list");
     } catch (error) {
@@ -963,7 +950,7 @@ export default function Home() {
       alert("Error: No se puede eliminar un área sin ID");
       return;
     }
-    
+
     if (confirm("¿Estás seguro de eliminar esta área?")) {
       try {
         await deleteAreaFromFirestore(id);
@@ -1000,10 +987,10 @@ export default function Home() {
         backgroundColor: '#ffffff',
         scale: 2,
       });
-      
+
       canvas.toBlob(async (blob) => {
         if (!blob) return;
-        
+
         try {
           await navigator.clipboard.write([
             new ClipboardItem({ 'image/png': blob })
@@ -1024,17 +1011,17 @@ export default function Home() {
       alert('Error al generar la imagen');
     }
   };
-  
+
   const copyTableAsImage = async () => {
     if (!comparisonTableRef.current) return;
     await copyElementAsImage(comparisonTableRef.current, 'tabla-comparativa');
   };
-  
+
   const copyChartsAsImage = async () => {
     if (!comparisonChartsRef.current) return;
     await copyElementAsImage(comparisonChartsRef.current, 'graficos-comparativos');
   };
-  
+
   // Función para crear nueva medición (SISTEMA ANTIGUO - ELIMINADO)
   // const createNewMeasurement = async () => {
   //   if (!selectedAreaForNewMeasurement || !newMeasurementName.trim()) {
@@ -1074,29 +1061,28 @@ export default function Home() {
       alert('Por favor ingresa un nombre para la medición global');
       return;
     }
-    
+
     if (savedAreas.length === 0) {
       alert('No hay áreas registradas para crear una medición');
       return;
     }
-    
+
     try {
       // Crear snapshot de todas las áreas actuales
       const areasSnapshot: InterviewData[] = JSON.parse(JSON.stringify(savedAreas));
-      
+
       const newGlobalMeasurement: GlobalMeasurement = {
         name: globalMeasurementName.trim(),
         date: new Date().toISOString(),
         areas: areasSnapshot,
         createdAt: new Date().toISOString(),
-        companyId: userProfile?.companyId, // Asociar medición a la empresa del usuario
       };
-      
+
       await saveGlobalMeasurement(newGlobalMeasurement);
-      
+
       setShowGlobalMeasurementDialog(false);
       setGlobalMeasurementName("");
-      
+
       alert(`¡Medición Global "${newGlobalMeasurement.name}" creada exitosamente!\n\nÁreas capturadas: ${areasSnapshot.length}`);
     } catch (error) {
       console.error('Error al crear medición global:', error);
@@ -1107,16 +1093,16 @@ export default function Home() {
   const exportArea = (area: InterviewData) => {
     const totals = calculateTotals(area);
     const pdf = new jsPDF();
-    
+
     // Título
     pdf.setFontSize(18);
     pdf.text(`Análisis: ${area.areaName}`, 20, 20);
-    
+
     // Información general
     pdf.setFontSize(12);
     pdf.text(`Responsable: ${area.managerName}`, 20, 35);
     pdf.text(`Fecha: ${area.date}`, 20, 42);
-    
+
     // Resultados
     pdf.setFontSize(14);
     pdf.text('Resultados del Análisis', 20, 55);
@@ -1124,13 +1110,13 @@ export default function Home() {
     pdf.text(`Tiempo Productivo: ${totals.productivePercentage.toFixed(1)}%`, 25, 65);
     pdf.text(`Tiempo de Soporte: ${totals.supportPercentage.toFixed(1)}%`, 25, 72);
     pdf.text(`Tiempo Muerto: ${totals.deadTimePercentage.toFixed(1)}%`, 25, 79);
-    
+
     // Actividades por tipo
     let yPos = 95;
     pdf.setFontSize(14);
     pdf.text('Actividades Registradas', 20, yPos);
     yPos += 10;
-    
+
     area.positions.forEach((position) => {
       if (yPos > 270) {
         pdf.addPage();
@@ -1139,21 +1125,21 @@ export default function Home() {
       pdf.setFontSize(12);
       pdf.text(`Cargo: ${position.name}`, 25, yPos);
       yPos += 7;
-      
+
       position.activities.forEach((activity) => {
         if (yPos > 270) {
           pdf.addPage();
           yPos = 20;
         }
         pdf.setFontSize(10);
-        const typeLabel = activity.type === 'productive' ? 'Productiva' : 
-                         activity.type === 'support' ? 'Soporte' : 'Tiempo Muerto';
+        const typeLabel = activity.type === 'productive' ? 'Productiva' :
+          activity.type === 'support' ? 'Soporte' : 'Tiempo Muerto';
         pdf.text(`- ${activity.name} (${typeLabel}): ${activity.timeMinutes} min`, 30, yPos);
         yPos += 6;
       });
       yPos += 3;
     });
-    
+
     // Guardar PDF
     pdf.save(`analisis-${area.areaName}-${area.date}.pdf`);
   };
@@ -1176,7 +1162,7 @@ export default function Home() {
   const exportAllAreasPDF = () => {
     const pdf = new jsPDF();
     let yPos = 20;
-    
+
     // PORTADA
     pdf.setFontSize(22);
     pdf.setFont(undefined, 'bold');
@@ -1190,7 +1176,7 @@ export default function Home() {
     pdf.text(`Fecha del reporte: ${new Date().toLocaleDateString('es-CO')}`, 105, yPos, { align: 'center' });
     yPos += 8;
     pdf.text(`Total de áreas analizadas: ${savedAreas.length}`, 105, yPos, { align: 'center' });
-    
+
     // TABLA RESUMEN
     pdf.addPage();
     yPos = 20;
@@ -1198,7 +1184,7 @@ export default function Home() {
     pdf.setFont(undefined, 'bold');
     pdf.text('Resumen Ejecutivo', 20, yPos);
     yPos += 10;
-    
+
     pdf.setFontSize(10);
     pdf.setFont(undefined, 'bold');
     pdf.text('Área', 20, yPos);
@@ -1207,7 +1193,7 @@ export default function Home() {
     pdf.text('Soporte', 145, yPos);
     pdf.text('Muerto', 170, yPos);
     yPos += 7;
-    
+
     pdf.setFont(undefined, 'normal');
     savedAreas.forEach((area) => {
       if (yPos > 270) {
@@ -1222,19 +1208,19 @@ export default function Home() {
       pdf.text(`${totals.deadTimePercentage.toFixed(1)}%`, 170, yPos);
       yPos += 6;
     });
-    
+
     // DETALLE POR ÁREA
     savedAreas.forEach((area) => {
       pdf.addPage();
       yPos = 20;
       const totals = calculateTotals(area);
-      
+
       // Título del área
       pdf.setFontSize(16);
       pdf.setFont(undefined, 'bold');
       pdf.text(`Área: ${area.areaName}`, 20, yPos);
       yPos += 10;
-      
+
       // Información general
       pdf.setFontSize(11);
       pdf.setFont(undefined, 'normal');
@@ -1242,17 +1228,17 @@ export default function Home() {
       yPos += 6;
       pdf.text(`Fecha de análisis: ${area.date}`, 20, yPos);
       yPos += 6;
-      pdf.text(`Jornada laboral: ${area.workdayMinutes} min (${(area.workdayMinutes/60).toFixed(1)} hrs)`, 20, yPos);
+      pdf.text(`Jornada laboral: ${area.workdayMinutes} min (${(area.workdayMinutes / 60).toFixed(1)} hrs)`, 20, yPos);
       yPos += 6;
       pdf.text(`Pausas fijas: ${area.fixedBreaksMinutes} min`, 20, yPos);
       yPos += 10;
-      
+
       // Resultados
       pdf.setFontSize(14);
       pdf.setFont(undefined, 'bold');
       pdf.text('Resultados del Análisis', 20, yPos);
       yPos += 8;
-      
+
       pdf.setFontSize(11);
       pdf.setFont(undefined, 'normal');
       pdf.setTextColor(34, 197, 94); // Verde
@@ -1265,24 +1251,24 @@ export default function Home() {
       pdf.text(`Tiempo Muerto: ${totals.deadTimePercentage.toFixed(1)}% (${totals.deadTime} min)`, 25, yPos);
       yPos += 10;
       pdf.setTextColor(0, 0, 0); // Negro
-      
+
       // Cargos y actividades
       pdf.setFontSize(14);
       pdf.setFont(undefined, 'bold');
       pdf.text('Cargos y Actividades', 20, yPos);
       yPos += 8;
-      
+
       area.positions.forEach((position) => {
         if (yPos > 260) {
           pdf.addPage();
           yPos = 20;
         }
-        
+
         pdf.setFontSize(12);
         pdf.setFont(undefined, 'bold');
         pdf.text(`Cargo: ${position.name} (${position.peopleCount} persona${position.peopleCount > 1 ? 's' : ''})`, 25, yPos);
         yPos += 7;
-        
+
         pdf.setFontSize(10);
         pdf.setFont(undefined, 'normal');
         position.activities.forEach((activity) => {
@@ -1290,8 +1276,8 @@ export default function Home() {
             pdf.addPage();
             yPos = 20;
           }
-          const typeLabel = activity.type === 'productive' ? 'Productiva' : 
-                           activity.type === 'support' ? 'Soporte' : 'Tiempo Muerto';
+          const typeLabel = activity.type === 'productive' ? 'Productiva' :
+            activity.type === 'support' ? 'Soporte' : 'Tiempo Muerto';
           pdf.text(`- ${activity.name} (${typeLabel})`, 30, yPos);
           yPos += 5;
           pdf.text(`  ${activity.timeMinutes} min × ${activity.frequency} veces = ${activity.timeMinutes * activity.frequency} min/día`, 32, yPos);
@@ -1299,7 +1285,7 @@ export default function Home() {
         });
         yPos += 3;
       });
-      
+
       // Observaciones
       if (area.observations) {
         if (yPos > 240) {
@@ -1323,7 +1309,7 @@ export default function Home() {
         });
       }
     });
-    
+
     // MAPA DE PROCESOS
     const interactions = detectInteractions();
     if (interactions.length > 0) {
@@ -1333,7 +1319,7 @@ export default function Home() {
       pdf.setFont(undefined, 'bold');
       pdf.text('Mapa de Interacciones entre Áreas', 20, yPos);
       yPos += 10;
-      
+
       pdf.setFontSize(11);
       pdf.setFont(undefined, 'normal');
       interactions.forEach((interaction) => {
@@ -1349,7 +1335,7 @@ export default function Home() {
         yPos += 8;
       });
     }
-    
+
     // MATRIZ SIPOC
     pdf.addPage();
     yPos = 20;
@@ -1357,37 +1343,37 @@ export default function Home() {
     pdf.setFont(undefined, 'bold');
     pdf.text('Matriz SIPOC Consolidada', 20, yPos);
     yPos += 10;
-    
+
     pdf.setFontSize(9);
     savedAreas.forEach((area) => {
       if (!area.turtleProcess) return;
-      
+
       if (yPos > 250) {
         pdf.addPage();
         yPos = 20;
       }
-      
+
       // Detectar proveedores y clientes
       const suppliers = savedAreas
-        .filter(otherArea => 
-          otherArea.id !== area.id && 
+        .filter(otherArea =>
+          otherArea.id !== area.id &&
           otherArea.turtleProcess &&
           otherArea.turtleProcess.outputs.some(output =>
             area.turtleProcess!.inputs.includes(output)
           )
         )
         .map(a => a.areaName);
-      
+
       const customers = savedAreas
-        .filter(otherArea => 
-          otherArea.id !== area.id && 
+        .filter(otherArea =>
+          otherArea.id !== area.id &&
           otherArea.turtleProcess &&
           otherArea.turtleProcess.inputs.some(input =>
             area.turtleProcess!.outputs.includes(input)
           )
         )
         .map(a => a.areaName);
-      
+
       pdf.setFont(undefined, 'bold');
       pdf.text(`Proceso: ${area.areaName}`, 20, yPos);
       yPos += 6;
@@ -1401,7 +1387,7 @@ export default function Home() {
       pdf.text(`Clientes: ${customers.length > 0 ? customers.join(', ') : 'N/A'}`, 25, yPos);
       yPos += 8;
     });
-    
+
     // Guardar PDF
     pdf.save(`historial-completo-${new Date().toISOString().split('T')[0]}.pdf`);
     alert('✅ Historial completo exportado exitosamente');
@@ -1409,19 +1395,19 @@ export default function Home() {
 
   // Detectar interacciones entre áreas (coincidencia exacta)
   const detectInteractions = () => {
-    const interactions: Array<{source: string, target: string, items: string[]}> = [];
-    
+    const interactions: Array<{ source: string, target: string, items: string[] }> = [];
+
     savedAreas.forEach((sourceArea) => {
       if (!sourceArea.turtleProcess) return;
-      
+
       savedAreas.forEach((targetArea) => {
         if (sourceArea.id === targetArea.id || !targetArea.turtleProcess) return;
-        
+
         // Buscar coincidencias exactas entre salidas de origen y entradas de destino
         const matchingItems = sourceArea.turtleProcess!.outputs.filter((output) =>
           targetArea.turtleProcess!.inputs.includes(output)
         );
-        
+
         if (matchingItems.length > 0) {
           interactions.push({
             source: sourceArea.areaName,
@@ -1431,7 +1417,7 @@ export default function Home() {
         }
       });
     });
-    
+
     return interactions;
   };
 
@@ -1477,11 +1463,11 @@ export default function Home() {
       <header className="bg-white border-b shadow-sm sticky top-0 z-40">
         <div className="container mx-auto px-4 py-4">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex items-center gap-3 flex-1">
+            <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-600 rounded-lg">
                 <Clock className="h-6 w-6 md:h-8 md:w-8 text-white" />
               </div>
-              <div className="flex-1">
+              <div>
                 <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight text-slate-900">
                   Análisis de Tiempos Muertos
                 </h1>
@@ -1506,55 +1492,20 @@ export default function Home() {
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-2 ml-auto">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="gap-2">
-                      <User className="h-4 w-4" />
-                      <span className="hidden md:inline max-w-[150px] truncate">
-                        {userProfile?.email}
-                      </span>
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel>
-                      <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">Mi Cuenta</p>
-                        <p className="text-xs leading-none text-muted-foreground truncate">
-                          {userProfile?.email}
-                        </p>
-                      </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {userProfile?.role === 'super_admin' && (
-                      <>
-                        <DropdownMenuItem onClick={() => window.location.href = '/super-admin'}>
-                          <Building2 className="mr-2 h-4 w-4" />
-                          <span>Panel de Super Admin</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                      </>
-                    )}
-                    <DropdownMenuItem onClick={handleLogout} className="text-red-600">
-                      <LogOut className="mr-2 h-4 w-4" />
-                      <span>Cerrar Sesión</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
             </div>
-            <div className="flex flex-wrap gap-2">
+            {/* Botones de Acción */}
+            <div className="flex flex-wrap items-center gap-3">
               {view === "list" && (
                 <>
-                  {/* Botón Nueva Área siempre visible */}
-                  <Button onClick={newArea} size="default" className="flex-shrink-0">
+                  {/* Acción Primaria */}
+                  <Button onClick={newArea} size="lg" className="shadow-sm">
                     <Plus className="mr-2 h-4 w-4" />
                     <span className="hidden sm:inline">Nueva Área</span>
                     <span className="sm:hidden">Área</span>
                   </Button>
+
                   {savedAreas.length === 0 && (
-                    <Button 
+                    <Button
                       onClick={async () => {
                         // Cargar datos de ejemplo
                         const ejemplos: InterviewData[] = [
@@ -1610,7 +1561,7 @@ export default function Home() {
                             }
                           }
                         ];
-                        
+
                         try {
                           for (const ejemplo of ejemplos) {
                             await saveAreaToFirestore(ejemplo);
@@ -1620,7 +1571,7 @@ export default function Home() {
                           alert("Error al cargar ejemplos: " + (error instanceof Error ? error.message : "Error desconocido"));
                         }
                       }}
-                      variant="outline" 
+                      variant="outline"
                       size="lg"
                     >
                       🎯 Cargar Ejemplo
@@ -1628,105 +1579,81 @@ export default function Home() {
                   )}
                   {savedAreas.length > 0 && (
                     <>
-                      {/* Botones visibles en pantallas grandes */}
-                      <div className="hidden lg:flex gap-2 flex-wrap">
-                        <Button onClick={() => setShowGlobalMeasurementDialog(true)} variant="default" size="default">
+                      {/* Separador Visual */}
+                      <div className="hidden md:block h-8 w-px bg-slate-300"></div>
+
+                      {/* Grupo: Herramientas */}
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          onClick={() => setShowGlobalMeasurementDialog(true)}
+                          variant="outline"
+                          size="lg"
+                          className="shadow-sm"
+                        >
                           <Plus className="mr-2 h-4 w-4" />
-                          📸 Crear Medición
+                          <span className="hidden md:inline">Crear Medición</span>
+                          <span className="md:hidden">📸</span>
                         </Button>
-                        <Button onClick={exportAllAreasPDF} variant="outline" size="default">
+                        <Button
+                          onClick={exportAllAreasPDF}
+                          variant="outline"
+                          size="lg"
+                          className="shadow-sm"
+                        >
                           <Download className="mr-2 h-4 w-4" />
-                          📄 Exportar Historial PDF
+                          <span className="hidden md:inline">Exportar PDF</span>
+                          <span className="md:hidden">📄</span>
                         </Button>
+                      </div>
+
+                      {/* Separador Visual */}
+                      <div className="hidden lg:block h-8 w-px bg-slate-300"></div>
+
+                      {/* Grupo: Análisis IA */}
+                      <div className="flex flex-wrap gap-2">
                         {savedAreas.length >= 2 && (
-                          <Button 
-                            onClick={handleCompareAreas} 
-                            variant="default" 
-                            size="default" 
-                            className="bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700"
+                          <Button
+                            onClick={handleCompareAreas}
+                            variant="default"
+                            size="lg"
+                            className="shadow-md bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700"
                             disabled={isComparingAreas}
                           >
                             {isComparingAreas ? (
                               <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Analizando...
+                                <span className="hidden md:inline">Analizando...</span>
+                                <span className="md:hidden">...</span>
                               </>
                             ) : (
-                              '🤖 Análisis Comparativo IA'
+                              <>
+                                <span className="hidden md:inline">🤖 Comparar Áreas</span>
+                                <span className="md:hidden">🤖</span>
+                              </>
                             )}
                           </Button>
                         )}
-                        <Button 
-                          onClick={handleGenerateExecutiveReport} 
-                          variant="default" 
-                          size="default" 
-                          className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                        <Button
+                          onClick={handleGenerateExecutiveReport}
+                          variant="default"
+                          size="lg"
+                          className="shadow-md bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
                           disabled={isGeneratingReport}
                         >
                           {isGeneratingReport ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Generando...
+                              <span className="hidden md:inline">Generando...</span>
+                              <span className="md:hidden">...</span>
                             </>
                           ) : (
-                            '🤖 Informe Ejecutivo IA'
+                            <>
+                              <span className="hidden md:inline">🤖 Informe Ejecutivo</span>
+                              <span className="md:hidden">📊</span>
+                            </>
                           )}
                         </Button>
                       </div>
-
-                      {/* Menú desplegable para pantallas pequeñas */}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild className="lg:hidden">
-                          <Button variant="default" size="default">
-                            <Menu className="mr-2 h-4 w-4" />
-                            Acciones
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-56">
-                          <DropdownMenuItem onClick={() => setShowGlobalMeasurementDialog(true)}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            📸 Crear Medición
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={exportAllAreasPDF}>
-                            <Download className="mr-2 h-4 w-4" />
-                            📄 Exportar Historial PDF
-                          </DropdownMenuItem>
-                          {savedAreas.length >= 2 && (
-                            <DropdownMenuItem 
-                              onClick={handleCompareAreas}
-                              disabled={isComparingAreas}
-                            >
-                              {isComparingAreas ? (
-                                <>
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  Analizando...
-                                </>
-                              ) : (
-                                <>
-                                  <span className="mr-2">🤖</span>
-                                  Análisis Comparativo IA
-                                </>
-                              )}
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem 
-                            onClick={handleGenerateExecutiveReport}
-                            disabled={isGeneratingReport}
-                          >
-                            {isGeneratingReport ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Generando...
-                              </>
-                            ) : (
-                              <>
-                                <span className="mr-2">🤖</span>
-                                Informe Ejecutivo IA
-                              </>
-                            )}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
                     </>
                   )}
                 </>
@@ -1818,9 +1745,9 @@ export default function Home() {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {savedAreas.map((area) => {
                       const areaTotals = calculateTotals(area);
-                      const hasTurtle = area.turtleProcess && 
+                      const hasTurtle = area.turtleProcess &&
                         Object.values(area.turtleProcess).some(arr => arr.length > 0);
-                      
+
                       return (
                         <Card key={area.id} className="hover:shadow-lg transition-shadow">
                           <CardHeader className="pb-3">
@@ -1864,56 +1791,61 @@ export default function Home() {
                             <Separator />
                             <div className="text-sm text-slate-600">
                               <strong>{getAllActivities(area).length}</strong> actividades registradas
-                            </div>                            <div className="space-y-2 mt-4">
-                              <div className="flex flex-col sm:flex-row gap-2">
+                            </div>                            {/* Botones de Acción */}
+                            <div className="space-y-2 mt-4">
+                              {/* Grupo: Acciones Principales */}
+                              <div className="grid grid-cols-2 gap-2">
                                 <Button
                                   onClick={() => editArea(area)}
-                                  variant="outline"
+                                  variant="default"
                                   size="sm"
-                                  className="flex-1"
+                                  className="w-full"
                                 >
-                                  <Edit className="mr-1 h-3 w-3" />
-                                  <span className="hidden sm:inline">Ver/Editar</span>
-                                  <span className="sm:hidden">Editar</span>
+                                  <Edit className="mr-1.5 h-3.5 w-3.5" />
+                                  <span>Ver/Editar</span>
                                 </Button>
                                 <Button
                                   onClick={() => exportArea(area)}
                                   variant="outline"
                                   size="sm"
-                                  className="flex-1"
+                                  className="w-full"
                                 >
-                                  <Download className="mr-1 h-3 w-3" />
-                                  <span className="hidden sm:inline">Exportar PDF</span>
-                                  <span className="sm:hidden">PDF</span>
-                                </Button>
-                                <Button
-                                  onClick={() => deleteArea(area.id)}
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={!area.id}
-                                >
-                                  <Trash2 className="h-3 w-3 text-red-500" />
+                                  <Download className="mr-1.5 h-3.5 w-3.5" />
+                                  <span>Exportar</span>
                                 </Button>
                               </div>
+
+                              {/* Análisis IA */}
                               <Button
                                 onClick={() => handleAnalyzeArea(area)}
                                 variant="default"
                                 size="sm"
-                                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                                className="w-full shadow-sm bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
                                 disabled={isAnalyzingArea}
                               >
                                 {isAnalyzingArea ? (
                                   <>
-                                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
                                     Analizando...
                                   </>
                                 ) : (
                                   <>
-                                    🤖 Generar Análisis IA
+                                    🤖 Análisis IA
                                   </>
                                 )}
                               </Button>
 
+                              {/* Botón Eliminar */}
+                              <Button
+                                onClick={() => deleteArea(area.id)}
+                                variant="ghost"
+                                size="sm"
+                                disabled={!area.id}
+                                className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                                Eliminar área
+                              </Button>
                             </div>                       </CardContent>
                         </Card>
                       );
@@ -1987,9 +1919,9 @@ export default function Home() {
 
               {/* Contenido de la comparación */}
               {(() => {
-                const isValidComparison = baseMeasurementId !== currentMeasurementId && 
+                const isValidComparison = baseMeasurementId !== currentMeasurementId &&
                   (baseMeasurementId || currentMeasurementId);
-                
+
                 if (!isValidComparison) {
                   return (
                     <div className="text-center py-12 text-slate-500">
@@ -2001,18 +1933,18 @@ export default function Home() {
                 }
 
                 // Obtener las mediciones a comparar
-                const baseMeas = baseMeasurementId === null 
-                  ? selectedAreaForComparison 
+                const baseMeas = baseMeasurementId === null
+                  ? selectedAreaForComparison
                   : selectedAreaForComparison.measurements?.find(m => m.id === baseMeasurementId);
-                  
+
                 const currentMeas = currentMeasurementId === null
                   ? selectedAreaForComparison
                   : selectedAreaForComparison.measurements?.find(m => m.id === currentMeasurementId);
-                
+
                 if (!baseMeas || !currentMeas) {
                   return <div className="text-center py-12 text-red-500">Error: No se encontraron las mediciones seleccionadas</div>;
                 }
-                
+
                 // Calcular comparaciones
                 const comparisons: Array<{
                   positionName: string;
@@ -2022,20 +1954,20 @@ export default function Home() {
                   delta: number;
                   percentChange: number;
                 }> = [];
-                
+
                 baseMeas.positions.forEach((basePos) => {
                   const currentPos = currentMeas.positions.find(p => p.id === basePos.id);
                   if (!currentPos) return;
-                  
+
                   basePos.activities.forEach((baseActivity) => {
                     const currentActivity = currentPos.activities.find(a => a.id === baseActivity.id);
                     if (!currentActivity) return;
-                    
+
                     const baseTime = baseActivity.timeMinutes * baseActivity.frequency;
                     const currentTime = currentActivity.timeMinutes * currentActivity.frequency;
                     const delta = currentTime - baseTime;
                     const percentChange = baseTime > 0 ? ((delta / baseTime) * 100) : 0;
-                    
+
                     comparisons.push({
                       positionName: basePos.name,
                       activityName: baseActivity.name,
@@ -2046,7 +1978,7 @@ export default function Home() {
                     });
                   });
                 });
-                
+
                 return (
                   <>
                     <Separator />
@@ -2083,14 +2015,12 @@ export default function Home() {
                                 <td className="border border-slate-300 px-4 py-3">{comp.activityName}</td>
                                 <td className="border border-slate-300 px-4 py-3 text-right">{comp.baseTime}</td>
                                 <td className="border border-slate-300 px-4 py-3 text-right">{comp.currentTime}</td>
-                                <td className={`border border-slate-300 px-4 py-3 text-right font-semibold ${
-                                  comp.delta < 0 ? 'text-green-600' : comp.delta > 0 ? 'text-red-600' : 'text-slate-600'
-                                }`}>
+                                <td className={`border border-slate-300 px-4 py-3 text-right font-semibold ${comp.delta < 0 ? 'text-green-600' : comp.delta > 0 ? 'text-red-600' : 'text-slate-600'
+                                  }`}>
                                   {comp.delta > 0 ? '+' : ''}{comp.delta}
                                 </td>
-                                <td className={`border border-slate-300 px-4 py-3 text-right font-semibold ${
-                                  comp.percentChange < 0 ? 'text-green-600' : comp.percentChange > 0 ? 'text-red-600' : 'text-slate-600'
-                                }`}>
+                                <td className={`border border-slate-300 px-4 py-3 text-right font-semibold ${comp.percentChange < 0 ? 'text-green-600' : comp.percentChange > 0 ? 'text-red-600' : 'text-slate-600'
+                                  }`}>
                                   {comp.percentChange > 0 ? '+' : ''}{comp.percentChange.toFixed(1)}%
                                 </td>
                                 <td className="border border-slate-300 px-4 py-3 text-center">
@@ -2102,7 +2032,7 @@ export default function Home() {
                         </table>
                       </div>
                     </div>
-                    
+
                     <Separator />
                     {/* Gráficos de Barras Horizontales */}
                     <div ref={comparisonChartsRef} className="p-6 bg-white rounded-lg">
@@ -2122,14 +2052,14 @@ export default function Home() {
                           const maxTime = Math.max(comp.baseTime, comp.currentTime);
                           const baseWidth = maxTime > 0 ? (comp.baseTime / maxTime) * 100 : 0;
                           const currentWidth = maxTime > 0 ? (comp.currentTime / maxTime) * 100 : 0;
-                          
+
                           return (
                             <div key={idx} className="border border-slate-200 rounded-lg p-4 bg-slate-50">
                               <div className="mb-3">
                                 <h4 className="font-semibold text-sm">{comp.activityName}</h4>
                                 <p className="text-xs text-slate-600">{comp.positionName}</p>
                               </div>
-                              
+
                               {/* Barra Base */}
                               <div className="mb-2">
                                 <div className="flex items-center justify-between mb-1">
@@ -2137,7 +2067,7 @@ export default function Home() {
                                   <span className="text-xs font-semibold">{comp.baseTime} min</span>
                                 </div>
                                 <div className="w-full bg-slate-200 rounded-full h-6">
-                                  <div 
+                                  <div
                                     className="bg-blue-500 h-6 rounded-full flex items-center justify-end pr-2"
                                     style={{ width: `${baseWidth}%`, minWidth: comp.baseTime > 0 ? '2rem' : '0' }}
                                   >
@@ -2147,7 +2077,7 @@ export default function Home() {
                                   </div>
                                 </div>
                               </div>
-                              
+
                               {/* Barra Actual */}
                               <div>
                                 <div className="flex items-center justify-between mb-1">
@@ -2155,10 +2085,9 @@ export default function Home() {
                                   <span className="text-xs font-semibold">{comp.currentTime} min</span>
                                 </div>
                                 <div className="w-full bg-slate-200 rounded-full h-6">
-                                  <div 
-                                    className={`h-6 rounded-full flex items-center justify-end pr-2 ${
-                                      comp.delta < 0 ? 'bg-green-500' : comp.delta > 0 ? 'bg-red-500' : 'bg-slate-500'
-                                    }`}
+                                  <div
+                                    className={`h-6 rounded-full flex items-center justify-end pr-2 ${comp.delta < 0 ? 'bg-green-500' : comp.delta > 0 ? 'bg-red-500' : 'bg-slate-500'
+                                      }`}
                                     style={{ width: `${currentWidth}%`, minWidth: comp.currentTime > 0 ? '2rem' : '0' }}
                                   >
                                     {comp.currentTime > 0 && (
@@ -2167,12 +2096,11 @@ export default function Home() {
                                   </div>
                                 </div>
                               </div>
-                              
+
                               {/* Indicador de cambio */}
                               <div className="mt-2 text-center">
-                                <span className={`text-xs font-semibold ${
-                                  comp.delta < 0 ? 'text-green-600' : comp.delta > 0 ? 'text-red-600' : 'text-slate-600'
-                                }`}>
+                                <span className={`text-xs font-semibold ${comp.delta < 0 ? 'text-green-600' : comp.delta > 0 ? 'text-red-600' : 'text-slate-600'
+                                  }`}>
                                   {comp.delta < 0 ? '✅ Mejoró ' : comp.delta > 0 ? '❌ Empeoró ' : '⚠️ Sin cambio '}
                                   ({comp.delta > 0 ? '+' : ''}{comp.delta} min)
                                 </span>
@@ -2231,6 +2159,24 @@ export default function Home() {
                         placeholder="Ej: Producción, Logística"
                       />
                     </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="processType">Tipo de Proceso</Label>
+                      <select
+                        id="processType"
+                        className="w-full h-10 px-3 py-2 border rounded-md text-sm bg-white"
+                        value={interviewData.processType || 'core'}
+                        onChange={(e) => setInterviewData({
+                          ...interviewData,
+                          processType: e.target.value as 'strategic' | 'core' | 'support'
+                        })}
+                      >
+                        <option value="strategic">Estratégico</option>
+                        <option value="core">Misional (Operativo)</option>
+                        <option value="support">De Apoyo</option>
+                      </select>
+                    </div>
+
                     <div className="space-y-2">
                       <Label htmlFor="managerName">Jefe de Área</Label>
                       <Input
@@ -2321,11 +2267,10 @@ export default function Home() {
                         {interviewData.positions.map((position) => (
                           <div
                             key={position.id}
-                            className={`flex items-center justify-between p-3 border-2 rounded-lg cursor-pointer transition-colors ${
-                              currentPosition?.id === position.id
-                                ? "border-blue-500 bg-blue-50"
-                                : "border-slate-200 hover:border-blue-300 hover:bg-slate-50"
-                            }`}
+                            className={`flex items-center justify-between p-3 border-2 rounded-lg cursor-pointer transition-colors ${currentPosition?.id === position.id
+                              ? "border-blue-500 bg-blue-50"
+                              : "border-slate-200 hover:border-blue-300 hover:bg-slate-50"
+                              }`}
                             onClick={() => setCurrentPosition(position)}
                           >
                             <div>
@@ -2376,9 +2321,9 @@ export default function Home() {
                         }
                       }}
                     />
-                    <Button onClick={addPosition}>
+                    <Button onClick={addPosition} size="lg" className="shadow-sm whitespace-nowrap">
                       <Plus className="mr-2 h-4 w-4" />
-                      Agregar Cargo
+                      Agregar
                     </Button>
                   </div>
 
@@ -2409,7 +2354,7 @@ export default function Home() {
                     {editingActivity ? "Editar Actividad" : "Registrar Actividades"}
                   </CardTitle>
                   <CardDescription>
-                    {editingActivity 
+                    {editingActivity
                       ? "Modifica los datos de la actividad seleccionada"
                       : "Registra las actividades del cargo seleccionado"
                     }
@@ -2479,16 +2424,16 @@ export default function Home() {
                       <Label>&nbsp;</Label>
                       {editingActivity ? (
                         <div className="flex gap-2">
-                          <Button onClick={updateActivity} className="flex-1">
+                          <Button onClick={updateActivity} size="lg" className="flex-1 shadow-sm">
                             <Pencil className="mr-2 h-4 w-4" />
                             Actualizar
                           </Button>
-                          <Button onClick={cancelEdit} variant="outline" className="flex-1">
+                          <Button onClick={cancelEdit} variant="outline" size="lg" className="flex-1">
                             Cancelar
                           </Button>
                         </div>
                       ) : (
-                        <Button onClick={addActivity} className="w-full">
+                        <Button onClick={addActivity} size="lg" className="w-full shadow-sm">
                           <Plus className="mr-2 h-4 w-4" />
                           Agregar
                         </Button>
@@ -2533,16 +2478,21 @@ export default function Home() {
                           <div key={position.id} className="border rounded-lg p-4 bg-slate-50">
                             <div className="flex items-center justify-between mb-3">
                               <div>
-                                <h3 className="font-semibold text-lg">💼 {position.name}</h3>
+                                <h3 className="font-semibold text-lg flex items-center gap-2 flex-wrap">
+                                  <span>💼 {position.name}</span>
+                                  <span className="text-sm font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                    Total Hora: {(position.activities.reduce((acc, a) => acc + (a.timeMinutes * a.frequency), 0) / 60).toFixed(1)} hrs
+                                  </span>
+                                </h3>
                                 <Badge variant="secondary" className="text-xs mt-1">
-                                  {position.peopleCount} {position.peopleCount === 1 ? "persona" : "personas"}
+                                  {position.peopleCount || 1} {(position.peopleCount || 1) === 1 ? "persona" : "personas"}
                                 </Badge>
                               </div>
                               <Badge variant="outline">
                                 {position.activities.length} actividad{position.activities.length !== 1 ? 'es' : ''}
                               </Badge>
                             </div>
-                            
+
                             {/* Contador de Tiempos por Cargo */}
                             {(() => {
                               const positionTotals = calculatePositionTotals(position, interviewData.workdayMinutes, interviewData.fixedBreaksMinutes);
@@ -2550,84 +2500,179 @@ export default function Home() {
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4 p-3 bg-white rounded-lg border">
                                   <div className="text-center">
                                     <p className="text-xs text-slate-600">Productivo</p>
-                                    <p className="font-bold text-green-600">{positionTotals.productiveTime} min</p>
+                                    <p className="font-bold text-green-600">{(positionTotals.productiveTime / 60).toFixed(1)} hrs</p>
                                     <p className="text-xs text-slate-500">{positionTotals.productivePercentage.toFixed(1)}%</p>
                                   </div>
                                   <div className="text-center">
                                     <p className="text-xs text-slate-600">Apoyo</p>
-                                    <p className="font-bold text-blue-600">{positionTotals.supportTime} min</p>
+                                    <p className="font-bold text-blue-600">{(positionTotals.supportTime / 60).toFixed(1)} hrs</p>
                                     <p className="text-xs text-slate-500">{positionTotals.supportPercentage.toFixed(1)}%</p>
                                   </div>
                                   <div className="text-center">
                                     <p className="text-xs text-slate-600">Muerto</p>
-                                    <p className="font-bold text-red-600">{positionTotals.deadTime} min</p>
+                                    <p className="font-bold text-red-600">{(positionTotals.deadTime / 60).toFixed(1)} hrs</p>
                                     <p className="text-xs text-slate-500">{positionTotals.deadTimePercentage.toFixed(1)}%</p>
                                   </div>
                                   <div className="text-center">
                                     <p className="text-xs text-slate-600">Disponible</p>
-                                    <p className="font-bold text-slate-600">{positionTotals.unassignedTime} min</p>
+                                    <p className="font-bold text-slate-600">{(positionTotals.unassignedTime / 60).toFixed(1)} hrs</p>
                                     <p className="text-xs text-slate-500">{positionTotals.unassignedPercentage.toFixed(1)}%</p>
                                   </div>
                                 </div>
                               );
                             })()}
-                            
+
                             <div className="space-y-2">
                               {position.activities.map((activity) => (
-                                <div
-                                  key={activity.id}
-                                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-slate-50"
-                                >
-                                  <div className="flex items-center gap-3 flex-1">
-                                    <Badge className={ACTIVITY_TYPES[activity.type].color}>
-                                      {ACTIVITY_TYPES[activity.type].label}
-                                    </Badge>
-                                    <div className="flex-1">
-                                      <p className="font-medium">{activity.name}</p>
-                                      {activity.cause && (
-                                        <p className="text-sm text-slate-600 mt-1">
-                                          Causa: {activity.cause}
-                                        </p>
+                                editingActivity?.activityId === activity.id && editingActivity?.positionId === position.id ? (
+                                  <div key={activity.id} className="p-3 border-2 border-blue-500 rounded-lg bg-blue-50 space-y-3 shadow-md mb-2">
+                                    <div className="flex gap-3 flex-wrap md:flex-nowrap">
+                                      <div className="flex-1 min-w-[200px] space-y-1">
+                                        <Label htmlFor="edit-name" className="text-xs font-semibold text-blue-900">Nombre de la actividad</Label>
+                                        <Input
+                                          id="edit-name"
+                                          value={newActivity.name}
+                                          onChange={(e) => setNewActivity({ ...newActivity, name: e.target.value })}
+                                          className="bg-white"
+                                          autoFocus
+                                        />
+                                      </div>
+                                      <div className="w-full md:w-40 space-y-1">
+                                        <Label htmlFor="edit-type" className="text-xs font-semibold text-blue-900">Tipo</Label>
+                                        <select
+                                          id="edit-type"
+                                          className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                          value={newActivity.type}
+                                          onChange={(e) => setNewActivity({ ...newActivity, type: e.target.value as any })}
+                                        >
+                                          <option value="productive">Productiva</option>
+                                          <option value="support">Soporte</option>
+                                          <option value="dead_time">Tiempo Muerto</option>
+                                        </select>
+                                      </div>
+                                    </div>
+
+                                    <div className="flex gap-3 items-end flex-wrap">
+                                      <div className="w-24 space-y-1">
+                                        <Label htmlFor="edit-time" className="text-xs font-semibold text-blue-900">Minutos</Label>
+                                        <Input
+                                          id="edit-time"
+                                          type="number"
+                                          min="0"
+                                          value={newActivity.timeMinutes}
+                                          onChange={(e) => setNewActivity({ ...newActivity, timeMinutes: parseInt(e.target.value) || 0 })}
+                                          className="bg-white"
+                                          onKeyDown={(e) => e.key === 'Enter' && updateActivity()}
+                                        />
+                                      </div>
+                                      <div className="w-24 space-y-1">
+                                        <Label htmlFor="edit-freq" className="text-xs font-semibold text-blue-900">Veces/día</Label>
+                                        <Input
+                                          id="edit-freq"
+                                          type="number"
+                                          min="1"
+                                          value={newActivity.frequency}
+                                          onChange={(e) => setNewActivity({ ...newActivity, frequency: parseInt(e.target.value) || 1 })}
+                                          className="bg-white"
+                                          onKeyDown={(e) => e.key === 'Enter' && updateActivity()}
+                                        />
+                                      </div>
+
+                                      {newActivity.type === "dead_time" && (
+                                        <div className="flex-1 min-w-[200px] space-y-1">
+                                          <Label htmlFor="edit-cause" className="text-xs font-semibold text-blue-900">Causa Raíz</Label>
+                                          <Input
+                                            id="edit-cause"
+                                            value={newActivity.cause}
+                                            onChange={(e) => setNewActivity({ ...newActivity, cause: e.target.value })}
+                                            className="bg-white"
+                                            placeholder="Describe la causa..."
+                                            onKeyDown={(e) => e.key === 'Enter' && updateActivity()}
+                                          />
+                                        </div>
                                       )}
-                                    </div>
-                                    <div className="text-right">
-                                      <p className="text-sm text-slate-600">
-                                        {activity.timeMinutes} min × {activity.frequency} {activity.frequency === 1 ? 'vez' : 'veces'}
-                                      </p>
-                                      <p className="font-semibold text-blue-600">
-                                        = {activity.timeMinutes * activity.frequency} min/día
-                                      </p>
+
+                                      <div className="flex gap-2 ml-auto w-full md:w-auto pt-2 md:pt-0">
+                                        <Button
+                                          onClick={updateActivity}
+                                          size="sm"
+                                          className="bg-green-600 hover:bg-green-700 text-white shadow-sm flex-1 md:flex-initial"
+                                          title="Guardar cambios"
+                                        >
+                                          <Check className="h-4 w-4 mr-1" />
+                                          Guardar
+                                        </Button>
+                                        <Button
+                                          onClick={cancelEdit}
+                                          variant="outline"
+                                          size="sm"
+                                          className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 flex-1 md:flex-initial"
+                                          title="Cancelar edición"
+                                        >
+                                          <X className="h-4 w-4 mr-1" />
+                                          Cancelar
+                                        </Button>
+                                      </div>
                                     </div>
                                   </div>
-                                  <div className="flex gap-1">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => editActivity(activity.id, position.id)}
-                                      className="ml-2"
-                                      title="Editar actividad"
-                                    >
-                                      <Pencil className="h-4 w-4 text-blue-500" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => {
-                                        setCurrentPosition(position);
-                                        removeActivity(activity.id);
-                                      }}
-                                      title="Eliminar actividad"
-                                    >
-                                      <Trash2 className="h-4 w-4 text-red-500" />
-                                    </Button>
+                                ) : (
+                                  <div
+                                    key={activity.id}
+                                    className={`flex items-center justify-between p-3 border rounded-lg transition-colors mb-2 ${editingActivity?.activityId === activity.id ? 'bg-blue-50 border-blue-200' : 'hover:bg-slate-50'
+                                      }`}
+                                  >
+                                    <div className="flex items-center gap-3 flex-1">
+                                      <Badge className={ACTIVITY_TYPES[activity.type].color}>
+                                        {ACTIVITY_TYPES[activity.type].label}
+                                      </Badge>
+                                      <div className="flex-1">
+                                        <p className="font-medium">{activity.name}</p>
+                                        {activity.cause && (
+                                          <p className="text-sm text-slate-600 mt-1">
+                                            Causa: {activity.cause}
+                                          </p>
+                                        )}
+                                      </div>
+                                      <div className="text-right">
+                                        <p className="text-sm text-slate-600">
+                                          {activity.timeMinutes} min × {activity.frequency} {activity.frequency === 1 ? 'vez' : 'veces'}
+                                        </p>
+                                        <p className="font-semibold text-blue-600">
+                                          = {activity.timeMinutes * activity.frequency} min/día
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="flex gap-1">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => editActivity(activity.id, position.id)}
+                                        className="ml-2 hover:bg-blue-50 text-slate-400 hover:text-blue-600"
+                                        title="Editar actividad"
+                                      >
+                                        <Pencil className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => {
+                                          setCurrentPosition(position);
+                                          removeActivity(activity.id);
+                                        }}
+                                        className="hover:bg-red-50 text-slate-400 hover:text-red-600"
+                                        title="Eliminar actividad"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
                                   </div>
-                                </div>
+                                )
                               ))}
                             </div>
                           </div>
                         )
                       ))}
-                      
+
                       {/* Totalizador del Área */}
                       {interviewData.positions.some(p => p.activities.length > 0) && (
                         <div className="border-2 border-blue-500 rounded-lg p-4 bg-gradient-to-r from-blue-50 to-indigo-50">
@@ -2690,7 +2735,7 @@ export default function Home() {
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div>
-                      <CardTitle>🐢 Metodología de la Tortuga</CardTitle>
+                      <CardTitle>🐢 Metodología de la Tortuga: {interviewData.areaName}</CardTitle>
                       <CardDescription>
                         Define el proceso completo del área. Usa la lista global para garantizar conexiones exactas entre áreas.
                       </CardDescription>
@@ -2718,7 +2763,7 @@ export default function Home() {
                     {TURTLE_FIELDS.map((field) => {
                       const fieldKey = field.key as keyof TurtleProcess;
                       const availableItems = globalTurtleItems[fieldKey];
-                      
+
                       return (
                         <Card key={field.key} className="border-2">
                           <CardHeader className="pb-3">
@@ -2736,59 +2781,58 @@ export default function Home() {
                               <Label className="text-xs text-slate-600">
                                 Seleccionar de la lista global {availableItems.length > 0 && `(${availableItems.length} disponibles)`}:
                               </Label>
-                                <Popover open={openCombobox && currentTurtleField === fieldKey} onOpenChange={(open) => {
-                                  setOpenCombobox(open);
-                                  if (open) setCurrentTurtleField(fieldKey);
-                                }}>
-                                  <PopoverTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      role="combobox"
-                                      className="w-full justify-between"
-                                      onClick={() => setCurrentTurtleField(fieldKey)}
-                                    >
-                                      {selectedFromList && currentTurtleField === fieldKey
-                                        ? selectedFromList
-                                        : "Seleccionar item existente..."}
-                                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-full p-0">
-                                    <Command>
-                                      <CommandInput placeholder="Buscar..." />
-                                      <CommandList>
-                                        <CommandEmpty>No se encontraron resultados</CommandEmpty>
-                                        <CommandGroup>
-                                          {availableItems.map((item) => (
-                                            <CommandItem
-                                              key={item}
-                                              value={item}
-                                              onSelect={(value) => {
-                                                setSelectedFromList(value);
-                                                addTurtleItem(fieldKey, value);
-                                              }}
-                                            >
-                                              <Check
-                                                className={`mr-2 h-4 w-4 ${
-                                                  interviewData.turtleProcess?.[fieldKey]?.includes(item)
-                                                    ? "opacity-100"
-                                                    : "opacity-0"
+                              <Popover open={openCombobox && currentTurtleField === fieldKey} onOpenChange={(open) => {
+                                setOpenCombobox(open);
+                                if (open) setCurrentTurtleField(fieldKey);
+                              }}>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    className="w-full justify-between"
+                                    onClick={() => setCurrentTurtleField(fieldKey)}
+                                  >
+                                    {selectedFromList && currentTurtleField === fieldKey
+                                      ? selectedFromList
+                                      : "Seleccionar item existente..."}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-full p-0">
+                                  <Command>
+                                    <CommandInput placeholder="Buscar..." />
+                                    <CommandList>
+                                      <CommandEmpty>No se encontraron resultados</CommandEmpty>
+                                      <CommandGroup>
+                                        {availableItems.map((item) => (
+                                          <CommandItem
+                                            key={item}
+                                            value={item}
+                                            onSelect={(value) => {
+                                              setSelectedFromList(value);
+                                              addTurtleItem(fieldKey, value);
+                                            }}
+                                          >
+                                            <Check
+                                              className={`mr-2 h-4 w-4 ${interviewData.turtleProcess?.[fieldKey]?.includes(item)
+                                                ? "opacity-100"
+                                                : "opacity-0"
                                                 }`}
-                                              />
-                                              {item}
-                                            </CommandItem>
-                                          ))}
-                                        </CommandGroup>
-                                      </CommandList>
-                                    </Command>
-                                  </PopoverContent>
-                                </Popover>
-                                {availableItems.length === 0 && (
-                                  <p className="text-xs text-slate-400 italic">
-                                    No hay items creados aún. Crea el primero abajo.
-                                  </p>
-                                )}
-                              </div>
+                                            />
+                                            {item}
+                                          </CommandItem>
+                                        ))}
+                                      </CommandGroup>
+                                    </CommandList>
+                                  </Command>
+                                </PopoverContent>
+                              </Popover>
+                              {availableItems.length === 0 && (
+                                <p className="text-xs text-slate-400 italic">
+                                  No hay items creados aún. Crea el primero abajo.
+                                </p>
+                              )}
+                            </div>
 
                             {/* Input para crear nuevo */}
                             <div className="space-y-2">
@@ -2817,7 +2861,7 @@ export default function Home() {
                                 </Button>
                               </div>
                             </div>
-                            
+
                             {/* Lista de items agregados */}
                             <div className="space-y-2">
                               {interviewData.turtleProcess?.[fieldKey]?.map(
@@ -2840,10 +2884,10 @@ export default function Home() {
                               )}
                               {(!interviewData.turtleProcess?.[fieldKey] ||
                                 interviewData.turtleProcess[fieldKey].length === 0) && (
-                                <p className="text-sm text-slate-400 text-center py-4">
-                                  No hay items agregados
-                                </p>
-                              )}
+                                  <p className="text-sm text-slate-400 text-center py-4">
+                                    No hay items agregados
+                                  </p>
+                                )}
                             </div>
                           </CardContent>
                         </Card>
@@ -2982,31 +3026,31 @@ export default function Home() {
                         🟢 Tiempo Productivo ({totals.productivePercentage.toFixed(1)}%)
                       </h4>
                       <p className="text-slate-700 mb-3">
-                        <strong>Definición:</strong> Es el tiempo dedicado directamente a actividades que generan valor 
-                        para el producto o servicio final. Son las tareas principales del área que contribuyen 
+                        <strong>Definición:</strong> Es el tiempo dedicado directamente a actividades que generan valor
+                        para el producto o servicio final. Son las tareas principales del área que contribuyen
                         directamente a los objetivos de la organización.
                       </p>
                       <p className="text-slate-700 mb-3">
-                        <strong>Ejemplos:</strong> Producción de unidades, atención a clientes, desarrollo de productos, 
+                        <strong>Ejemplos:</strong> Producción de unidades, atención a clientes, desarrollo de productos,
                         procesamiento de pedidos, análisis de datos críticos.
                       </p>
                       <div className="bg-white p-3 rounded border border-green-200 mt-3">
                         <p className="text-sm font-semibold text-green-900 mb-2">Interpretación:</p>
                         {totals.productivePercentage >= 70 && (
                           <p className="text-sm text-slate-700">
-                            ✅ <strong>Excelente:</strong> El área mantiene un alto nivel de productividad. 
+                            ✅ <strong>Excelente:</strong> El área mantiene un alto nivel de productividad.
                             Continuar monitoreando para mantener este estándar.
                           </p>
                         )}
                         {totals.productivePercentage >= 50 && totals.productivePercentage < 70 && (
                           <p className="text-sm text-slate-700">
-                            ⚠️ <strong>Aceptable:</strong> Hay espacio para mejorar. Identifique oportunidades 
+                            ⚠️ <strong>Aceptable:</strong> Hay espacio para mejorar. Identifique oportunidades
                             para reducir tiempos de soporte o muertos.
                           </p>
                         )}
                         {totals.productivePercentage < 50 && (
                           <p className="text-sm text-slate-700">
-                            🔴 <strong>Crítico:</strong> Menos de la mitad del tiempo es productivo. 
+                            🔴 <strong>Crítico:</strong> Menos de la mitad del tiempo es productivo.
                             Se requiere acción inmediata para identificar y eliminar desperdicios.
                           </p>
                         )}
@@ -3019,31 +3063,31 @@ export default function Home() {
                         🔵 Tiempo de Soporte ({totals.supportPercentage.toFixed(1)}%)
                       </h4>
                       <p className="text-slate-700 mb-3">
-                        <strong>Definición:</strong> Actividades necesarias para que el trabajo productivo pueda realizarse, 
-                        pero que no generan valor directo al producto/servicio. Son tareas de apoyo indispensables 
+                        <strong>Definición:</strong> Actividades necesarias para que el trabajo productivo pueda realizarse,
+                        pero que no generan valor directo al producto/servicio. Son tareas de apoyo indispensables
                         para el funcionamiento del área.
                       </p>
                       <p className="text-slate-700 mb-3">
-                        <strong>Ejemplos:</strong> Reuniones de coordinación, preparación de herramientas, limpieza y orden, 
+                        <strong>Ejemplos:</strong> Reuniones de coordinación, preparación de herramientas, limpieza y orden,
                         capacitaciones, mantenimiento preventivo, revisión de correos operativos.
                       </p>
                       <div className="bg-white p-3 rounded border border-blue-200 mt-3">
                         <p className="text-sm font-semibold text-blue-900 mb-2">Interpretación:</p>
                         {totals.supportPercentage <= 20 && (
                           <p className="text-sm text-slate-700">
-                            ✅ <strong>Óptimo:</strong> El tiempo de soporte está bien controlado y no afecta 
+                            ✅ <strong>Óptimo:</strong> El tiempo de soporte está bien controlado y no afecta
                             significativamente la productividad.
                           </p>
                         )}
                         {totals.supportPercentage > 20 && totals.supportPercentage <= 35 && (
                           <p className="text-sm text-slate-700">
-                            ⚠️ <strong>Moderado:</strong> Revisar si algunas actividades de soporte pueden optimizarse 
+                            ⚠️ <strong>Moderado:</strong> Revisar si algunas actividades de soporte pueden optimizarse
                             o automatizarse para reducir su impacto.
                           </p>
                         )}
                         {totals.supportPercentage > 35 && (
                           <p className="text-sm text-slate-700">
-                            🔴 <strong>Alto:</strong> El tiempo de soporte está consumiendo demasiados recursos. 
+                            🔴 <strong>Alto:</strong> El tiempo de soporte está consumiendo demasiados recursos.
                             Evaluar qué actividades pueden eliminarse, simplificarse o delegarse.
                           </p>
                         )}
@@ -3056,37 +3100,37 @@ export default function Home() {
                         🔴 Tiempo Muerto ({totals.deadTimePercentage.toFixed(1)}%)
                       </h4>
                       <p className="text-slate-700 mb-3">
-                        <strong>Definición:</strong> Tiempo en el que no se realiza ninguna actividad productiva ni de soporte. 
-                        Representa desperdicio puro que debe ser eliminado o minimizado al máximo. Es el principal 
+                        <strong>Definición:</strong> Tiempo en el que no se realiza ninguna actividad productiva ni de soporte.
+                        Representa desperdicio puro que debe ser eliminado o minimizado al máximo. Es el principal
                         objetivo de mejora en cualquier análisis de tiempos.
                       </p>
                       <p className="text-slate-700 mb-3">
-                        <strong>Ejemplos:</strong> Esperas por materiales, fallas de equipos, falta de instrucciones, 
+                        <strong>Ejemplos:</strong> Esperas por materiales, fallas de equipos, falta de instrucciones,
                         ausencias de personal clave, sistemas caídos, reprocesos por errores, interrupciones innecesarias.
                       </p>
                       <div className="bg-white p-3 rounded border border-red-200 mt-3">
                         <p className="text-sm font-semibold text-red-900 mb-2">Interpretación:</p>
                         {totals.deadTimePercentage === 0 && (
                           <p className="text-sm text-slate-700">
-                            🎉 <strong>Perfecto:</strong> No se detectaron tiempos muertos. Mantener las buenas prácticas 
+                            🎉 <strong>Perfecto:</strong> No se detectaron tiempos muertos. Mantener las buenas prácticas
                             y procesos actuales.
                           </p>
                         )}
                         {totals.deadTimePercentage > 0 && totals.deadTimePercentage <= 10 && (
                           <p className="text-sm text-slate-700">
-                            ✅ <strong>Bajo:</strong> Nivel aceptable de tiempos muertos. Continuar trabajando en su reducción 
+                            ✅ <strong>Bajo:</strong> Nivel aceptable de tiempos muertos. Continuar trabajando en su reducción
                             mediante mejora continua.
                           </p>
                         )}
                         {totals.deadTimePercentage > 10 && totals.deadTimePercentage <= 25 && (
                           <p className="text-sm text-slate-700">
-                            ⚠️ <strong>Moderado:</strong> Hay oportunidades significativas de mejora. Priorizar las causas 
+                            ⚠️ <strong>Moderado:</strong> Hay oportunidades significativas de mejora. Priorizar las causas
                             raíz más frecuentes o de mayor impacto.
                           </p>
                         )}
                         {totals.deadTimePercentage > 25 && (
                           <p className="text-sm text-slate-700">
-                            🔴 <strong>Crítico:</strong> Más de un cuarto del tiempo se pierde. Se requiere un plan 
+                            🔴 <strong>Crítico:</strong> Más de un cuarto del tiempo se pierde. Se requiere un plan
                             de acción urgente para atacar las causas raíz identificadas.
                           </p>
                         )}
@@ -3102,28 +3146,28 @@ export default function Home() {
                         <li className="flex items-start gap-2">
                           <span className="text-blue-500 mt-1">•</span>
                           <span>
-                            <strong>Priorizar:</strong> Enfocarse primero en eliminar tiempos muertos, luego optimizar 
+                            <strong>Priorizar:</strong> Enfocarse primero en eliminar tiempos muertos, luego optimizar
                             tiempos de soporte, y finalmente maximizar tiempos productivos.
                           </span>
                         </li>
                         <li className="flex items-start gap-2">
                           <span className="text-blue-500 mt-1">•</span>
                           <span>
-                            <strong>Medir regularmente:</strong> Realizar este análisis de forma periódica (mensual o trimestral) 
+                            <strong>Medir regularmente:</strong> Realizar este análisis de forma periódica (mensual o trimestral)
                             para identificar tendencias y medir el impacto de las mejoras implementadas.
                           </span>
                         </li>
                         <li className="flex items-start gap-2">
                           <span className="text-blue-500 mt-1">•</span>
                           <span>
-                            <strong>Involucrar al equipo:</strong> Compartir estos resultados con el personal del área y 
+                            <strong>Involucrar al equipo:</strong> Compartir estos resultados con el personal del área y
                             trabajar en conjunto para identificar soluciones prácticas.
                           </span>
                         </li>
                         <li className="flex items-start gap-2">
                           <span className="text-blue-500 mt-1">•</span>
                           <span>
-                            <strong>Documentar acciones:</strong> Crear un plan de acción con responsables y fechas para 
+                            <strong>Documentar acciones:</strong> Crear un plan de acción con responsables y fechas para
                             cada oportunidad de mejora identificada.
                           </span>
                         </li>
@@ -3170,7 +3214,7 @@ export default function Home() {
               <CardHeader>
                 <CardTitle>📊 Dashboard de Mediciones Globales</CardTitle>
                 <CardDescription>
-                  {globalMeasurements.length === 0 
+                  {globalMeasurements.length === 0
                     ? "No hay mediciones globales creadas aún. Crea tu primera medición para comenzar a hacer seguimiento."
                     : `Tienes ${globalMeasurements.length} medición${globalMeasurements.length > 1 ? 'es' : ''} global${globalMeasurements.length > 1 ? 'es' : ''} guardada${globalMeasurements.length > 1 ? 's' : ''}`
                   }
@@ -3210,17 +3254,17 @@ export default function Home() {
                             const totals = calculateTotals(area);
                             return sum + totals.productivePercentage;
                           }, 0) / measurement.areas.length;
-                          
+
                           const avgSoporte = measurement.areas.reduce((sum, area) => {
                             const totals = calculateTotals(area);
                             return sum + totals.supportPercentage;
                           }, 0) / measurement.areas.length;
-                          
+
                           const avgMuerto = measurement.areas.reduce((sum, area) => {
                             const totals = calculateTotals(area);
                             return sum + totals.deadTimePercentage;
                           }, 0) / measurement.areas.length;
-                          
+
                           return (
                             <tr key={measurement.id} className="border-b hover:bg-slate-50">
                               <td className="p-3 font-medium">{measurement.name}</td>
@@ -3250,19 +3294,19 @@ export default function Home() {
                                 </span>
                               </td>
                               <td className="p-3">
-                                <div className="flex gap-2 justify-center">
-                                  <Button 
+                                <div className="flex gap-1.5 justify-center">
+                                  <Button
                                     onClick={() => {
                                       setSelectedMeasurement(measurement);
                                       setView("measurement-detail");
                                     }}
-                                    variant="outline" 
+                                    variant="default"
                                     size="sm"
                                   >
-                                    <FileText className="mr-1 h-3 w-3" />
-                                    Ver Detalle
+                                    <FileText className="mr-1.5 h-3.5 w-3.5" />
+                                    Ver
                                   </Button>
-                                  <Button 
+                                  <Button
                                     onClick={async () => {
                                       if (confirm(`¿Estás seguro de eliminar la medición "${measurement.name}"?`)) {
                                         try {
@@ -3273,10 +3317,11 @@ export default function Home() {
                                         }
                                       }
                                     }}
-                                    variant="outline" 
+                                    variant="ghost"
                                     size="sm"
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
                                   >
-                                    <Trash2 className="h-3 w-3 text-red-600" />
+                                    <Trash2 className="h-3.5 w-3.5" />
                                   </Button>
                                 </div>
                               </td>
@@ -3287,7 +3332,7 @@ export default function Home() {
                     </table>
                   </div>
                 )}
-                
+
                 {globalMeasurements.length >= 2 && (
                   <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                     <h4 className="font-semibold text-blue-900 mb-2">🔍 Comparar Mediciones</h4>
@@ -3297,7 +3342,7 @@ export default function Home() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div>
                         <Label className="text-xs text-blue-900">Medición Base</Label>
-                        <select 
+                        <select
                           className="w-full mt-1 p-2 border rounded"
                           value={measurementToCompare1?.id || ""}
                           onChange={(e) => {
@@ -3313,7 +3358,7 @@ export default function Home() {
                       </div>
                       <div>
                         <Label className="text-xs text-blue-900">Medición Actual</Label>
-                        <select 
+                        <select
                           className="w-full mt-1 p-2 border rounded"
                           value={measurementToCompare2?.id || ""}
                           onChange={(e) => {
@@ -3328,7 +3373,7 @@ export default function Home() {
                         </select>
                       </div>
                       <div className="flex items-end">
-                        <Button 
+                        <Button
                           onClick={() => {
                             if (measurementToCompare1 && measurementToCompare2) {
                               setView("measurement-compare");
@@ -3337,10 +3382,11 @@ export default function Home() {
                             }
                           }}
                           disabled={!measurementToCompare1 || !measurementToCompare2}
-                          className="w-full"
+                          size="lg"
+                          className="w-full shadow-sm"
                         >
                           <TrendingUp className="mr-2 h-4 w-4" />
-                          Comparar
+                          Comparar Mediciones
                         </Button>
                       </div>
                     </div>
@@ -3350,7 +3396,7 @@ export default function Home() {
             </Card>
           </div>
         )}
-        
+
         {/* Vista: Detalle de Medición Global */}
         {view === "measurement-detail" && selectedMeasurement && (
           <div className="space-y-6">
@@ -3385,7 +3431,7 @@ export default function Home() {
                       {selectedMeasurement.areas.map((area, index) => {
                         const totals = calculateTotals(area);
                         const allActivities = getAllActivities(area);
-                        
+
                         return (
                           <tr key={index} className="border-b hover:bg-slate-50">
                             <td className="p-3 font-medium">{area.areaName}</td>
@@ -3417,7 +3463,7 @@ export default function Home() {
                     </tbody>
                   </table>
                 </div>
-                
+
                 {/* Gráfico de barras */}
                 <div className="mt-6">
                   <h3 className="font-semibold mb-4">Distribución por Área</h3>
@@ -3446,7 +3492,7 @@ export default function Home() {
             </Card>
           </div>
         )}
-        
+
         {/* Vista: Comparación entre Dos Mediciones Globales */}
         {view === "measurement-compare" && measurementToCompare1 && measurementToCompare2 && (
           <div className="space-y-6">
@@ -3484,19 +3530,19 @@ export default function Home() {
                       {measurementToCompare1.areas.map((area1, index) => {
                         // Buscar el área correspondiente en la segunda medición
                         const area2 = measurementToCompare2.areas.find(a => a.areaName === area1.areaName);
-                        
+
                         if (!area2) return null; // Área no existe en la segunda medición
-                        
+
                         const totals1 = calculateTotals(area1);
                         const totals2 = calculateTotals(area2);
-                        
+
                         const diffProductivo = totals2.productivePercentage - totals1.productivePercentage;
                         const diffMuerto = totals2.deadTimePercentage - totals1.deadTimePercentage;
-                        
+
                         // Determinar si mejoró o empeoró
                         const improved = diffProductivo > 0 || diffMuerto < 0;
                         const worsened = diffProductivo < 0 || diffMuerto > 0;
-                        
+
                         return (
                           <tr key={index} className="border-b hover:bg-slate-50">
                             <td className="p-3 font-medium">{area1.areaName}</td>
@@ -3540,7 +3586,7 @@ export default function Home() {
                     </tbody>
                   </table>
                 </div>
-                
+
                 {/* Gráficos de comparación */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
                   <div>
@@ -3549,10 +3595,10 @@ export default function Home() {
                       <BarChart data={measurementToCompare1.areas.map(area1 => {
                         const area2 = measurementToCompare2.areas.find(a => a.areaName === area1.areaName);
                         if (!area2) return null;
-                        
+
                         const totals1 = calculateTotals(area1);
                         const totals2 = calculateTotals(area2);
-                        
+
                         return {
                           area: area1.areaName,
                           [measurementToCompare1.name]: totals1.productivePercentage,
@@ -3569,17 +3615,17 @@ export default function Home() {
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
-                  
+
                   <div>
                     <h3 className="font-semibold mb-4">Tiempo Muerto - Comparación</h3>
                     <ResponsiveContainer width="100%" height={400}>
                       <BarChart data={measurementToCompare1.areas.map(area1 => {
                         const area2 = measurementToCompare2.areas.find(a => a.areaName === area1.areaName);
                         if (!area2) return null;
-                        
+
                         const totals1 = calculateTotals(area1);
                         const totals2 = calculateTotals(area2);
-                        
+
                         return {
                           area: area1.areaName,
                           [measurementToCompare1.name]: totals1.deadTimePercentage,
@@ -3601,7 +3647,7 @@ export default function Home() {
             </Card>
           </div>
         )}
-        
+
         {/* Vista: Comparativa */}
         {view === "compare" && savedAreas.length > 0 && (
           <div className="space-y-6">
@@ -3679,9 +3725,9 @@ export default function Home() {
                     <tbody>
                       {savedAreas.map((area) => {
                         const totals = calculateTotals(area);
-                        const hasTurtle = area.turtleProcess && 
+                        const hasTurtle = area.turtleProcess &&
                           Object.values(area.turtleProcess).some(arr => arr.length > 0);
-                        
+
                         return (
                           <tr key={area.id} className="border-b hover:bg-slate-50">
                             <td className="p-3 font-medium">{area.areaName}</td>
@@ -3721,7 +3767,103 @@ export default function Home() {
 
         {/* Vista: Mapa de Procesos */}
         {view === "process-map" && savedAreas.length > 0 && (
-          <div className="space-y-6">
+          <div className="space-y-8">
+            {/* Mapa Visual de Procesos */}
+            <Card className="border-none shadow-none bg-transparent overflow-x-auto">
+              <div className="min-w-[1000px] p-4">
+                <div className="flex items-stretch gap-6">
+
+                  {/* Entrada: Necesidades del Cliente */}
+                  <div className="w-40 flex items-center">
+                    <div
+                      className="w-full h-48 bg-orange-300 border-2 border-orange-500 flex flex-col items-center justify-center p-4 text-center shadow-lg relative z-10"
+                      style={{ clipPath: 'polygon(0% 0%, 85% 0%, 100% 50%, 85% 100%, 0% 100%)' }}
+                    >
+                      <h3 className="font-bold text-slate-900 text-sm mb-2">Entrada:</h3>
+                      <p className="font-bold text-slate-800 text-base leading-tight">Necesidades del Cliente</p>
+                    </div>
+                  </div>
+
+                  {/* Contenedor Principal de Procesos */}
+                  <div className="flex-1 flex flex-col gap-6">
+
+                    {/* Procesos Estratégicos */}
+                    <div className="border-2 border-slate-300 rounded-xl p-4 bg-white shadow-sm relative">
+                      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-white px-4 py-1 rounded-full border border-slate-200 shadow-sm">
+                        <h3 className="font-bold text-slate-900 text-sm uppercase">Procesos Estratégicos</h3>
+                      </div>
+                      <div className="mt-4 flex flex-wrap justify-center gap-4">
+                        {savedAreas.filter(a => a.processType === 'strategic').length > 0 ? (
+                          savedAreas.filter(a => a.processType === 'strategic').map(area => (
+                            <div key={area.id} className="bg-blue-600 text-white p-3 rounded-lg shadow-md w-48 text-center border-2 border-blue-700 hover:scale-105 transition-transform cursor-pointer" onClick={() => { setSelectedArea(area); setView('form'); }}>
+                              <p className="font-bold text-sm">{area.areaName}</p>
+                              <p className="text-xs text-blue-100 mt-1 truncate">{area.managerName}</p>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-slate-400 italic py-2">No hay procesos estratégicos registrados</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Procesos Operativos (Misionales) */}
+                    <div className="border-2 border-slate-300 rounded-xl p-4 bg-white shadow-sm relative min-h-[140px]">
+                      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-white px-4 py-1 rounded-full border border-slate-200 shadow-sm">
+                        <h3 className="font-bold text-slate-900 text-sm uppercase">Procesos Misionarios (Operativos)</h3>
+                      </div>
+                      <div className="mt-4 flex items-center justify-center gap-2 overflow-x-auto pb-2">
+                        {savedAreas.filter(a => (a.processType || 'core') === 'core').length > 0 ? (
+                          savedAreas.filter(a => (a.processType || 'core') === 'core').map((area, idx, arr) => (
+                            <div key={area.id} className="flex items-center">
+                              <div className="bg-orange-500 text-white p-3 rounded-lg shadow-md w-48 text-center border-2 border-orange-600 hover:scale-105 transition-transform cursor-pointer" onClick={() => { setSelectedArea(area); setView('form'); }}>
+                                <p className="font-bold text-sm">{area.areaName}</p>
+                              </div>
+                              {idx < arr.length - 1 && (
+                                <ArrowRight className="h-6 w-6 text-slate-400 mx-1 flex-shrink-0" />
+                              )}
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-slate-400 italic py-2">No hay procesos misionales registrados</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Procesos de Apoyo */}
+                    <div className="border-2 border-slate-300 rounded-xl p-4 bg-white shadow-sm relative">
+                      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-white px-4 py-1 rounded-full border border-slate-200 shadow-sm">
+                        <h3 className="font-bold text-slate-900 text-sm uppercase">Procesos de Apoyo</h3>
+                      </div>
+                      <div className="mt-4 flex flex-wrap justify-center gap-4">
+                        {savedAreas.filter(a => a.processType === 'support').length > 0 ? (
+                          savedAreas.filter(a => a.processType === 'support').map(area => (
+                            <div key={area.id} className="bg-green-600 text-white p-3 rounded-lg shadow-md w-48 text-center border-2 border-green-700 hover:scale-105 transition-transform cursor-pointer" onClick={() => { setSelectedArea(area); setView('form'); }}>
+                              <p className="font-bold text-sm">{area.areaName}</p>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-slate-400 italic py-2">No hay procesos de apoyo registrados</p>
+                        )}
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* Salida: Satisfacción del Cliente */}
+                  <div className="w-40 flex items-center">
+                    <div
+                      className="w-full h-48 bg-orange-300 border-2 border-orange-500 flex flex-col items-center justify-center p-4 text-center shadow-lg relative z-10"
+                      style={{ clipPath: 'polygon(0% 0%, 85% 0%, 100% 50%, 85% 100%, 0% 100%)' }}
+                    >
+                      <h3 className="font-bold text-slate-900 text-sm mb-2">Salida:</h3>
+                      <p className="font-bold text-slate-800 text-base leading-tight">Cliente Satisfecho</p>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </Card>
+
             <Card>
               <CardHeader>
                 <div className="flex items-start justify-between">
@@ -3731,17 +3873,17 @@ export default function Home() {
                       Visualización de flujos basados en coincidencias exactas (Entradas ↔ Salidas)
                     </CardDescription>
                   </div>
-                  <Button 
+                  <Button
                     onClick={handleAnalyzeProcesses}
                     variant="default"
-                    size="sm"
-                    className="bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700"
+                    size="lg"
+                    className="shadow-md bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700"
                     disabled={isAnalyzingProcesses}
                   >
                     {isAnalyzingProcesses ? (
                       <>
-                        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                        Analizando...
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Analizando flujo...
                       </>
                     ) : (
                       <>
@@ -3759,52 +3901,69 @@ export default function Home() {
                         ✅ Se detectaron {interactions.length} interacciones entre áreas
                       </p>
                     </div>
-                    
-                    {interactions.map((interaction, index) => (
-                      <Card key={index} className="border-2 border-blue-200">
-                        <CardContent className="pt-6">
-                          <div className="flex items-center gap-4">
-                            <div className="flex-1 text-right">
-                              <p className="font-bold text-lg text-blue-600">
-                                {interaction.source}
-                              </p>
-                              <p className="text-sm text-slate-600">Salida</p>
-                            </div>
-                            
-                            <div className="flex flex-col items-center gap-2">
-                              <ArrowRight className="h-8 w-8 text-green-600" />
-                              <div className="bg-green-100 px-3 py-1 rounded-full">
-                                <p className="text-xs font-medium text-green-800">
-                                  {interaction.items.length} flujo(s)
-                                </p>
-                              </div>
-                            </div>
-                            
-                            <div className="flex-1">
-                              <p className="font-bold text-lg text-purple-600">
-                                {interaction.target}
-                              </p>
-                              <p className="text-sm text-slate-600">Entrada</p>
-                            </div>
-                          </div>
-                          
-                          <Separator className="my-4" />
-                          
-                          <div className="space-y-2">
-                            <p className="text-sm font-semibold text-slate-700">
-                              Elementos transferidos:
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                              {interaction.items.map((item, idx) => (
-                                <Badge key={idx} variant="outline" className="text-xs">
-                                  {item}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+
+                    <div className="overflow-x-auto border rounded-lg">
+                      <table className="w-full text-sm text-left">
+                        <thead className="bg-slate-100 text-slate-700 uppercase font-semibold">
+                          <tr>
+                            <th className="px-4 py-3 border-b">Área Origen (Salida)</th>
+                            <th className="px-4 py-3 border-b">Área Destino (Entrada)</th>
+                            <th className="px-4 py-3 border-b">Elemento de Interacción</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                          {(() => {
+                            // Agrupar interacciones por Área Origen
+                            const groupedInteractions: Record<string, typeof interactions> = {};
+                            interactions.forEach(interaction => {
+                              if (!groupedInteractions[interaction.source]) {
+                                groupedInteractions[interaction.source] = [];
+                              }
+                              groupedInteractions[interaction.source].push(interaction);
+                            });
+
+                            return Object.entries(groupedInteractions).map(([source, sourceInteractions], groupIdx) => {
+                              // Calcular el total de filas que ocupará este Área Origen (suma de ítems de todos sus targets)
+                              const totalSourceRows = sourceInteractions.reduce((acc, curr) => acc + curr.items.length, 0);
+
+                              return sourceInteractions.map((interaction, interactionIdx) => {
+                                return interaction.items.map((item, itemIdx) => {
+                                  // Determinar si debemos renderizar la celda de Origen (solo en la primera fila del grupo)
+                                  const isFirstOfGroup = interactionIdx === 0 && itemIdx === 0;
+                                  // Determinar si debemos renderizar la celda de Destino (solo en la primera fila de la interacción)
+                                  const isFirstOfInteraction = itemIdx === 0;
+
+                                  return (
+                                    <tr key={`${source}-${interaction.target}-${item}-${itemIdx}`} className="bg-white hover:bg-slate-50">
+                                      {isFirstOfGroup && (
+                                        <td
+                                          className="px-4 py-3 border-r font-bold text-blue-700 align-top bg-white"
+                                          rowSpan={totalSourceRows}
+                                        >
+                                          {source}
+                                        </td>
+                                      )}
+                                      {isFirstOfInteraction && (
+                                        <td
+                                          className="px-4 py-3 border-r font-medium text-purple-700 align-top"
+                                          rowSpan={interaction.items.length}
+                                        >
+                                          {interaction.target}
+                                        </td>
+                                      )}
+                                      <td className="px-4 py-3 text-slate-700 flex items-center gap-2">
+                                        <span className="text-green-500 text-xs">●</span>
+                                        {item}
+                                      </td>
+                                    </tr>
+                                  );
+                                });
+                              });
+                            });
+                          })()}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 ) : (
                   <div className="text-center py-12">
@@ -3827,109 +3986,109 @@ export default function Home() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {savedAreas
                 .filter((area) => {
-                  const hasTurtle = area.turtleProcess && 
+                  const hasTurtle = area.turtleProcess &&
                     Object.values(area.turtleProcess).some(arr => arr.length > 0);
                   return hasTurtle;
                 })
                 .map((area) => {
-                
-                const isExpanded = expandedProcesses.has(area.id!);
-                
-                return (
-                  <Card key={area.id} className="border-2 hover:shadow-lg transition-shadow">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <CardTitle className="text-lg">{area.areaName}</CardTitle>
-                          <CardDescription>Proceso Tortuga - {area.managerName}</CardDescription>
+
+                  const isExpanded = expandedProcesses.has(area.id!);
+
+                  return (
+                    <Card key={area.id} className="border-2 hover:shadow-lg transition-shadow">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <CardTitle className="text-lg">{area.areaName}</CardTitle>
+                            <CardDescription>Proceso Tortuga - {area.managerName}</CardDescription>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const newExpanded = new Set(expandedProcesses);
+                              if (isExpanded) {
+                                newExpanded.delete(area.id!);
+                              } else {
+                                newExpanded.add(area.id!);
+                              }
+                              setExpandedProcesses(newExpanded);
+                            }}
+                          >
+                            {isExpanded ? "Colapsar" : "Ver Detalle"}
+                          </Button>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            const newExpanded = new Set(expandedProcesses);
-                            if (isExpanded) {
-                              newExpanded.delete(area.id!);
-                            } else {
-                              newExpanded.add(area.id!);
-                            }
-                            setExpandedProcesses(newExpanded);
-                          }}
-                        >
-                          {isExpanded ? "Colapsar" : "Ver Detalle"}
-                        </Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {/* Vista Resumida */}
-                      {!isExpanded && (
-                        <div className="grid grid-cols-2 gap-3 text-sm">
-                          <div className="p-3 bg-blue-50 rounded-lg">
-                            <p className="font-semibold text-blue-700">📥 Entradas</p>
-                            <p className="text-2xl font-bold text-blue-600">
-                              {area.turtleProcess?.inputs.length || 0}
-                            </p>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {/* Vista Resumida */}
+                        {!isExpanded && (
+                          <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div className="p-3 bg-blue-50 rounded-lg">
+                              <p className="font-semibold text-blue-700">📥 Entradas</p>
+                              <p className="text-2xl font-bold text-blue-600">
+                                {area.turtleProcess?.inputs.length || 0}
+                              </p>
+                            </div>
+                            <div className="p-3 bg-green-50 rounded-lg">
+                              <p className="font-semibold text-green-700">📤 Salidas</p>
+                              <p className="text-2xl font-bold text-green-600">
+                                {area.turtleProcess?.outputs.length || 0}
+                              </p>
+                            </div>
+                            <div className="p-3 bg-orange-50 rounded-lg">
+                              <p className="font-semibold text-orange-700">🔧 Recursos</p>
+                              <p className="text-2xl font-bold text-orange-600">
+                                {area.turtleProcess?.resources.length || 0}
+                              </p>
+                            </div>
+                            <div className="p-3 bg-purple-50 rounded-lg">
+                              <p className="font-semibold text-purple-700">📋 Métodos</p>
+                              <p className="text-2xl font-bold text-purple-600">
+                                {area.turtleProcess?.methods.length || 0}
+                              </p>
+                            </div>
                           </div>
-                          <div className="p-3 bg-green-50 rounded-lg">
-                            <p className="font-semibold text-green-700">📤 Salidas</p>
-                            <p className="text-2xl font-bold text-green-600">
-                              {area.turtleProcess?.outputs.length || 0}
-                            </p>
+                        )}
+
+                        {/* Vista Expandida */}
+                        {isExpanded && (
+                          <div className="space-y-4">
+                            {TURTLE_FIELDS
+                              .filter((field) => {
+                                const fieldKey = field.key as keyof TurtleProcess;
+                                const items = area.turtleProcess?.[fieldKey] || [];
+                                return items.length > 0;
+                              })
+                              .map((field) => {
+                                const fieldKey = field.key as keyof TurtleProcess;
+                                const items = area.turtleProcess?.[fieldKey] || [];
+
+                                return (
+                                  <div key={field.key} className="border-l-4 border-blue-500 pl-4">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <span className="text-xl">{field.icon}</span>
+                                      <h4 className="font-semibold text-slate-900">{field.label}</h4>
+                                      <Badge variant="outline" className="text-xs">
+                                        {items.length}
+                                      </Badge>
+                                    </div>
+                                    <ul className="space-y-1">
+                                      {items.map((item, idx) => (
+                                        <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
+                                          <span className="text-blue-500 mt-1">•</span>
+                                          <span>{item}</span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                );
+                              })}
                           </div>
-                          <div className="p-3 bg-orange-50 rounded-lg">
-                            <p className="font-semibold text-orange-700">🔧 Recursos</p>
-                            <p className="text-2xl font-bold text-orange-600">
-                              {area.turtleProcess?.resources.length || 0}
-                            </p>
-                          </div>
-                          <div className="p-3 bg-purple-50 rounded-lg">
-                            <p className="font-semibold text-purple-700">📋 Métodos</p>
-                            <p className="text-2xl font-bold text-purple-600">
-                              {area.turtleProcess?.methods.length || 0}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Vista Expandida */}
-                      {isExpanded && (
-                        <div className="space-y-4">
-                          {TURTLE_FIELDS
-                            .filter((field) => {
-                              const fieldKey = field.key as keyof TurtleProcess;
-                              const items = area.turtleProcess?.[fieldKey] || [];
-                              return items.length > 0;
-                            })
-                            .map((field) => {
-                            const fieldKey = field.key as keyof TurtleProcess;
-                            const items = area.turtleProcess?.[fieldKey] || [];
-                            
-                            return (
-                              <div key={field.key} className="border-l-4 border-blue-500 pl-4">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <span className="text-xl">{field.icon}</span>
-                                  <h4 className="font-semibold text-slate-900">{field.label}</h4>
-                                  <Badge variant="outline" className="text-xs">
-                                    {items.length}
-                                  </Badge>
-                                </div>
-                                <ul className="space-y-1">
-                                  {items.map((item, idx) => (
-                                    <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
-                                      <span className="text-blue-500 mt-1">•</span>
-                                      <span>{item}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
             </div>
           </div>
         )}
@@ -3950,23 +4109,23 @@ export default function Home() {
                     <thead>
                       <tr className="bg-slate-100">
                         <th className="border border-slate-300 px-4 py-3 text-left font-semibold text-slate-900">
-                          Suppliers<br/>
+                          Suppliers<br />
                           <span className="text-xs font-normal text-slate-600">Proveedores</span>
                         </th>
                         <th className="border border-slate-300 px-4 py-3 text-left font-semibold text-slate-900">
-                          Inputs<br/>
+                          Inputs<br />
                           <span className="text-xs font-normal text-slate-600">Entradas</span>
                         </th>
                         <th className="border border-slate-300 px-4 py-3 text-left font-semibold text-slate-900">
-                          Process<br/>
+                          Process<br />
                           <span className="text-xs font-normal text-slate-600">Proceso</span>
                         </th>
                         <th className="border border-slate-300 px-4 py-3 text-left font-semibold text-slate-900">
-                          Outputs<br/>
+                          Outputs<br />
                           <span className="text-xs font-normal text-slate-600">Salidas</span>
                         </th>
                         <th className="border border-slate-300 px-4 py-3 text-left font-semibold text-slate-900">
-                          Customers<br/>
+                          Customers<br />
                           <span className="text-xs font-normal text-slate-600">Clientes</span>
                         </th>
                       </tr>
@@ -3975,124 +4134,124 @@ export default function Home() {
                       {savedAreas
                         .filter((area) => area.turtleProcess)
                         .map((area) => {
-                        
-                        // Detectar proveedores (areas que tienen salidas que coinciden con mis entradas)
-                        const suppliers = savedAreas
-                          .filter(otherArea => 
-                            otherArea.id !== area.id && 
-                            otherArea.turtleProcess &&
-                            otherArea.turtleProcess.outputs.some(output =>
-                              area.turtleProcess!.inputs.includes(output)
+
+                          // Detectar proveedores (areas que tienen salidas que coinciden con mis entradas)
+                          const suppliers = savedAreas
+                            .filter(otherArea =>
+                              otherArea.id !== area.id &&
+                              otherArea.turtleProcess &&
+                              otherArea.turtleProcess.outputs.some(output =>
+                                area.turtleProcess!.inputs.includes(output)
+                              )
                             )
-                          )
-                          .map(a => a.areaName);
-                        
-                        // Detectar clientes (areas que tienen entradas que coinciden con mis salidas)
-                        const customers = savedAreas
-                          .filter(otherArea => 
-                            otherArea.id !== area.id && 
-                            otherArea.turtleProcess &&
-                            otherArea.turtleProcess.inputs.some(input =>
-                              area.turtleProcess!.outputs.includes(input)
+                            .map(a => a.areaName);
+
+                          // Detectar clientes (areas que tienen entradas que coinciden con mis salidas)
+                          const customers = savedAreas
+                            .filter(otherArea =>
+                              otherArea.id !== area.id &&
+                              otherArea.turtleProcess &&
+                              otherArea.turtleProcess.inputs.some(input =>
+                                area.turtleProcess!.outputs.includes(input)
+                              )
                             )
-                          )
-                          .map(a => a.areaName);
-                        
-                        return (
-                          <tr key={area.id} className="hover:bg-slate-50">
-                            {/* Suppliers */}
-                            <td className="border border-slate-300 px-4 py-3 align-top">
-                              {suppliers.length > 0 ? (
-                                <ul className="space-y-1">
-                                  {suppliers.map((supplier, idx) => (
-                                    <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
-                                      <span className="text-blue-500">\u2022</span>
-                                      <span className="font-medium">{supplier}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <span className="text-sm text-slate-400 italic">Sin proveedores internos</span>
-                              )}
-                            </td>
-                            
-                            {/* Inputs */}
-                            <td className="border border-slate-300 px-4 py-3 align-top">
-                              {area.turtleProcess!.inputs.length > 0 ? (
-                                <ul className="space-y-1">
-                                  {area.turtleProcess!.inputs.map((input, idx) => (
-                                    <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
-                                      <span className="text-green-500">\u25B6</span>
-                                      <span>{input}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <span className="text-sm text-slate-400 italic">-</span>
-                              )}
-                            </td>
-                            
-                            {/* Process */}
-                            <td className="border border-slate-300 px-4 py-3 align-top bg-blue-50">
-                              <div className="space-y-2">
-                                <div>
-                                  <h4 className="font-bold text-slate-900 text-base">{area.areaName}</h4>
-                                  <p className="text-xs text-slate-600 mt-1">{area.managerName}</p>
-                                </div>
-                                {area.turtleProcess!.methods.length > 0 && (
-                                  <div className="mt-2 pt-2 border-t border-blue-200">
-                                    <p className="text-xs font-semibold text-slate-700 mb-1">Métodos:</p>
-                                    <ul className="space-y-1">
-                                      {area.turtleProcess!.methods.map((method, idx) => (
-                                        <li key={idx} className="text-xs text-slate-600 flex items-start gap-1">
-                                          <span>\u2022</span>
-                                          <span>{method}</span>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
+                            .map(a => a.areaName);
+
+                          return (
+                            <tr key={area.id} className="hover:bg-slate-50">
+                              {/* Suppliers */}
+                              <td className="border border-slate-300 px-4 py-3 align-top">
+                                {suppliers.length > 0 ? (
+                                  <ul className="space-y-1">
+                                    {suppliers.map((supplier, idx) => (
+                                      <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
+                                        <span className="text-blue-500">\u2022</span>
+                                        <span className="font-medium">{supplier}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <span className="text-sm text-slate-400 italic">Sin proveedores internos</span>
                                 )}
-                              </div>
-                            </td>
-                            
-                            {/* Outputs */}
-                            <td className="border border-slate-300 px-4 py-3 align-top">
-                              {area.turtleProcess!.outputs.length > 0 ? (
-                                <ul className="space-y-1">
-                                  {area.turtleProcess!.outputs.map((output, idx) => (
-                                    <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
-                                      <span className="text-orange-500">\u25C0</span>
-                                      <span>{output}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <span className="text-sm text-slate-400 italic">-</span>
-                              )}
-                            </td>
-                            
-                            {/* Customers */}
-                            <td className="border border-slate-300 px-4 py-3 align-top">
-                              {customers.length > 0 ? (
-                                <ul className="space-y-1">
-                                  {customers.map((customer, idx) => (
-                                    <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
-                                      <span className="text-purple-500">\u2022</span>
-                                      <span className="font-medium">{customer}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <span className="text-sm text-slate-400 italic">Sin clientes internos</span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
+                              </td>
+
+                              {/* Inputs */}
+                              <td className="border border-slate-300 px-4 py-3 align-top">
+                                {area.turtleProcess!.inputs.length > 0 ? (
+                                  <ul className="space-y-1">
+                                    {area.turtleProcess!.inputs.map((input, idx) => (
+                                      <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
+                                        <span className="text-green-500">\u25B6</span>
+                                        <span>{input}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <span className="text-sm text-slate-400 italic">-</span>
+                                )}
+                              </td>
+
+                              {/* Process */}
+                              <td className="border border-slate-300 px-4 py-3 align-top bg-blue-50">
+                                <div className="space-y-2">
+                                  <div>
+                                    <h4 className="font-bold text-slate-900 text-base">{area.areaName}</h4>
+                                    <p className="text-xs text-slate-600 mt-1">{area.managerName}</p>
+                                  </div>
+                                  {area.turtleProcess!.methods.length > 0 && (
+                                    <div className="mt-2 pt-2 border-t border-blue-200">
+                                      <p className="text-xs font-semibold text-slate-700 mb-1">Métodos:</p>
+                                      <ul className="space-y-1">
+                                        {area.turtleProcess!.methods.map((method, idx) => (
+                                          <li key={idx} className="text-xs text-slate-600 flex items-start gap-1">
+                                            <span>\u2022</span>
+                                            <span>{method}</span>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+
+                              {/* Outputs */}
+                              <td className="border border-slate-300 px-4 py-3 align-top">
+                                {area.turtleProcess!.outputs.length > 0 ? (
+                                  <ul className="space-y-1">
+                                    {area.turtleProcess!.outputs.map((output, idx) => (
+                                      <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
+                                        <span className="text-orange-500">\u25C0</span>
+                                        <span>{output}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <span className="text-sm text-slate-400 italic">-</span>
+                                )}
+                              </td>
+
+                              {/* Customers */}
+                              <td className="border border-slate-300 px-4 py-3 align-top">
+                                {customers.length > 0 ? (
+                                  <ul className="space-y-1">
+                                    {customers.map((customer, idx) => (
+                                      <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
+                                        <span className="text-purple-500">\u2022</span>
+                                        <span className="font-medium">{customer}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <span className="text-sm text-slate-400 italic">Sin clientes internos</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
                     </tbody>
                   </table>
                 </div>
-                
+
                 {/* Leyenda */}
                 <div className="mt-6 p-4 bg-slate-50 rounded-lg">
                   <h4 className="font-semibold text-slate-900 mb-3">Leyenda SIPOC</h4>
@@ -4119,45 +4278,45 @@ export default function Home() {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Botón de exportación */}
                 <div className="mt-6 flex justify-end">
-                  <Button 
+                  <Button
                     onClick={() => {
                       const sipocData = savedAreas
                         .filter(area => area.turtleProcess)
                         .map(area => {
-                        
-                        const suppliers = savedAreas
-                          .filter(otherArea => 
-                            otherArea.id !== area.id && 
-                            otherArea.turtleProcess &&
-                            otherArea.turtleProcess.outputs.some(output =>
-                              area.turtleProcess!.inputs.includes(output)
+
+                          const suppliers = savedAreas
+                            .filter(otherArea =>
+                              otherArea.id !== area.id &&
+                              otherArea.turtleProcess &&
+                              otherArea.turtleProcess.outputs.some(output =>
+                                area.turtleProcess!.inputs.includes(output)
+                              )
                             )
-                          )
-                          .map(a => a.areaName);
-                        
-                        const customers = savedAreas
-                          .filter(otherArea => 
-                            otherArea.id !== area.id && 
-                            otherArea.turtleProcess &&
-                            otherArea.turtleProcess.inputs.some(input =>
-                              area.turtleProcess!.outputs.includes(input)
+                            .map(a => a.areaName);
+
+                          const customers = savedAreas
+                            .filter(otherArea =>
+                              otherArea.id !== area.id &&
+                              otherArea.turtleProcess &&
+                              otherArea.turtleProcess.inputs.some(input =>
+                                area.turtleProcess!.outputs.includes(input)
+                              )
                             )
-                          )
-                          .map(a => a.areaName);
-                        
-                        return {
-                          Suppliers: suppliers.join(", ") || "Sin proveedores internos",
-                          Inputs: area.turtleProcess!.inputs.join(", ") || "-",
-                          Process: area.areaName,
-                          Methods: area.turtleProcess!.methods.join(", ") || "-",
-                          Outputs: area.turtleProcess!.outputs.join(", ") || "-",
-                          Customers: customers.join(", ") || "Sin clientes internos",
-                        };
-                      }).filter(Boolean);
-                      
+                            .map(a => a.areaName);
+
+                          return {
+                            Suppliers: suppliers.join(", ") || "Sin proveedores internos",
+                            Inputs: area.turtleProcess!.inputs.join(", ") || "-",
+                            Process: area.areaName,
+                            Methods: area.turtleProcess!.methods.join(", ") || "-",
+                            Outputs: area.turtleProcess!.outputs.join(", ") || "-",
+                            Customers: customers.join(", ") || "Sin clientes internos",
+                          };
+                        }).filter(Boolean);
+
                       const blob = new Blob([JSON.stringify(sipocData, null, 2)], {
                         type: "application/json",
                       });
@@ -4229,7 +4388,7 @@ export default function Home() {
           </Card>
         </div>
       )}
-      
+
       {/* Diálogo de Sugerencias de IA */}
       {showAISuggestions && aiSuggestions && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -4269,7 +4428,7 @@ export default function Home() {
                     ))}
                   </ul>
                 </div>
-                
+
                 {/* Salidas */}
                 <div key="salidas" className="border rounded-lg p-4">
                   <h4 className="font-semibold text-green-700 mb-2 flex items-center gap-2">
@@ -4284,7 +4443,7 @@ export default function Home() {
                     ))}
                   </ul>
                 </div>
-                
+
                 {/* Recursos */}
                 <div key="recursos" className="border rounded-lg p-4">
                   <h4 className="font-semibold text-orange-700 mb-2 flex items-center gap-2">
@@ -4299,7 +4458,7 @@ export default function Home() {
                     ))}
                   </ul>
                 </div>
-                
+
                 {/* Métodos */}
                 <div key="metodos" className="border rounded-lg p-4">
                   <h4 className="font-semibold text-purple-700 mb-2 flex items-center gap-2">
@@ -4314,7 +4473,7 @@ export default function Home() {
                     ))}
                   </ul>
                 </div>
-                
+
                 {/* Indicadores */}
                 <div key="indicadores" className="border rounded-lg p-4">
                   <h4 className="font-semibold text-pink-700 mb-2 flex items-center gap-2">
@@ -4329,7 +4488,7 @@ export default function Home() {
                     ))}
                   </ul>
                 </div>
-                
+
                 {/* Competencias */}
                 <div key="competencias" className="border rounded-lg p-4">
                   <h4 className="font-semibold text-indigo-700 mb-2 flex items-center gap-2">
@@ -4345,7 +4504,7 @@ export default function Home() {
                   </ul>
                 </div>
               </div>
-              
+
               <div className="flex gap-2 pt-4 border-t">
                 <Button
                   onClick={applyAISuggestions}
@@ -4365,7 +4524,7 @@ export default function Home() {
           </Card>
         </div>
       )}
-      
+
       {/* Diálogo de Medición Global */}
       {showGlobalMeasurementDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -4416,12 +4575,12 @@ export default function Home() {
                   <Check className="mr-2 h-4 w-4" />
                   Crear Medición Global
                 </Button>
-                <Button 
+                <Button
                   onClick={() => {
                     setShowGlobalMeasurementDialog(false);
                     setGlobalMeasurementName("");
-                  }} 
-                  variant="outline" 
+                  }}
+                  variant="outline"
                   className="flex-1"
                 >
                   Cancelar
@@ -4431,9 +4590,60 @@ export default function Home() {
           </Card>
         </div>
       )}
-      
-      {/* Diálogo de Nueva Medición eliminado - Ahora se usa el sistema de Mediciones Globales */}
-      
+
+      {/* Diálogo de Nueva Medición (ELIMINADO - Ahora se usa el sistema de Mediciones Globales) */}
+      {false && showNewMeasurementDialog && selectedAreaForNewMeasurement && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader>
+              <CardTitle>Nueva Medición</CardTitle>
+              <CardDescription>
+                Crea un snapshot del estado actual del área "{selectedAreaForNewMeasurement.areaName}" para comparar en el futuro
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="measurement-name">Nombre de la Medición</Label>
+                <Input
+                  id="measurement-name"
+                  value={newMeasurementName}
+                  onChange={(e) => setNewMeasurementName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      createNewMeasurement();
+                    } else if (e.key === "Escape") {
+                      setShowNewMeasurementDialog(false);
+                      setNewMeasurementName("");
+                    }
+                  }}
+                  placeholder="Ej: Medición Marzo 2025, Después de capacitación"
+                  autoFocus
+                />
+                <p className="text-xs text-slate-500 mt-2">
+                  Se guardará una copia de todos los cargos y actividades actuales con sus tiempos
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={createNewMeasurement} className="flex-1">
+                  <Check className="mr-2 h-4 w-4" />
+                  Crear Medición
+                </Button>
+                <Button
+                  onClick={() => {
+                    setShowNewMeasurementDialog(false);
+                    setNewMeasurementName("");
+                  }}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Diálogo de Edición de Nombre de Cargo */}
       {editingPosition && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -4460,6 +4670,23 @@ export default function Home() {
                   }}
                   placeholder="Ej: Contador Senior"
                   autoFocus
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-position-count">Cantidad de Personas</Label>
+                <Input
+                  id="edit-position-count"
+                  type="number"
+                  min="1"
+                  value={editPositionPeopleCount}
+                  onChange={(e) => setEditPositionPeopleCount(parseInt(e.target.value) || 1)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      saveEditPosition();
+                    } else if (e.key === "Escape") {
+                      cancelEditPosition();
+                    }
+                  }}
                 />
               </div>
               <div className="flex gap-2">
@@ -4500,9 +4727,9 @@ export default function Home() {
                   ))}
                 </ul>
               </div>
-              
+
               <Separator />
-              
+
               {/* Oportunidades de Optimización */}
               <div>
                 <h3 className="text-lg font-bold text-green-600 mb-3 flex items-center gap-2">
@@ -4517,9 +4744,9 @@ export default function Home() {
                   ))}
                 </ul>
               </div>
-              
+
               <Separator />
-              
+
               {/* Riesgos Identificados */}
               <div>
                 <h3 className="text-lg font-bold text-orange-600 mb-3 flex items-center gap-2">
@@ -4534,9 +4761,9 @@ export default function Home() {
                   ))}
                 </ul>
               </div>
-              
+
               <Separator />
-              
+
               {/* Análisis Detallado */}
               <div>
                 <h3 className="text-lg font-bold text-purple-600 mb-3 flex items-center gap-2">
@@ -4546,15 +4773,15 @@ export default function Home() {
                   {processAnalysis.analisisDetallado}
                 </p>
               </div>
-              
+
               {/* Botones */}
               <div className="flex flex-col sm:flex-row gap-3 pt-4">
                 <Button
                   onClick={() => {
                     const text = `ANÁLISIS DE FLUJO DE PROCESOS - IA\n\n` +
-                      `CUELLOS DE BOTELLA:\n${processAnalysis.cuellosDeBottella.map((c: string, i: number) => `${i+1}. ${c}`).join('\n')}\n\n` +
-                      `OPORTUNIDADES DE OPTIMIZACIÓN:\n${processAnalysis.oportunidadesOptimizacion.map((o: string, i: number) => `${i+1}. ${o}`).join('\n')}\n\n` +
-                      `RIESGOS IDENTIFICADOS:\n${processAnalysis.riesgosIdentificados.map((r: string, i: number) => `${i+1}. ${r}`).join('\n')}\n\n` +
+                      `CUELLOS DE BOTELLA:\n${processAnalysis.cuellosDeBottella.map((c: string, i: number) => `${i + 1}. ${c}`).join('\n')}\n\n` +
+                      `OPORTUNIDADES DE OPTIMIZACIÓN:\n${processAnalysis.oportunidadesOptimizacion.map((o: string, i: number) => `${i + 1}. ${o}`).join('\n')}\n\n` +
+                      `RIESGOS IDENTIFICADOS:\n${processAnalysis.riesgosIdentificados.map((r: string, i: number) => `${i + 1}. ${r}`).join('\n')}\n\n` +
                       `ANÁLISIS DETALLADO:\n${processAnalysis.analisisDetallado}`;
                     navigator.clipboard.writeText(text);
                     alert('✅ Análisis de procesos copiado al portapapeles');
@@ -4576,7 +4803,7 @@ export default function Home() {
           </Card>
         </div>
       )}
-      
+
       {/* Diálogo de Reporte Ejecutivo IA */}
       {showExecutiveReport && executiveReport && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -4597,9 +4824,9 @@ export default function Home() {
                   {executiveReport.resumenEjecutivo}
                 </p>
               </div>
-              
+
               <Separator />
-              
+
               {/* Hallazgos Principales */}
               <div>
                 <h3 className="text-lg font-bold text-blue-600 mb-3 flex items-center gap-2">
@@ -4614,9 +4841,9 @@ export default function Home() {
                   ))}
                 </ul>
               </div>
-              
+
               <Separator />
-              
+
               {/* Recomendaciones Estratégicas */}
               <div>
                 <h3 className="text-lg font-bold text-purple-600 mb-3 flex items-center gap-2">
@@ -4631,9 +4858,9 @@ export default function Home() {
                   ))}
                 </ul>
               </div>
-              
+
               <Separator />
-              
+
               {/* Plan de Acción */}
               <div>
                 <h3 className="text-lg font-bold text-green-600 mb-3 flex items-center gap-2">
@@ -4648,9 +4875,9 @@ export default function Home() {
                   ))}
                 </ul>
               </div>
-              
+
               <Separator />
-              
+
               {/* ROI Estimado */}
               <div>
                 <h3 className="text-lg font-bold text-orange-600 mb-3 flex items-center gap-2">
@@ -4660,16 +4887,16 @@ export default function Home() {
                   {executiveReport.roi}
                 </p>
               </div>
-              
+
               {/* Botones */}
               <div className="flex flex-col sm:flex-row gap-3 pt-4">
                 <Button
                   onClick={() => {
                     const text = `INFORME EJECUTIVO - IA\n\n` +
                       `RESUMEN EJECUTIVO:\n${executiveReport.resumenEjecutivo}\n\n` +
-                      `HALLAZGOS PRINCIPALES:\n${executiveReport.hallazgosPrincipales.map((h: string, i: number) => `${i+1}. ${h}`).join('\n')}\n\n` +
-                      `RECOMENDACIONES ESTRATÉGICAS:\n${executiveReport.recomendacionesEstrategicas.map((r: string, i: number) => `${i+1}. ${r}`).join('\n')}\n\n` +
-                      `PLAN DE ACCIÓN:\n${executiveReport.planDeAccion.map((a: string, i: number) => `${i+1}. ${a}`).join('\n')}\n\n` +
+                      `HALLAZGOS PRINCIPALES:\n${executiveReport.hallazgosPrincipales.map((h: string, i: number) => `${i + 1}. ${h}`).join('\n')}\n\n` +
+                      `RECOMENDACIONES ESTRATÉGICAS:\n${executiveReport.recomendacionesEstrategicas.map((r: string, i: number) => `${i + 1}. ${r}`).join('\n')}\n\n` +
+                      `PLAN DE ACCIÓN:\n${executiveReport.planDeAccion.map((a: string, i: number) => `${i + 1}. ${a}`).join('\n')}\n\n` +
                       `ROI ESTIMADO:\n${executiveReport.roi}`;
                     navigator.clipboard.writeText(text);
                     alert('✅ Informe ejecutivo copiado al portapapeles');
@@ -4691,7 +4918,7 @@ export default function Home() {
           </Card>
         </div>
       )}
-      
+
       {/* Diálogo de Análisis Comparativo IA */}
       {showComparativeAnalysis && comparativeAnalysis && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -4717,9 +4944,9 @@ export default function Home() {
                   ))}
                 </ul>
               </div>
-              
+
               <Separator />
-              
+
               {/* Áreas de Oportunidad */}
               <div>
                 <h3 className="text-lg font-bold text-orange-600 mb-3 flex items-center gap-2">
@@ -4734,9 +4961,9 @@ export default function Home() {
                   ))}
                 </ul>
               </div>
-              
+
               <Separator />
-              
+
               {/* Oportunidades de Mejora Cruzada */}
               <div>
                 <h3 className="text-lg font-bold text-blue-600 mb-3 flex items-center gap-2">
@@ -4751,9 +4978,9 @@ export default function Home() {
                   ))}
                 </ul>
               </div>
-              
+
               <Separator />
-              
+
               {/* Benchmarking Interno */}
               <div>
                 <h3 className="text-lg font-bold text-purple-600 mb-3 flex items-center gap-2">
@@ -4763,15 +4990,15 @@ export default function Home() {
                   {comparativeAnalysis.benchmarkingInterno}
                 </p>
               </div>
-              
+
               {/* Botones */}
               <div className="flex flex-col sm:flex-row gap-3 pt-4">
                 <Button
                   onClick={() => {
                     const text = `ANÁLISIS COMPARATIVO - IA\n\n` +
-                      `MEJORES PRÁCTICAS:\n${comparativeAnalysis.mejoresPracticas.map((p: string, i: number) => `${i+1}. ${p}`).join('\n')}\n\n` +
-                      `ÁREAS DE OPORTUNIDAD:\n${comparativeAnalysis.areasDeOportunidad.map((o: string, i: number) => `${i+1}. ${o}`).join('\n')}\n\n` +
-                      `OPORTUNIDADES DE MEJORA CRUZADA:\n${comparativeAnalysis.oportunidadesMejoraCruzada.map((m: string, i: number) => `${i+1}. ${m}`).join('\n')}\n\n` +
+                      `MEJORES PRÁCTICAS:\n${comparativeAnalysis.mejoresPracticas.map((p: string, i: number) => `${i + 1}. ${p}`).join('\n')}\n\n` +
+                      `ÁREAS DE OPORTUNIDAD:\n${comparativeAnalysis.areasDeOportunidad.map((o: string, i: number) => `${i + 1}. ${o}`).join('\n')}\n\n` +
+                      `OPORTUNIDADES DE MEJORA CRUZADA:\n${comparativeAnalysis.oportunidadesMejoraCruzada.map((m: string, i: number) => `${i + 1}. ${m}`).join('\n')}\n\n` +
                       `BENCHMARKING INTERNO:\n${comparativeAnalysis.benchmarkingInterno}`;
                     navigator.clipboard.writeText(text);
                     alert('✅ Análisis comparativo copiado al portapapeles');
@@ -4793,7 +5020,7 @@ export default function Home() {
           </Card>
         </div>
       )}
-      
+
       {/* Diálogo de Análisis IA */}
       {showAreaAnalysis && areaAnalysis && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -4819,9 +5046,9 @@ export default function Home() {
                   ))}
                 </ul>
               </div>
-              
+
               <Separator />
-              
+
               {/* Recomendaciones Prioritarias */}
               <div>
                 <h3 className="text-lg font-bold text-blue-600 mb-3 flex items-center gap-2">
@@ -4836,9 +5063,9 @@ export default function Home() {
                   ))}
                 </ul>
               </div>
-              
+
               <Separator />
-              
+
               {/* Quick Wins */}
               <div>
                 <h3 className="text-lg font-bold text-green-600 mb-3 flex items-center gap-2">
@@ -4853,9 +5080,9 @@ export default function Home() {
                   ))}
                 </ul>
               </div>
-              
+
               <Separator />
-              
+
               {/* Análisis Detallado */}
               <div>
                 <h3 className="text-lg font-bold text-purple-600 mb-3 flex items-center gap-2">
@@ -4865,15 +5092,15 @@ export default function Home() {
                   {areaAnalysis.analisisDetallado}
                 </p>
               </div>
-              
+
               {/* Botones */}
               <div className="flex flex-col sm:flex-row gap-3 pt-4">
                 <Button
                   onClick={() => {
                     const text = `ANÁLISIS INTELIGENTE - IA\n\n` +
-                      `HALLAZGOS CRÍTICOS:\n${areaAnalysis.hallazgosCriticos.map((h: string, i: number) => `${i+1}. ${h}`).join('\n')}\n\n` +
-                      `RECOMENDACIONES PRIORITARIAS:\n${areaAnalysis.recomendacionesPrioritarias.map((r: string, i: number) => `${i+1}. ${r}`).join('\n')}\n\n` +
-                      `QUICK WINS:\n${areaAnalysis.quickWins.map((q: string, i: number) => `${i+1}. ${q}`).join('\n')}\n\n` +
+                      `HALLAZGOS CRÍTICOS:\n${areaAnalysis.hallazgosCriticos.map((h: string, i: number) => `${i + 1}. ${h}`).join('\n')}\n\n` +
+                      `RECOMENDACIONES PRIORITARIAS:\n${areaAnalysis.recomendacionesPrioritarias.map((r: string, i: number) => `${i + 1}. ${r}`).join('\n')}\n\n` +
+                      `QUICK WINS:\n${areaAnalysis.quickWins.map((q: string, i: number) => `${i + 1}. ${q}`).join('\n')}\n\n` +
                       `ANÁLISIS DETALLADO:\n${areaAnalysis.analisisDetallado}`;
                     navigator.clipboard.writeText(text);
                     alert('✅ Análisis copiado al portapapeles');

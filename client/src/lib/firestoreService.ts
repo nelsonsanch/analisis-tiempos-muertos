@@ -1,16 +1,15 @@
-import { 
-  collection, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  getDocs, 
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  getDocs,
   onSnapshot,
   query,
-  where,
   orderBy,
   Timestamp,
-  deleteField 
+  deleteField
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -25,13 +24,13 @@ export interface InterviewData {
   observations: string;
   savedAt?: string;
   turtleProcess?: TurtleProcess;
-  companyId?: string; // ID de la empresa a la que pertenece esta área
+  processType?: 'strategic' | 'core' | 'support';
 }
 
 export interface Position {
   id: string;
   name: string; // Nombre del cargo (ej: "Contador Senior", "Auxiliar Contable")
-  peopleCount: number; // Cantidad de personas en este cargo
+  count: number; // Cantidad de personas en este cargo
   activities: Activity[]; // Actividades asignadas a este cargo
 }
 
@@ -59,7 +58,6 @@ export interface GlobalMeasurement {
   date: string; // Fecha de creación
   areas: InterviewData[]; // Snapshot de todas las áreas en ese momento
   createdAt: string;
-  companyId?: string; // ID de la empresa a la que pertenece esta medición
 }
 
 const COLLECTION_NAME = 'timeAnalysisAreas';
@@ -89,7 +87,7 @@ export const saveArea = async (area: InterviewData): Promise<string> => {
   try {
     // Excluir el campo 'id' de los datos a guardar (Firestore maneja los IDs automáticamente)
     const { id, ...areaWithoutId } = area;
-    
+
     const areaData = cleanUndefined({
       ...areaWithoutId,
       savedAt: new Date().toISOString(),
@@ -119,7 +117,7 @@ export const getAreas = async (): Promise<InterviewData[]> => {
   try {
     const q = query(collection(db, COLLECTION_NAME), orderBy('savedAt', 'desc'));
     const querySnapshot = await getDocs(q);
-    
+
     const areas: InterviewData[] = [];
     querySnapshot.forEach((doc) => {
       areas.push({
@@ -127,7 +125,7 @@ export const getAreas = async (): Promise<InterviewData[]> => {
         ...doc.data()
       } as InterviewData);
     });
-    
+
     return areas;
   } catch (error) {
     console.error('Error getting areas:', error);
@@ -137,33 +135,14 @@ export const getAreas = async (): Promise<InterviewData[]> => {
 
 /**
  * Suscribirse a cambios en tiempo real
- * @param companyId - ID de la empresa para filtrar áreas. Si es null, no se cargan áreas (para super_admin)
  */
 export const subscribeToAreas = (
   callback: (areas: InterviewData[]) => void,
-  onError?: (error: Error) => void,
-  companyId?: string | null
+  onError?: (error: Error) => void
 ) => {
   try {
-    // Si companyId es null (super_admin sin empresa), devolver array vacío
-    if (companyId === null) {
-      callback([]);
-      return () => {}; // Unsubscribe vacío
-    }
-    
-    // Si companyId está definido, filtrar por ese campo
-    let q;
-    if (companyId) {
-      q = query(
-        collection(db, COLLECTION_NAME),
-        where('companyId', '==', companyId),
-        orderBy('savedAt', 'desc')
-      );
-    } else {
-      // Si no hay companyId, cargar todas (fallback para compatibilidad)
-      q = query(collection(db, COLLECTION_NAME), orderBy('savedAt', 'desc'));
-    }
-    
+    const q = query(collection(db, COLLECTION_NAME), orderBy('savedAt', 'desc'));
+
     const unsubscribe = onSnapshot(
       q,
       (querySnapshot) => {
@@ -183,7 +162,7 @@ export const subscribeToAreas = (
         }
       }
     );
-    
+
     return unsubscribe;
   } catch (error) {
     console.error('Error subscribing to areas:', error);
@@ -211,17 +190,17 @@ export const migrateFromLocalStorage = async (): Promise<number> => {
   try {
     const stored = localStorage.getItem('timeAnalysisInterviews');
     if (!stored) return 0;
-    
+
     const areas: InterviewData[] = JSON.parse(stored);
     let migratedCount = 0;
-    
+
     for (const area of areas) {
       // No incluir el ID local al migrar
       const { id, ...areaWithoutId } = area;
       await saveArea(areaWithoutId as InterviewData);
       migratedCount++;
     }
-    
+
     return migratedCount;
   } catch (error) {
     console.error('Error migrating from localStorage:', error);
@@ -237,11 +216,11 @@ export const cleanExistingDocuments = async (): Promise<number> => {
     console.log('[Firestore] Iniciando limpieza de documentos...');
     const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
     let cleanedCount = 0;
-    
+
     for (const docSnapshot of querySnapshot.docs) {
       const docId = docSnapshot.id;
       const data = docSnapshot.data();
-      
+
       // Si el documento tiene el campo 'id' en sus datos, eliminarlo
       if ('id' in data) {
         console.log('[Firestore] Limpiando documento:', docId, 'Nombre:', data.areaName);
@@ -251,7 +230,7 @@ export const cleanExistingDocuments = async (): Promise<number> => {
         cleanedCount++;
       }
     }
-    
+
     console.log(`[Firestore] ✅ Limpieza completada: ${cleanedCount} documentos actualizados`);
     return cleanedCount;
   } catch (error) {
@@ -266,7 +245,7 @@ export const cleanExistingDocuments = async (): Promise<number> => {
 export const saveGlobalMeasurement = async (measurement: GlobalMeasurement): Promise<string> => {
   try {
     const { id, ...measurementWithoutId } = measurement;
-    
+
     const measurementData = cleanUndefined({
       ...measurementWithoutId,
       createdAt: new Date().toISOString(),
@@ -294,7 +273,7 @@ export const getGlobalMeasurements = async (): Promise<GlobalMeasurement[]> => {
   try {
     const q = query(collection(db, GLOBAL_MEASUREMENTS_COLLECTION), orderBy('createdAt', 'desc'));
     const querySnapshot = await getDocs(q);
-    
+
     const measurements: GlobalMeasurement[] = [];
     querySnapshot.forEach((doc) => {
       measurements.push({
@@ -302,7 +281,7 @@ export const getGlobalMeasurements = async (): Promise<GlobalMeasurement[]> => {
         ...doc.data()
       } as GlobalMeasurement);
     });
-    
+
     return measurements;
   } catch (error) {
     console.error('Error getting global measurements:', error);
@@ -312,33 +291,14 @@ export const getGlobalMeasurements = async (): Promise<GlobalMeasurement[]> => {
 
 /**
  * Suscribirse a cambios en mediciones globales en tiempo real
- * @param companyId - ID de la empresa para filtrar mediciones. Si es null, no se cargan mediciones (para super_admin)
  */
 export const subscribeToGlobalMeasurements = (
   callback: (measurements: GlobalMeasurement[]) => void,
-  onError?: (error: Error) => void,
-  companyId?: string | null
+  onError?: (error: Error) => void
 ) => {
   try {
-    // Si companyId es null (super_admin sin empresa), devolver array vacío
-    if (companyId === null) {
-      callback([]);
-      return () => {}; // Unsubscribe vacío
-    }
-    
-    // Si companyId está definido, filtrar por ese campo
-    let q;
-    if (companyId) {
-      q = query(
-        collection(db, GLOBAL_MEASUREMENTS_COLLECTION),
-        where('companyId', '==', companyId),
-        orderBy('createdAt', 'desc')
-      );
-    } else {
-      // Si no hay companyId, cargar todas (fallback para compatibilidad)
-      q = query(collection(db, GLOBAL_MEASUREMENTS_COLLECTION), orderBy('createdAt', 'desc'));
-    }
-    
+    const q = query(collection(db, GLOBAL_MEASUREMENTS_COLLECTION), orderBy('createdAt', 'desc'));
+
     const unsubscribe = onSnapshot(
       q,
       (querySnapshot) => {
@@ -358,7 +318,7 @@ export const subscribeToGlobalMeasurements = (
         }
       }
     );
-    
+
     return unsubscribe;
   } catch (error) {
     console.error('Error subscribing to global measurements:', error);
