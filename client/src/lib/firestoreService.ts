@@ -7,6 +7,7 @@ import {
   getDocs,
   onSnapshot,
   query,
+  where,
   orderBy,
   Timestamp,
   deleteField
@@ -24,13 +25,12 @@ export interface InterviewData {
   observations: string;
   savedAt?: string;
   turtleProcess?: TurtleProcess;
-  processType?: 'strategic' | 'core' | 'support';
 }
 
 export interface Position {
   id: string;
   name: string; // Nombre del cargo (ej: "Contador Senior", "Auxiliar Contable")
-  count: number; // Cantidad de personas en este cargo
+  peopleCount: number; // Cantidad de personas en este cargo
   activities: Activity[]; // Actividades asignadas a este cargo
 }
 
@@ -58,6 +58,7 @@ export interface GlobalMeasurement {
   date: string; // Fecha de creación
   areas: InterviewData[]; // Snapshot de todas las áreas en ese momento
   createdAt: string;
+  companyId?: string; // ID de la empresa a la que pertenece esta medición
 }
 
 const COLLECTION_NAME = 'timeAnalysisAreas';
@@ -135,10 +136,12 @@ export const getAreas = async (): Promise<InterviewData[]> => {
 
 /**
  * Suscribirse a cambios en tiempo real
+ * @param companyId - ID de la empresa para filtrar áreas. Si es null, no se cargan áreas (para super_admin)
  */
 export const subscribeToAreas = (
   callback: (areas: InterviewData[]) => void,
-  onError?: (error: Error) => void
+  onError?: (error: Error) => void,
+  companyId?: string | null
 ) => {
   try {
     const q = query(collection(db, COLLECTION_NAME), orderBy('savedAt', 'desc'));
@@ -291,10 +294,12 @@ export const getGlobalMeasurements = async (): Promise<GlobalMeasurement[]> => {
 
 /**
  * Suscribirse a cambios en mediciones globales en tiempo real
+ * @param companyId - ID de la empresa para filtrar mediciones. Si es null, no se cargan mediciones (para super_admin)
  */
 export const subscribeToGlobalMeasurements = (
   callback: (measurements: GlobalMeasurement[]) => void,
-  onError?: (error: Error) => void
+  onError?: (error: Error) => void,
+  companyId?: string | null
 ) => {
   try {
     const q = query(collection(db, GLOBAL_MEASUREMENTS_COLLECTION), orderBy('createdAt', 'desc'));
