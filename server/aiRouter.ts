@@ -87,7 +87,7 @@ Responde SOLO con un objeto JSON válido con esta estructura exacta:
         positions: z.array(
           z.object({
             name: z.string(),
-            peopleCount: z.number(),
+            count: z.number(),
             activities: z.array(
               z.object({
                 name: z.string(),
@@ -125,7 +125,7 @@ Responde SOLO con un objeto JSON válido con esta estructura exacta:
         position.activities.forEach((activity) => {
           const totalTime = activity.timeMinutes * activity.frequency;
           const activityInfo = `${activity.name} (${position.name}): ${totalTime} min/día`;
-          
+
           if (activity.type === 'dead') {
             deadTimeActivities.push(activityInfo);
           } else if (activity.type === 'productive') {
@@ -140,7 +140,7 @@ Responde SOLO con un objeto JSON válido con esta estructura exacta:
 
 ÁREA ANALIZADA: ${areaName}
 RESPONSABLE: ${managerName}
-JORNADA LABORAL: ${workdayMinutes} minutos (${(workdayMinutes/60).toFixed(1)} horas)
+JORNADA LABORAL: ${workdayMinutes} minutos (${(workdayMinutes / 60).toFixed(1)} horas)
 
 RESULTADOS DEL ANÁLISIS:
 - Tiempo Productivo: ${productivePercentage.toFixed(1)}% (${productiveTime} minutos)
@@ -225,7 +225,7 @@ Responde SOLO con un objeto JSON válido con esta estructura exacta:
       const { areas } = input;
 
       // Construir tabla comparativa
-      const areasTable = areas.map((area) => 
+      const areasTable = areas.map((area) =>
         `- ${area.areaName} (${area.managerName}): ` +
         `Productivo ${area.productivePercentage.toFixed(1)}%, ` +
         `Soporte ${area.supportPercentage.toFixed(1)}%, ` +
@@ -234,11 +234,11 @@ Responde SOLO con un objeto JSON válido con esta estructura exacta:
       ).join('\n');
 
       // Identificar mejor y peor área
-      const bestArea = areas.reduce((best, current) => 
+      const bestArea = areas.reduce((best, current) =>
         current.productivePercentage > best.productivePercentage ? current : best
       );
-      
-      const worstArea = areas.reduce((worst, current) => 
+
+      const worstArea = areas.reduce((worst, current) =>
         current.deadTimePercentage > worst.deadTimePercentage ? current : worst
       );
 
@@ -328,7 +328,7 @@ Responde SOLO con un objeto JSON válido con esta estructura exacta:
       const { totalAreas, interactions, sipocData } = input;
 
       // Construir descripción de interacciones
-      const interactionsDesc = interactions.map((int) => 
+      const interactionsDesc = interactions.map((int) =>
         `- ${int.source} → ${int.target}: ${int.items.join(', ')}`
       ).join('\n');
 
@@ -338,7 +338,7 @@ Responde SOLO con un objeto JSON válido con esta estructura exacta:
         areaDependencies.set(int.source, (areaDependencies.get(int.source) || 0) + 1);
         areaDependencies.set(int.target, (areaDependencies.get(int.target) || 0) + 1);
       });
-      
+
       const criticalAreas = Array.from(areaDependencies.entries())
         .sort((a, b) => b[1] - a[1])
         .slice(0, 3)
@@ -358,13 +358,13 @@ ${interactionsDesc || 'No hay interacciones registradas'}
 ${criticalAreas.length > 0 ? criticalAreas.map(a => `- ${a}`).join('\n') : '- Ninguna identificada'}
 
 MATRIZ SIPOC:
-${sipocData.map(s => 
-  `- ${s.areaName}:\n` +
-  `  Proveedores: ${s.suppliers.join(', ') || 'N/A'}\n` +
-  `  Entradas: ${s.inputs.join(', ') || 'N/A'}\n` +
-  `  Salidas: ${s.outputs.join(', ') || 'N/A'}\n` +
-  `  Clientes: ${s.customers.join(', ') || 'N/A'}`
-).join('\n\n')}
+${sipocData.map(s =>
+        `- ${s.areaName}:\n` +
+        `  Proveedores: ${s.suppliers.join(', ') || 'N/A'}\n` +
+        `  Entradas: ${s.inputs.join(', ') || 'N/A'}\n` +
+        `  Salidas: ${s.outputs.join(', ') || 'N/A'}\n` +
+        `  Clientes: ${s.customers.join(', ') || 'N/A'}`
+      ).join('\n\n')}
 
 Como consultor experto, realiza un análisis profesional del flujo de procesos y genera:
 
@@ -438,7 +438,7 @@ Responde SOLO con un objeto JSON válido con esta estructura exacta:
         .sort((a, b) => b.productivePercentage - a.productivePercentage)
         .slice(0, 3)
         .map(a => `${a.areaName} (${a.productivePercentage.toFixed(1)}% productivo)`);
-      
+
       const worstAreas = areasData
         .sort((a, b) => b.deadTimePercentage - a.deadTimePercentage)
         .slice(0, 3)

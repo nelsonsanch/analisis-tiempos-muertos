@@ -88,7 +88,7 @@ interface Position {
   id: string;
   name: string; // Nombre del cargo (ej: "Contador Senior", "Auxiliar Contable")
   activities: Activity[]; // Actividades asignadas a este cargo
-  peopleCount?: number; // Cantidad de personas en este cargo
+  count: number; // Cantidad de personas en este cargo
 }
 
 interface TurtleProcess {
@@ -143,6 +143,10 @@ export default function Home() {
   const [view, setView] = useState<"list" | "form" | "compare" | "process-map" | "sipoc" | "measurements" | "measurement-detail" | "measurement-compare">("list");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showMigrateDialog, setShowMigrateDialog] = useState(false);
+
+  const setSelectedArea = (area: InterviewData) => {
+    setInterviewData(area);
+  };
 
   // Estados para vista comparativa de mediciones (SISTEMA ANTIGUO - ELIMINADO)
   // const [selectedAreaForComparison, setSelectedAreaForComparison] = useState<InterviewData | null>(null);
@@ -385,7 +389,7 @@ export default function Home() {
   // Cálculo de tiempos por cargo individual
   const calculatePositionTotals = (position: Position, workdayMinutes: number, fixedBreaksMinutes: number) => {
     const activities = position.activities;
-    const count = position.peopleCount || 1;
+    const count = position.count || 1;
 
     // Calcular tiempo total por tipo (duración × frecuencia × cantidad de personas)
     const productiveTime = activities
@@ -429,7 +433,7 @@ export default function Home() {
       id: Date.now().toString(),
       name: newPositionName,
       activities: [],
-      peopleCount: 1,
+      count: 1,
     };
 
     setInterviewData({
@@ -459,7 +463,7 @@ export default function Home() {
   const startEditPosition = (position: Position) => {
     setEditingPosition({ id: position.id, name: position.name });
     setEditPositionName(position.name);
-    setEditPositionPeopleCount(position.peopleCount || 1);
+    setEditPositionPeopleCount(position.count || 1);
   };
 
   const saveEditPosition = () => {
@@ -472,14 +476,14 @@ export default function Home() {
       ...interviewData,
       positions: interviewData.positions.map(p =>
         p.id === editingPosition.id
-          ? { ...p, name: editPositionName.trim(), peopleCount: editPositionPeopleCount }
+          ? { ...p, name: editPositionName.trim(), count: editPositionPeopleCount }
           : p
       ),
     });
 
     // Actualizar currentPosition si es el que se está editando
     if (currentPosition?.id === editingPosition.id) {
-      setCurrentPosition({ ...currentPosition, name: editPositionName.trim(), peopleCount: editPositionPeopleCount });
+      setCurrentPosition({ ...currentPosition, name: editPositionName.trim(), count: editPositionPeopleCount });
     }
 
     setEditingPosition(null);
@@ -1012,15 +1016,7 @@ export default function Home() {
     }
   };
 
-  const copyTableAsImage = async () => {
-    if (!comparisonTableRef.current) return;
-    await copyElementAsImage(comparisonTableRef.current, 'tabla-comparativa');
-  };
 
-  const copyChartsAsImage = async () => {
-    if (!comparisonChartsRef.current) return;
-    await copyElementAsImage(comparisonChartsRef.current, 'graficos-comparativos');
-  };
 
   // Función para crear nueva medición (SISTEMA ANTIGUO - ELIMINADO)
   // const createNewMeasurement = async () => {
@@ -1165,14 +1161,14 @@ export default function Home() {
 
     // PORTADA
     pdf.setFontSize(22);
-    pdf.setFont(undefined, 'bold');
+    pdf.setFont('helvetica', 'bold');
     pdf.text('Historial Completo', 105, yPos, { align: 'center' });
     yPos += 10;
     pdf.setFontSize(18);
     pdf.text('Análisis de Tiempos Muertos', 105, yPos, { align: 'center' });
     yPos += 15;
     pdf.setFontSize(12);
-    pdf.setFont(undefined, 'normal');
+    pdf.setFont('helvetica', 'normal');
     pdf.text(`Fecha del reporte: ${new Date().toLocaleDateString('es-CO')}`, 105, yPos, { align: 'center' });
     yPos += 8;
     pdf.text(`Total de áreas analizadas: ${savedAreas.length}`, 105, yPos, { align: 'center' });
@@ -1181,12 +1177,12 @@ export default function Home() {
     pdf.addPage();
     yPos = 20;
     pdf.setFontSize(16);
-    pdf.setFont(undefined, 'bold');
+    pdf.setFont('helvetica', 'bold');
     pdf.text('Resumen Ejecutivo', 20, yPos);
     yPos += 10;
 
     pdf.setFontSize(10);
-    pdf.setFont(undefined, 'bold');
+    pdf.setFont('helvetica', 'bold');
     pdf.text('Área', 20, yPos);
     pdf.text('Responsable', 70, yPos);
     pdf.text('Productivo', 120, yPos);
@@ -1194,7 +1190,7 @@ export default function Home() {
     pdf.text('Muerto', 170, yPos);
     yPos += 7;
 
-    pdf.setFont(undefined, 'normal');
+    pdf.setFont('helvetica', 'normal');
     savedAreas.forEach((area) => {
       if (yPos > 270) {
         pdf.addPage();
@@ -1217,13 +1213,13 @@ export default function Home() {
 
       // Título del área
       pdf.setFontSize(16);
-      pdf.setFont(undefined, 'bold');
+      pdf.setFont('helvetica', 'bold');
       pdf.text(`Área: ${area.areaName}`, 20, yPos);
       yPos += 10;
 
       // Información general
       pdf.setFontSize(11);
-      pdf.setFont(undefined, 'normal');
+      pdf.setFont('helvetica', 'normal');
       pdf.text(`Responsable: ${area.managerName}`, 20, yPos);
       yPos += 6;
       pdf.text(`Fecha de análisis: ${area.date}`, 20, yPos);
@@ -1235,12 +1231,12 @@ export default function Home() {
 
       // Resultados
       pdf.setFontSize(14);
-      pdf.setFont(undefined, 'bold');
+      pdf.setFont('helvetica', 'bold');
       pdf.text('Resultados del Análisis', 20, yPos);
       yPos += 8;
 
       pdf.setFontSize(11);
-      pdf.setFont(undefined, 'normal');
+      pdf.setFont('helvetica', 'normal');
       pdf.setTextColor(34, 197, 94); // Verde
       pdf.text(`Tiempo Productivo: ${totals.productivePercentage.toFixed(1)}% (${totals.productiveTime} min)`, 25, yPos);
       yPos += 6;
@@ -1254,7 +1250,7 @@ export default function Home() {
 
       // Cargos y actividades
       pdf.setFontSize(14);
-      pdf.setFont(undefined, 'bold');
+      pdf.setFont('helvetica', 'bold');
       pdf.text('Cargos y Actividades', 20, yPos);
       yPos += 8;
 
@@ -1265,12 +1261,12 @@ export default function Home() {
         }
 
         pdf.setFontSize(12);
-        pdf.setFont(undefined, 'bold');
-        pdf.text(`Cargo: ${position.name} (${position.peopleCount} persona${position.peopleCount > 1 ? 's' : ''})`, 25, yPos);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(`Cargo: ${position.name} (${position.count} persona${position.count > 1 ? 's' : ''})`, 25, yPos);
         yPos += 7;
 
         pdf.setFontSize(10);
-        pdf.setFont(undefined, 'normal');
+        pdf.setFont('helvetica', 'normal');
         position.activities.forEach((activity) => {
           if (yPos > 270) {
             pdf.addPage();
@@ -1293,11 +1289,11 @@ export default function Home() {
           yPos = 20;
         }
         pdf.setFontSize(12);
-        pdf.setFont(undefined, 'bold');
+        pdf.setFont('helvetica', 'bold');
         pdf.text('Observaciones:', 20, yPos);
         yPos += 7;
         pdf.setFontSize(10);
-        pdf.setFont(undefined, 'normal');
+        pdf.setFont('helvetica', 'normal');
         const lines = pdf.splitTextToSize(area.observations, 170);
         lines.forEach((line: string) => {
           if (yPos > 280) {
@@ -1316,21 +1312,21 @@ export default function Home() {
       pdf.addPage();
       yPos = 20;
       pdf.setFontSize(16);
-      pdf.setFont(undefined, 'bold');
+      pdf.setFont('helvetica', 'bold');
       pdf.text('Mapa de Interacciones entre Áreas', 20, yPos);
       yPos += 10;
 
       pdf.setFontSize(11);
-      pdf.setFont(undefined, 'normal');
+      pdf.setFont('helvetica', 'normal');
       interactions.forEach((interaction) => {
         if (yPos > 260) {
           pdf.addPage();
           yPos = 20;
         }
-        pdf.setFont(undefined, 'bold');
+        pdf.setFont('helvetica', 'bold');
         pdf.text(`${interaction.source} → ${interaction.target}`, 25, yPos);
         yPos += 6;
-        pdf.setFont(undefined, 'normal');
+        pdf.setFont('helvetica', 'normal');
         pdf.text(`Elementos transferidos: ${interaction.items.join(', ')}`, 30, yPos);
         yPos += 8;
       });
@@ -1340,7 +1336,7 @@ export default function Home() {
     pdf.addPage();
     yPos = 20;
     pdf.setFontSize(16);
-    pdf.setFont(undefined, 'bold');
+    pdf.setFont('helvetica', 'bold');
     pdf.text('Matriz SIPOC Consolidada', 20, yPos);
     yPos += 10;
 
@@ -1374,10 +1370,10 @@ export default function Home() {
         )
         .map(a => a.areaName);
 
-      pdf.setFont(undefined, 'bold');
+      pdf.setFont('helvetica', 'bold');
       pdf.text(`Proceso: ${area.areaName}`, 20, yPos);
       yPos += 6;
-      pdf.setFont(undefined, 'normal');
+      pdf.setFont('helvetica', 'normal');
       pdf.text(`Proveedores: ${suppliers.length > 0 ? suppliers.join(', ') : 'N/A'}`, 25, yPos);
       yPos += 5;
       pdf.text(`Entradas: ${area.turtleProcess.inputs.join(', ') || 'N/A'}`, 25, yPos);
@@ -1857,265 +1853,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* Vista: Comparativa de Mediciones (ELIMINADA - Ahora se usa el sistema de Mediciones Globales) */}
-        {false && selectedAreaForComparison && (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Mediciones del Área: {selectedAreaForComparison.areaName}</CardTitle>
-                  <CardDescription>
-                    Compara diferentes períodos de medición para identificar mejoras y oportunidades
-                  </CardDescription>
-                </div>
-                <Button
-                  onClick={() => {
-                    setSelectedAreaForComparison(null);
-                    setBaseMeasurementId(null);
-                    setCurrentMeasurementId(null);
-                  }}
-                  variant="outline"
-                  size="sm"
-                >
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Volver
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Selectores de Mediciones */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Medición Base</Label>
-                  <select
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={baseMeasurementId || "current"}
-                    onChange={(e) => setBaseMeasurementId(e.target.value === "current" ? null : e.target.value)}
-                  >
-                    <option value="current">Estado Actual</option>
-                    {selectedAreaForComparison.measurements?.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name} - {new Date(m.date).toLocaleDateString()}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Medición a Comparar</Label>
-                  <select
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={currentMeasurementId || "current"}
-                    onChange={(e) => setCurrentMeasurementId(e.target.value === "current" ? null : e.target.value)}
-                  >
-                    <option value="current">Estado Actual</option>
-                    {selectedAreaForComparison.measurements?.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name} - {new Date(m.date).toLocaleDateString()}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
 
-              {/* Contenido de la comparación */}
-              {(() => {
-                const isValidComparison = baseMeasurementId !== currentMeasurementId &&
-                  (baseMeasurementId || currentMeasurementId);
-
-                if (!isValidComparison) {
-                  return (
-                    <div className="text-center py-12 text-slate-500">
-                      <TrendingUp className="h-16 w-16 mx-auto mb-4 text-slate-300" />
-                      <p className="font-medium">Selecciona dos mediciones diferentes para comparar</p>
-                      <p className="text-sm mt-2">Elige una medición base y otra para comparar en los selectores de arriba</p>
-                    </div>
-                  );
-                }
-
-                // Obtener las mediciones a comparar
-                const baseMeas = baseMeasurementId === null
-                  ? selectedAreaForComparison
-                  : selectedAreaForComparison.measurements?.find(m => m.id === baseMeasurementId);
-
-                const currentMeas = currentMeasurementId === null
-                  ? selectedAreaForComparison
-                  : selectedAreaForComparison.measurements?.find(m => m.id === currentMeasurementId);
-
-                if (!baseMeas || !currentMeas) {
-                  return <div className="text-center py-12 text-red-500">Error: No se encontraron las mediciones seleccionadas</div>;
-                }
-
-                // Calcular comparaciones
-                const comparisons: Array<{
-                  positionName: string;
-                  activityName: string;
-                  baseTime: number;
-                  currentTime: number;
-                  delta: number;
-                  percentChange: number;
-                }> = [];
-
-                baseMeas.positions.forEach((basePos) => {
-                  const currentPos = currentMeas.positions.find(p => p.id === basePos.id);
-                  if (!currentPos) return;
-
-                  basePos.activities.forEach((baseActivity) => {
-                    const currentActivity = currentPos.activities.find(a => a.id === baseActivity.id);
-                    if (!currentActivity) return;
-
-                    const baseTime = baseActivity.timeMinutes * baseActivity.frequency;
-                    const currentTime = currentActivity.timeMinutes * currentActivity.frequency;
-                    const delta = currentTime - baseTime;
-                    const percentChange = baseTime > 0 ? ((delta / baseTime) * 100) : 0;
-
-                    comparisons.push({
-                      positionName: basePos.name,
-                      activityName: baseActivity.name,
-                      baseTime,
-                      currentTime,
-                      delta,
-                      percentChange,
-                    });
-                  });
-                });
-
-                return (
-                  <>
-                    <Separator />
-                    {/* Tabla Comparativa */}
-                    <div ref={comparisonTableRef} className="p-6 bg-white rounded-lg">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-semibold">Comparativa por Actividad</h3>
-                        <Button
-                          onClick={copyTableAsImage}
-                          variant="outline"
-                          size="sm"
-                        >
-                          <Download className="mr-2 h-4 w-4" />
-                          Copiar como Imagen
-                        </Button>
-                      </div>
-                      <div className="overflow-x-auto">
-                        <table className="w-full border-collapse">
-                          <thead>
-                            <tr className="bg-slate-100">
-                              <th className="border border-slate-300 px-4 py-3 text-left">Cargo</th>
-                              <th className="border border-slate-300 px-4 py-3 text-left">Actividad</th>
-                              <th className="border border-slate-300 px-4 py-3 text-right">Base (min)</th>
-                              <th className="border border-slate-300 px-4 py-3 text-right">Actual (min)</th>
-                              <th className="border border-slate-300 px-4 py-3 text-right">Δ</th>
-                              <th className="border border-slate-300 px-4 py-3 text-right">% Cambio</th>
-                              <th className="border border-slate-300 px-4 py-3 text-center">Estado</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {comparisons.map((comp, idx) => (
-                              <tr key={idx} className="hover:bg-slate-50">
-                                <td className="border border-slate-300 px-4 py-3">{comp.positionName}</td>
-                                <td className="border border-slate-300 px-4 py-3">{comp.activityName}</td>
-                                <td className="border border-slate-300 px-4 py-3 text-right">{comp.baseTime}</td>
-                                <td className="border border-slate-300 px-4 py-3 text-right">{comp.currentTime}</td>
-                                <td className={`border border-slate-300 px-4 py-3 text-right font-semibold ${comp.delta < 0 ? 'text-green-600' : comp.delta > 0 ? 'text-red-600' : 'text-slate-600'
-                                  }`}>
-                                  {comp.delta > 0 ? '+' : ''}{comp.delta}
-                                </td>
-                                <td className={`border border-slate-300 px-4 py-3 text-right font-semibold ${comp.percentChange < 0 ? 'text-green-600' : comp.percentChange > 0 ? 'text-red-600' : 'text-slate-600'
-                                  }`}>
-                                  {comp.percentChange > 0 ? '+' : ''}{comp.percentChange.toFixed(1)}%
-                                </td>
-                                <td className="border border-slate-300 px-4 py-3 text-center">
-                                  {comp.delta < -5 ? '✅' : comp.delta > 5 ? '❌' : '⚠️'}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-
-                    <Separator />
-                    {/* Gráficos de Barras Horizontales */}
-                    <div ref={comparisonChartsRef} className="p-6 bg-white rounded-lg">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-semibold">Evolución Visual por Actividad</h3>
-                        <Button
-                          onClick={copyChartsAsImage}
-                          variant="outline"
-                          size="sm"
-                        >
-                          <Download className="mr-2 h-4 w-4" />
-                          Copiar Gráficos como Imagen
-                        </Button>
-                      </div>
-                      <div className="space-y-6">
-                        {comparisons.map((comp, idx) => {
-                          const maxTime = Math.max(comp.baseTime, comp.currentTime);
-                          const baseWidth = maxTime > 0 ? (comp.baseTime / maxTime) * 100 : 0;
-                          const currentWidth = maxTime > 0 ? (comp.currentTime / maxTime) * 100 : 0;
-
-                          return (
-                            <div key={idx} className="border border-slate-200 rounded-lg p-4 bg-slate-50">
-                              <div className="mb-3">
-                                <h4 className="font-semibold text-sm">{comp.activityName}</h4>
-                                <p className="text-xs text-slate-600">{comp.positionName}</p>
-                              </div>
-
-                              {/* Barra Base */}
-                              <div className="mb-2">
-                                <div className="flex items-center justify-between mb-1">
-                                  <span className="text-xs text-slate-600">Base</span>
-                                  <span className="text-xs font-semibold">{comp.baseTime} min</span>
-                                </div>
-                                <div className="w-full bg-slate-200 rounded-full h-6">
-                                  <div
-                                    className="bg-blue-500 h-6 rounded-full flex items-center justify-end pr-2"
-                                    style={{ width: `${baseWidth}%`, minWidth: comp.baseTime > 0 ? '2rem' : '0' }}
-                                  >
-                                    {comp.baseTime > 0 && (
-                                      <span className="text-xs text-white font-medium">{comp.baseTime}</span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Barra Actual */}
-                              <div>
-                                <div className="flex items-center justify-between mb-1">
-                                  <span className="text-xs text-slate-600">Actual</span>
-                                  <span className="text-xs font-semibold">{comp.currentTime} min</span>
-                                </div>
-                                <div className="w-full bg-slate-200 rounded-full h-6">
-                                  <div
-                                    className={`h-6 rounded-full flex items-center justify-end pr-2 ${comp.delta < 0 ? 'bg-green-500' : comp.delta > 0 ? 'bg-red-500' : 'bg-slate-500'
-                                      }`}
-                                    style={{ width: `${currentWidth}%`, minWidth: comp.currentTime > 0 ? '2rem' : '0' }}
-                                  >
-                                    {comp.currentTime > 0 && (
-                                      <span className="text-xs text-white font-medium">{comp.currentTime}</span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Indicador de cambio */}
-                              <div className="mt-2 text-center">
-                                <span className={`text-xs font-semibold ${comp.delta < 0 ? 'text-green-600' : comp.delta > 0 ? 'text-red-600' : 'text-slate-600'
-                                  }`}>
-                                  {comp.delta < 0 ? '✅ Mejoró ' : comp.delta > 0 ? '❌ Empeoró ' : '⚠️ Sin cambio '}
-                                  ({comp.delta > 0 ? '+' : ''}{comp.delta} min)
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </>
-                );
-              })()}
-            </CardContent>
-          </Card>
-        )}
 
         {/* Vista: Formulario de Área */}
         {view === "form" && (
@@ -2485,7 +2223,7 @@ export default function Home() {
                                   </span>
                                 </h3>
                                 <Badge variant="secondary" className="text-xs mt-1">
-                                  {position.peopleCount || 1} {(position.peopleCount || 1) === 1 ? "persona" : "personas"}
+                                  {position.count || 1} {(position.count || 1) === 1 ? "persona" : "personas"}
                                 </Badge>
                               </div>
                               <Badge variant="outline">
@@ -4591,58 +4329,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* Diálogo de Nueva Medición (ELIMINADO - Ahora se usa el sistema de Mediciones Globales) */}
-      {false && showNewMeasurementDialog && selectedAreaForNewMeasurement && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-md mx-4">
-            <CardHeader>
-              <CardTitle>Nueva Medición</CardTitle>
-              <CardDescription>
-                Crea un snapshot del estado actual del área "{selectedAreaForNewMeasurement.areaName}" para comparar en el futuro
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="measurement-name">Nombre de la Medición</Label>
-                <Input
-                  id="measurement-name"
-                  value={newMeasurementName}
-                  onChange={(e) => setNewMeasurementName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      createNewMeasurement();
-                    } else if (e.key === "Escape") {
-                      setShowNewMeasurementDialog(false);
-                      setNewMeasurementName("");
-                    }
-                  }}
-                  placeholder="Ej: Medición Marzo 2025, Después de capacitación"
-                  autoFocus
-                />
-                <p className="text-xs text-slate-500 mt-2">
-                  Se guardará una copia de todos los cargos y actividades actuales con sus tiempos
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={createNewMeasurement} className="flex-1">
-                  <Check className="mr-2 h-4 w-4" />
-                  Crear Medición
-                </Button>
-                <Button
-                  onClick={() => {
-                    setShowNewMeasurementDialog(false);
-                    setNewMeasurementName("");
-                  }}
-                  variant="outline"
-                  className="flex-1"
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+
 
       {/* Diálogo de Edición de Nombre de Cargo */}
       {editingPosition && (

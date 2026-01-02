@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { 
-  InterviewData, 
-  saveArea as saveAreaToFirestore, 
+import {
+  InterviewData,
+  saveArea as saveAreaToFirestore,
   deleteArea as deleteAreaFromFirestore,
   subscribeToAreas,
   migrateFromLocalStorage,
-  cleanExistingDocuments 
+  cleanExistingDocuments
 } from '@/lib/firestoreService';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -32,12 +32,12 @@ export const useFirestore = () => {
       setSyncStatus('idle');
       return;
     }
-    
+
     setSyncStatus('loading');
-    
+
     // Determinar el companyId a usar para filtrar
     let companyIdFilter: string | null | undefined;
-    
+
     if (userProfile.role === 'super_admin') {
       // Super admin NO debe ver datos de empresas
       companyIdFilter = null;
@@ -45,7 +45,7 @@ export const useFirestore = () => {
       // Usuarios regulares ven solo datos de su empresa
       companyIdFilter = userProfile.companyId;
     }
-    
+
     const unsubscribe = subscribeToAreas(
       (updatedAreas) => {
         setAreas(updatedAreas);
@@ -55,8 +55,7 @@ export const useFirestore = () => {
       (err) => {
         setError(err.message);
         setSyncStatus('error');
-      },
-      companyIdFilter
+      }
     );
 
     return () => {
@@ -73,15 +72,15 @@ export const useFirestore = () => {
     try {
       setSyncStatus('syncing');
       setError(null);
-      
+
       // Agregar companyId automáticamente si el usuario tiene uno
       const areaWithCompany = {
         ...area,
         companyId: userProfile?.companyId || area.companyId
       };
-      
+
       const areaId = await saveAreaToFirestore(areaWithCompany);
-      
+
       setSyncStatus('synced');
       return areaId;
     } catch (err) {
@@ -99,9 +98,9 @@ export const useFirestore = () => {
     try {
       setSyncStatus('syncing');
       setError(null);
-      
+
       await deleteAreaFromFirestore(areaId);
-      
+
       setSyncStatus('synced');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
@@ -118,13 +117,13 @@ export const useFirestore = () => {
     try {
       setSyncStatus('syncing');
       setError(null);
-      
+
       const count = await migrateFromLocalStorage();
-      
+
       // Marcar como migrado
       localStorage.setItem('firestoreMigrated', 'true');
       setIsMigrated(true);
-      
+
       setSyncStatus('synced');
       return count;
     } catch (err) {
@@ -142,9 +141,9 @@ export const useFirestore = () => {
     try {
       setSyncStatus('syncing');
       setError(null);
-      
+
       const count = await cleanExistingDocuments();
-      
+
       setSyncStatus('synced');
       return count;
     } catch (err) {

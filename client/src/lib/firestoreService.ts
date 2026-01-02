@@ -25,6 +25,7 @@ export interface InterviewData {
   savedAt?: string;
   turtleProcess?: TurtleProcess;
   processType?: 'strategic' | 'core' | 'support';
+  companyId?: string;
 }
 
 export interface Position {
