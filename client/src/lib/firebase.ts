@@ -3,7 +3,7 @@ import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBxH9RVCUmoALNAWQWViws5dtuMQo-sdtU",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: "procesos-7aeda.firebaseapp.com",
   projectId: "procesos-7aeda",
   storageBucket: "procesos-7aeda.firebasestorage.app",
