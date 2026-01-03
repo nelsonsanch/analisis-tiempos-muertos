@@ -9,6 +9,7 @@ Esta guía te llevará de la mano para configurar correctamente tu aplicación e
 Necesitarás tener a mano:
 - ✅ Acceso a tu cuenta de Netlify
 - ✅ Acceso a Firebase Console (https://console.firebase.google.com/)
+- ✅ Las credenciales de Firebase de tu proyecto
 - ✅ 15-20 minutos de tiempo
 
 ---
@@ -32,70 +33,33 @@ Necesitarás tener a mano:
 
 ### 🎯 Paso 3: Agregar las Variables (IMPORTANTE)
 
-Ahora vas a agregar 9 variables. **Copia y pega exactamente** como se muestra:
+Ahora vas a agregar 9 variables. **Obtén los valores de tu Firebase Console**:
 
-#### Variable 1: API Key de Firebase
-- Haz clic en **Add a variable**
-- **Key**: `VITE_FIREBASE_API_KEY`
-- **Value**: `AIzaSyBxH9RVCUmoALNAWQWViws5dtuMQo-sdtU`
-- **Scopes**: Marca "All scopes"
-- Haz clic en **Create variable**
+#### Variables de Firebase (obtén estos valores de Firebase Console → Project Settings → General → Your apps)
 
-#### Variable 2: Auth Domain
-- Haz clic en **Add a variable**
-- **Key**: `VITE_FIREBASE_AUTH_DOMAIN`
-- **Value**: `procesos-7aeda.firebaseapp.com`
-- **Scopes**: Marca "All scopes"
-- Haz clic en **Create variable**
+| Variable | Descripción |
+|----------|-------------|
+| `VITE_FIREBASE_API_KEY` | Tu API Key de Firebase |
+| `VITE_FIREBASE_AUTH_DOMAIN` | Tu Auth Domain (ej: tu-proyecto.firebaseapp.com) |
+| `VITE_FIREBASE_PROJECT_ID` | Tu Project ID |
+| `VITE_FIREBASE_STORAGE_BUCKET` | Tu Storage Bucket |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Tu Messaging Sender ID |
+| `VITE_FIREBASE_APP_ID` | Tu App ID |
+| `VITE_FIREBASE_MEASUREMENT_ID` | Tu Measurement ID (opcional) |
 
-#### Variable 3: Project ID
-- Haz clic en **Add a variable**
-- **Key**: `VITE_FIREBASE_PROJECT_ID`
-- **Value**: `procesos-7aeda`
-- **Scopes**: Marca "All scopes"
-- Haz clic en **Create variable**
+#### Variables de la Aplicación
 
-#### Variable 4: Storage Bucket
-- Haz clic en **Add a variable**
-- **Key**: `VITE_FIREBASE_STORAGE_BUCKET`
-- **Value**: `procesos-7aeda.firebasestorage.app`
-- **Scopes**: Marca "All scopes"
-- Haz clic en **Create variable**
+| Variable | Valor Sugerido |
+|----------|----------------|
+| `VITE_APP_TITLE` | Análisis de Tiempos Muertos |
+| `VITE_APP_LOGO` | URL de tu logo |
 
-#### Variable 5: Messaging Sender ID
-- Haz clic en **Add a variable**
-- **Key**: `VITE_FIREBASE_MESSAGING_SENDER_ID`
-- **Value**: `292290538178`
-- **Scopes**: Marca "All scopes"
-- Haz clic en **Create variable**
-
-#### Variable 6: App ID
-- Haz clic en **Add a variable**
-- **Key**: `VITE_FIREBASE_APP_ID`
-- **Value**: `1:292290538178:web:198d2326f32aca82d6e95b`
-- **Scopes**: Marca "All scopes"
-- Haz clic en **Create variable**
-
-#### Variable 7: Measurement ID
-- Haz clic en **Add a variable**
-- **Key**: `VITE_FIREBASE_MEASUREMENT_ID`
-- **Value**: `G-T5JT6Y7C2G`
-- **Scopes**: Marca "All scopes"
-- Haz clic en **Create variable**
-
-#### Variable 8: Título de la App
-- Haz clic en **Add a variable**
-- **Key**: `VITE_APP_TITLE`
-- **Value**: `Análisis de Tiempos Muertos`
-- **Scopes**: Marca "All scopes"
-- Haz clic en **Create variable**
-
-#### Variable 9: Logo de la App
-- Haz clic en **Add a variable**
-- **Key**: `VITE_APP_LOGO`
-- **Value**: `https://placehold.co/128x128/E1E7EF/1F2937?text=App`
-- **Scopes**: Marca "All scopes"
-- Haz clic en **Create variable**
+Para cada variable:
+1. Haz clic en **Add a variable**
+2. **Key**: Nombre de la variable
+3. **Value**: El valor correspondiente de Firebase Console
+4. **Scopes**: Marca "All scopes"
+5. Haz clic en **Create variable**
 
 ### ✅ Paso 4: Verificar que agregaste todas las variables
 
@@ -126,13 +90,13 @@ Deberías ver una lista con estas 9 variables:
 
 1. Abre una nueva pestaña y ve a: **https://console.firebase.google.com/**
 2. Inicia sesión con tu cuenta de Google
-3. Haz clic en el proyecto **procesos-7aeda**
+3. Haz clic en tu proyecto
 4. En el menú lateral izquierdo, busca **Authentication** (ícono de persona)
 5. Haz clic en **Authentication**
 6. En la parte superior, haz clic en la pestaña **Settings**
 7. Baja hasta encontrar la sección **Authorized domains**
 8. Haz clic en **Add domain**
-9. Copia y pega tu dominio de Netlify (ejemplo: `691d1ce71a677a510d0ab563--analisis-tiempos-muertos.netlify.app`)
+9. Copia y pega tu dominio de Netlify
    - **¿Dónde encuentro mi dominio?** En Netlify, en la página principal de tu sitio, aparece arriba en grande
 10. Haz clic en **Add**
 
@@ -143,53 +107,7 @@ Deberías ver una lista con estas 9 variables:
 3. En la parte superior, haz clic en la pestaña **Rules**
 4. Verás un editor de código
 5. **Borra todo** el contenido actual
-6. **Copia y pega** exactamente este código:
-
-```javascript
-rules_version = '2';
-
-service cloud.firestore {
-  match /databases/{database}/documents {
-    
-    // Función auxiliar para verificar autenticación
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-    
-    // Colección principal de áreas (InterviewData)
-    match /areas/{areaId} {
-      allow read, write: if isAuthenticated();
-    }
-    
-    // Colección de mediciones globales
-    match /globalMeasurements/{measurementId} {
-      allow read, write: if isAuthenticated();
-    }
-    
-    // Colección de items globales de Tortuga
-    match /globalTurtleItems/{itemId} {
-      allow read, write: if isAuthenticated();
-    }
-    
-    // Colección legacy de análisis de tiempos
-    match /timeAnalysisAreas/{areaId} {
-      allow read, write: if isAuthenticated();
-    }
-    
-    // Colección de usuarios autorizados
-    match /authorized_users/{userId} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated() && request.auth.uid == userId;
-    }
-    
-    // Denegar acceso a cualquier otra colección
-    match /{document=**} {
-      allow read, write: if false;
-    }
-  }
-}
-```
-
+6. **Copia y pega** las reglas de seguridad apropiadas (ver archivo firestore.rules)
 7. Haz clic en **Publish** (botón azul arriba a la derecha)
 8. Confirma haciendo clic en **Publish** nuevamente
 

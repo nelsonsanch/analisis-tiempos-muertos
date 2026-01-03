@@ -13,8 +13,8 @@ La aplicación muestra errores de permisos porque las reglas de seguridad de Fir
 ### **Paso 1: Ir a la Consola de Firebase**
 
 1. Abre [https://console.firebase.google.com](https://console.firebase.google.com)
-2. Inicia sesión con: `nelson@sanchezcya.com`
-3. Selecciona tu proyecto: **"procesos-7aeda"**
+2. Inicia sesión con tu cuenta
+3. Selecciona tu proyecto
 
 ---
 
@@ -24,7 +24,7 @@ La aplicación muestra errores de permisos porque las reglas de seguridad de Fir
 2. Si no existe la base de datos:
    - Haz clic en **"Crear base de datos"**
    - Selecciona **"Modo de producción"** (más seguro)
-   - Elige la ubicación: **"us-east1"** (más cercana a Colombia)
+   - Elige la ubicación más cercana a tu ubicación
    - Haz clic en **"Habilitar"**
 
 ---
@@ -41,12 +41,12 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // Permitir lectura y escritura en la colección 'timeAnalysisAreas'
     match /timeAnalysisAreas/{areaId} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
     }
     
     // Permitir lectura y escritura en la colección 'globalMeasurements'
     match /globalMeasurements/{measurementId} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
     }
   }
 }
@@ -68,65 +68,9 @@ Pero las reglas anteriores solo permitían acceso a `areas` (sin el prefijo `tim
 
 ## ⚠️ **Importante sobre Seguridad**
 
-Las reglas actuales (`allow read, write: if true`) permiten acceso **público** a todos los datos.
+Las reglas mostradas arriba requieren autenticación (`request.auth != null`).
 
-Esto está bien para **desarrollo y pruebas**, pero para **producción** deberías:
-
-### **Opción 1: Autenticación de Firebase (Recomendado)**
-
-Si quieres que cada usuario solo vea sus propios datos:
-
-```javascript
-rules_version = '2';
-
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /timeAnalysisAreas/{areaId} {
-      // Solo el dueño puede leer/escribir
-      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
-      // Permitir crear si está autenticado
-      allow create: if request.auth != null;
-    }
-    
-    match /globalMeasurements/{measurementId} {
-      // Solo el dueño puede leer/escribir
-      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
-      // Permitir crear si está autenticado
-      allow create: if request.auth != null;
-    }
-  }
-}
-```
-
-(Requiere implementar Firebase Authentication en la app)
-
-### **Opción 2: Acceso Privado por Contraseña**
-
-Si quieres que solo tú accedas:
-
-```javascript
-rules_version = '2';
-
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /timeAnalysisAreas/{areaId} {
-      // Solo permitir si el usuario está autenticado
-      allow read, write: if request.auth != null;
-    }
-    
-    match /globalMeasurements/{measurementId} {
-      // Solo permitir si el usuario está autenticado
-      allow read, write: if request.auth != null;
-    }
-  }
-}
-```
-
-(Requiere implementar Firebase Authentication)
-
-### **Opción 3: Mantener Público (Solo para Demo)**
-
-Si quieres que cualquiera pueda ver y editar (útil para demos):
+Para **desarrollo y pruebas**, puedes usar reglas más permisivas:
 
 ```javascript
 rules_version = '2';
@@ -143,6 +87,8 @@ service cloud.firestore {
   }
 }
 ```
+
+**NOTA:** Estas reglas son muy permisivas. Para producción, usa las reglas con autenticación.
 
 ---
 

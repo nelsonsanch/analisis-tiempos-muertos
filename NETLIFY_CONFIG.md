@@ -16,22 +16,24 @@ Ve a tu panel de Netlify → **Site settings** → **Environment variables** y a
 
 #### Variables de Firebase (IMPORTANTES)
 
-```
-VITE_FIREBASE_API_KEY=AIzaSyBxH9RVCUmoALNAWQWViws5dtuMQo-sdtU
-VITE_FIREBASE_AUTH_DOMAIN=procesos-7aeda.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=procesos-7aeda
-VITE_FIREBASE_STORAGE_BUCKET=procesos-7aeda.firebasestorage.app
-VITE_FIREBASE_MESSAGING_SENDER_ID=292290538178
-VITE_FIREBASE_APP_ID=1:292290538178:web:198d2326f32aca82d6e95b
-VITE_FIREBASE_MEASUREMENT_ID=G-T5JT6Y7C2G
-```
+Obtén estos valores de **Firebase Console → Project Settings → General → Your apps**:
+
+| Variable | Descripción |
+|----------|-------------|
+| `VITE_FIREBASE_API_KEY` | Tu API Key de Firebase |
+| `VITE_FIREBASE_AUTH_DOMAIN` | Tu Auth Domain |
+| `VITE_FIREBASE_PROJECT_ID` | Tu Project ID |
+| `VITE_FIREBASE_STORAGE_BUCKET` | Tu Storage Bucket |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Tu Messaging Sender ID |
+| `VITE_FIREBASE_APP_ID` | Tu App ID |
+| `VITE_FIREBASE_MEASUREMENT_ID` | Tu Measurement ID |
 
 #### Variables de la Aplicación
 
-```
-VITE_APP_TITLE=Análisis de Tiempos Muertos
-VITE_APP_LOGO=https://placehold.co/128x128/E1E7EF/1F2937?text=App
-```
+| Variable | Valor Sugerido |
+|----------|----------------|
+| `VITE_APP_TITLE` | Análisis de Tiempos Muertos |
+| `VITE_APP_LOGO` | URL de tu logo (ej: https://placehold.co/128x128/E1E7EF/1F2937?text=App) |
 
 ## Pasos para Configurar en Netlify
 
@@ -48,7 +50,7 @@ VITE_APP_LOGO=https://placehold.co/128x128/E1E7EF/1F2937?text=App
 2. Haz clic en **Add a variable** (botón verde)
 3. Para cada variable de la lista de arriba:
    - **Key**: Copia exactamente el nombre (ej: `VITE_FIREBASE_API_KEY`)
-   - **Value**: Copia el valor correspondiente
+   - **Value**: Copia el valor correspondiente de Firebase Console
    - **Scopes**: 
      - Marca **All scopes** (recomendado)
      - O al menos marca **Production** y **Deploy previews**
@@ -85,30 +87,17 @@ También necesitas autorizar el dominio de Netlify en Firebase:
 
 1. **Ve a Firebase Console**
    - https://console.firebase.google.com/
-   - Selecciona tu proyecto "procesos-7aeda"
+   - Selecciona tu proyecto
 
 2. **Autoriza el dominio de Netlify**
    - Ve a **Authentication** → **Settings** → **Authorized domains**
    - Haz clic en **Add domain**
-   - Agrega tu dominio de Netlify: `691d1ce71a677a510d0ab563--analisis-tiempos-muertos.netlify.app`
+   - Agrega tu dominio de Netlify
    - También agrega el dominio personalizado si tienes uno
 
 3. **Verifica las reglas de Firestore**
    - Ve a **Firestore Database** → **Rules**
-   - Asegúrate de que las reglas permitan lectura/escritura:
-
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if true;
-    }
-  }
-}
-```
-
-**NOTA:** Estas reglas son muy permisivas. Para producción, deberías implementar reglas de seguridad más estrictas.
+   - Asegúrate de que las reglas permitan lectura/escritura para usuarios autenticados
 
 ## Verificación
 
@@ -131,14 +120,6 @@ Después de configurar todo:
 ### Los cambios no se reflejan
 - Asegúrate de hacer un nuevo deploy después de agregar las variables
 - Limpia la caché del navegador (Ctrl+Shift+R)
-
-## Alternativa: Desplegar en Manus
-
-Si prefieres evitar la configuración manual, puedes desplegar directamente desde Manus:
-
-1. En el Dashboard de Manus, haz clic en **Publish**
-2. Manus se encargará automáticamente de todas las variables de entorno
-3. Tu aplicación estará disponible en un dominio `.manus.space`
 
 ---
 

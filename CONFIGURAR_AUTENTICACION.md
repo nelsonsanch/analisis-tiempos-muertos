@@ -7,7 +7,7 @@
 ## Paso 1: Habilitar Firebase Authentication
 
 1. Ve a la [Consola de Firebase](https://console.firebase.google.com/)
-2. Selecciona tu proyecto: **procesos-7aeda**
+2. Selecciona tu proyecto
 3. En el menú lateral, haz clic en **"Authentication"** (Autenticación)
 4. Haz clic en **"Get Started"** (Comenzar)
 5. En la pestaña **"Sign-in method"** (Método de inicio de sesión):
@@ -22,8 +22,8 @@
 1. En la consola de Firebase, ve a **Authentication** → **Users**
 2. Haz clic en **"Add user"** (Agregar usuario)
 3. Completa los datos:
-   - **Email:** `hsesupergas@gmail.com`
-   - **Password:** `ELrey@28`
+   - **Email:** Tu correo electrónico
+   - **Password:** Una contraseña segura
 4. Haz clic en **"Add user"** (Agregar usuario)
 
 ---
@@ -61,9 +61,7 @@ service cloud.firestore {
 
 1. Abre tu aplicación en el navegador
 2. Deberías ver la pantalla de login
-3. Ingresa:
-   - **Email:** `hsesupergas@gmail.com`
-   - **Password:** `ELrey@28`
+3. Ingresa tus credenciales creadas en el Paso 2
 4. Haz clic en **"Iniciar Sesión"**
 
 ✅ Si todo está correcto, deberías ver la aplicación con tus datos.
